@@ -111,7 +111,7 @@ const Icon = ({ name, size=18, color="currentColor" }) => {
     eye:        <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>,
     eyeOff:     <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></>,
     gold:       <><circle cx="12" cy="12" r="10"/><path d="M12 6l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z"/></>,
-    money:      <><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></>,
+    money:      <><text x="4" y="18" fontSize="16" fontWeight="bold" fill={color} stroke="none">₹</text></>,
     arrowUp:    <><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></>,
     arrowDown:  <><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></>,
     menu:       <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>,
@@ -612,142 +612,167 @@ function PeopleList({ type, data, entries, onAdd, onEdit, onDelete, onViewLedger
 }
 
 // ─── Entry Form ──────────────────────────────────────────────────────
-const emptyRow = (personId="", personType="customer") => ({
-  date: today(), personId, personType,
+const emptyRow = (personId="", personType="customer", date=today()) => ({
+  date, personId, personType,
   description:"", goldIn:"", goldOut:"",
-  purity:"22K (916)", customPurity:"", manualPurity:"",
-  useManualPurity: false,
-  moneyIn:"", moneyOut:"", notes:""
+  purity:"22K", moneyIn:"", moneyOut:"", notes:""
 });
 
 function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave, onClose }) {
-  // Multi-entry: array of rows
+  const isEdit = !!initial;
   const [rows, setRows] = useState(
-    initial
-      ? [{ ...initial, purity: initial.purity||"22K (916)", customPurity:"", manualPurity: initial.purity||"", useManualPurity: false }]
+    isEdit
+      ? [{ ...initial, purity: initial.purity||"22K" }]
       : [emptyRow(defaultPersonId||"", defaultPersonType||"customer")]
   );
   const [err, setErr] = useState("");
-  const isEdit = !!initial;
 
-  const setRow = (i, k, v) => setRows(prev => prev.map((r,idx)=> idx===i ? {...r,[k]:v} : r));
+  const setRow = (i, k, v) => setRows(prev => {
+    const next = prev.map((r,idx) => idx===i ? {...r,[k]:v} : r);
+    // Auto-add new empty row when typing in last row
+    const last = next[next.length-1];
+    const lastHasData = last.personId || last.goldIn || last.goldOut || last.moneyIn || last.moneyOut || last.description;
+    if (!isEdit && lastHasData && next.length === prev.length) {
+      return [...next, emptyRow(next[0]?.personId||"", next[0]?.personType||"customer", next[0]?.date||today())];
+    }
+    return next;
+  });
 
-  const addRow = () => setRows(prev => [...prev, emptyRow(prev[0].personId, prev[0].personType)]);
-  const removeRow = (i) => setRows(prev => prev.filter((_,idx)=>idx!==i));
-
-  const getPurityVal = (row) => {
-    if (row.useManualPurity) return row.manualPurity;
-    if (row.purity==="Custom") return row.customPurity;
-    return row.purity;
-  };
+  const removeRow = (i) => setRows(prev => prev.length===1 ? prev : prev.filter((_,idx)=>idx!==i));
 
   const handleSave = () => {
-    for (let i=0; i<rows.length; i++) {
-      const r = rows[i];
-      if (!r.personId)  return setErr(`Row ${i+1}: Please select a person.`);
-      if (!r.date)      return setErr(`Row ${i+1}: Please select a date.`);
+    const filled = rows.filter(r => r.personId || r.goldIn || r.goldOut || r.moneyIn || r.moneyOut);
+    if (filled.length===0) return setErr("Add at least one entry.");
+    for (let i=0; i<filled.length; i++) {
+      const r = filled[i];
+      if (!r.personId) return setErr(`Row ${i+1}: Select a person.`);
+      if (!r.date)     return setErr(`Row ${i+1}: Select a date.`);
       if (!r.goldIn && !r.goldOut && !r.moneyIn && !r.moneyOut) return setErr(`Row ${i+1}: Enter at least one value.`);
     }
     setErr("");
-    rows.forEach(r => {
-      const pv = getPurityVal(r);
+    filled.forEach(r => {
+      const pv = r.purity||"22K";
       onSave({
         ...r,
-        goldIn:   Number(r.goldIn||0),
-        goldOut:  Number(r.goldOut||0),
-        moneyIn:  Number(r.moneyIn||0),
-        moneyOut: Number(r.moneyOut||0),
-        purity: pv,
+        goldIn:      Number(r.goldIn||0),
+        goldOut:     Number(r.goldOut||0),
+        moneyIn:     Number(r.moneyIn||0),
+        moneyOut:    Number(r.moneyOut||0),
+        purity:      pv,
         pureGoldIn:  pureGold(r.goldIn||0,  pv),
         pureGoldOut: pureGold(r.goldOut||0, pv),
-        createdAt: Date.now(),
+        createdAt:   Date.now(),
       });
     });
   };
 
+  const filledCount = rows.filter(r=>r.personId||r.goldIn||r.goldOut||r.moneyIn||r.moneyOut).length;
+  const allPeopleFlat = [...people.filter(p=>p.ptype==="customer"), ...people.filter(p=>p.ptype==="worker")];
+
+  const inp = {background:"var(--surface)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontFamily:"var(--font)",fontSize:"0.82rem",padding:"6px 8px",width:"100%",outline:"none",boxSizing:"border-box"};
+  const hdr = {fontSize:"0.7rem",fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.05em",padding:"6px 8px",background:"var(--surface2)",whiteSpace:"nowrap"};
+
   return (
-    <Modal title={isEdit?"Edit Entry":"New Ledger Entry"} onClose={onClose} wide footer={<>
+    <Modal title={isEdit?"Edit Entry":"New Entries"} onClose={onClose} wide footer={<>
       <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-      {!isEdit&&<button className="btn btn-secondary" onClick={addRow}><Icon name="plus" size={14}/>Add Another Row</button>}
-      <button className="btn btn-gold" onClick={handleSave}>{isEdit?"Save Changes":`Save ${rows.length>1?rows.length+" Entries":"Entry"}`}</button>
+      <button className="btn btn-gold" onClick={handleSave}>
+        {isEdit ? "Save Changes" : `Save ${filledCount>0?filledCount+" ":""}${filledCount===1?"Entry":"Entries"}`}
+      </button>
     </>}>
-      {err&&<div className="alert alert-error">{err}</div>}
-      {rows.map((f,i)=>{
-        const purityVal = getPurityVal(f);
-        const pureIn  = f.goldIn  ? pureGold(f.goldIn,  purityVal).toFixed(3) : null;
-        const pureOut = f.goldOut ? pureGold(f.goldOut, purityVal).toFixed(3) : null;
-        const filteredPeople = people.filter(p=>p.ptype===f.personType);
-        return (
-          <div key={i} style={rows.length>1?{border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:14,position:"relative"}:{}}>
-            {rows.length>1&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-              <div style={{fontWeight:700,fontSize:"0.85rem",color:"var(--text2)"}}>Entry {i+1}</div>
-              {i>0&&<button className="btn btn-danger btn-sm" onClick={()=>removeRow(i)}><Icon name="trash" size={13}/>Remove</button>}
-            </div>}
-            <div className="form-grid">
-              <div className="form-group"><label>Date *</label><input type="date" value={f.date} onChange={e=>setRow(i,"date",e.target.value)}/></div>
-              <div className="form-group">
-                <label>Person Type</label>
-                <select value={f.personType} onChange={e=>{setRow(i,"personType",e.target.value);setRow(i,"personId","")}}>
-                  <option value="customer">Customer</option>
-                  <option value="worker">Worker</option>
-                </select>
-              </div>
-              <div className="form-group full">
-                <label>Name *</label>
-                <select value={f.personId} onChange={e=>setRow(i,"personId",e.target.value)}>
-                  <option value="">-- Select --</option>
-                  {filteredPeople.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-              </div>
-              <div className="form-group full"><label>Description</label><input value={f.description} onChange={e=>setRow(i,"description",e.target.value)} placeholder="e.g. Gold purchase, Wage payment..."/></div>
+      {err && <div className="alert alert-error" style={{marginBottom:12}}>{err}</div>}
 
-              <div className="form-group full" style={{background:"var(--surface2)",padding:14,borderRadius:"var(--radius-sm)",border:"1px solid var(--border)"}}>
-                <div className="fw7 mb4" style={{display:"flex",alignItems:"center",gap:6}}><Icon name="gold" size={16} color="var(--gold)"/>Gold Transaction</div>
-                <div className="form-grid">
-                  <div className="form-group"><label>Gold In (g) — Received</label><input type="number" value={f.goldIn} onChange={e=>setRow(i,"goldIn",e.target.value)} placeholder="0.000" min="0" step="0.001"/></div>
-                  <div className="form-group"><label>Gold Out (g) — Given</label><input type="number" value={f.goldOut} onChange={e=>setRow(i,"goldOut",e.target.value)} placeholder="0.000" min="0" step="0.001"/></div>
-                  <div className="form-group">
-                    <label style={{display:"flex",alignItems:"center",gap:8}}>
-                      Gold Purity
-                      <span
-                        onClick={()=>setRow(i,"useManualPurity",!f.useManualPurity)}
-                        style={{fontSize:"0.72rem",cursor:"pointer",padding:"2px 8px",borderRadius:10,background:f.useManualPurity?"var(--gold)":"var(--surface)",color:f.useManualPurity?"#000":"var(--text3)",border:"1px solid var(--border)",fontWeight:600}}
-                      >{f.useManualPurity?"Manual ✓":"Type manually"}</span>
-                    </label>
-                    {f.useManualPurity
-                      ? <input value={f.manualPurity} onChange={e=>setRow(i,"manualPurity",e.target.value)} placeholder="e.g. 22K, 916, 875, 0.875"/>
-                      : <select value={f.purity} onChange={e=>setRow(i,"purity",e.target.value)}>
-                          {PURITY_OPTIONS.map(o=><option key={o} value={o}>{o}</option>)}
-                        </select>
+      {/* Column headers */}
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",minWidth:900}}>
+          <thead>
+            <tr style={{borderBottom:"2px solid var(--border)"}}>
+              <th style={{...hdr,width:36}}>#</th>
+              <th style={{...hdr,width:120}}>Date</th>
+              <th style={{...hdr,width:90}}>Type</th>
+              <th style={{...hdr,width:160}}>Name *</th>
+              <th style={{...hdr,width:160}}>Description</th>
+              <th style={{...hdr,width:90,color:"var(--gold)"}}>Gold In (g)</th>
+              <th style={{...hdr,width:90,color:"var(--red)"}}>Gold Out (g)</th>
+              <th style={{...hdr,width:100}}>Purity</th>
+              <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>24K</th>
+              <th style={{...hdr,width:100,color:"var(--green)"}}>Money In ₹</th>
+              <th style={{...hdr,width:100,color:"var(--red)"}}>Money Out ₹</th>
+              <th style={{...hdr,width:80}}>Notes</th>
+              <th style={{...hdr,width:32}}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((f,i)=>{
+              const pv = f.purity||"22K";
+              const pureIn  = f.goldIn  ? pureGold(Number(f.goldIn),  pv).toFixed(3) : null;
+              const pureOut = f.goldOut ? pureGold(Number(f.goldOut), pv).toFixed(3) : null;
+              const isLast = i===rows.length-1;
+              const isEmpty = !f.personId && !f.goldIn && !f.goldOut && !f.moneyIn && !f.moneyOut && !f.description;
+              const rowBg = isEmpty ? "rgba(255,255,255,0.02)" : i%2===0?"transparent":"rgba(255,255,255,0.02)";
+              return (
+                <tr key={i} style={{borderBottom:"1px solid var(--border)",background:rowBg}}>
+                  <td style={{padding:"6px 8px",fontSize:"0.75rem",color:"var(--text3)",textAlign:"center"}}>{isEmpty?"→":i+1}</td>
+                  <td style={{padding:"4px 6px"}}>
+                    <input style={inp} type="date" value={f.date} onChange={e=>setRow(i,"date",e.target.value)}/>
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <select style={inp} value={f.personType} onChange={e=>setRow(i,"personType",e.target.value)}>
+                      <option value="customer">Customer</option>
+                      <option value="worker">Worker</option>
+                    </select>
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <select style={{...inp,color:f.personId?"var(--text)":"var(--text3)"}} value={f.personId} onChange={e=>setRow(i,"personId",e.target.value)}>
+                      <option value="">-- Select --</option>
+                      <optgroup label="Customers">{people.filter(p=>p.ptype==="customer").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
+                      <optgroup label="Workers">{people.filter(p=>p.ptype==="worker").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
+                    </select>
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <input style={inp} value={f.description} onChange={e=>setRow(i,"description",e.target.value)} placeholder="Description..."/>
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <input style={{...inp,color:"var(--gold)"}} type="number" value={f.goldIn} onChange={e=>setRow(i,"goldIn",e.target.value)} placeholder="0.000" min="0" step="0.001"/>
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <input style={{...inp,color:"var(--red)"}} type="number" value={f.goldOut} onChange={e=>setRow(i,"goldOut",e.target.value)} placeholder="0.000" min="0" step="0.001"/>
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <input style={inp} value={f.purity} onChange={e=>setRow(i,"purity",e.target.value)} placeholder="22K / 916"/>
+                  </td>
+                  <td style={{padding:"4px 8px",textAlign:"center",fontSize:"0.72rem",color:"#a78bfa",whiteSpace:"nowrap"}}>
+                    {pureIn&&<div className="text-green">+{pureIn}g</div>}
+                    {pureOut&&<div className="text-red">-{pureOut}g</div>}
+                    {!pureIn&&!pureOut&&<span style={{color:"var(--text3)"}}>-</span>}
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <input style={{...inp,color:"var(--green)"}} type="number" value={f.moneyIn} onChange={e=>setRow(i,"moneyIn",e.target.value)} placeholder="0.00" min="0" step="0.01"/>
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <input style={{...inp,color:"var(--red)"}} type="number" value={f.moneyOut} onChange={e=>setRow(i,"moneyOut",e.target.value)} placeholder="0.00" min="0" step="0.01"/>
+                  </td>
+                  <td style={{padding:"4px 6px"}}>
+                    <input style={inp} value={f.notes} onChange={e=>setRow(i,"notes",e.target.value)} placeholder="Notes..."/>
+                  </td>
+                  <td style={{padding:"4px 6px",textAlign:"center"}}>
+                    {(!isEmpty || rows.length>1) && i<rows.length-1 &&
+                      <button onClick={()=>removeRow(i)} style={{background:"none",border:"none",cursor:"pointer",color:"var(--red)",padding:2,lineHeight:0}} title="Remove row">
+                        <Icon name="trash" size={14}/>
+                      </button>
                     }
-                  </div>
-                  {!f.useManualPurity&&f.purity==="Custom"&&<div className="form-group"><label>Custom Purity</label><input value={f.customPurity} onChange={e=>setRow(i,"customPurity",e.target.value)} placeholder="e.g. 0.875 or 875"/></div>}
-                </div>
-                {(pureIn||pureOut)&&(
-                  <div className="gold-calc-box mt4">
-                    <Icon name="gold" size={16} color="var(--gold)"/>
-                    <span><strong>Pure Gold (24K):</strong>{" "}
-                      {pureIn&&<span className="text-green">+{pureIn}g in</span>}
-                      {pureIn&&pureOut&&" · "}
-                      {pureOut&&<span className="text-red">-{pureOut}g out</span>}
-                    </span>
-                  </div>
-                )}
-              </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-              <div className="form-group full" style={{background:"var(--surface2)",padding:14,borderRadius:"var(--radius-sm)",border:"1px solid var(--border)"}}>
-                <div className="fw7 mb4" style={{display:"flex",alignItems:"center",gap:6}}><Icon name="money" size={16} color="var(--green)"/>Money Transaction</div>
-                <div className="form-grid">
-                  <div className="form-group"><label>Money In (₹) — Received</label><input type="number" value={f.moneyIn} onChange={e=>setRow(i,"moneyIn",e.target.value)} placeholder="0.00" min="0" step="0.01"/></div>
-                  <div className="form-group"><label>Money Out (₹) — Given</label><input type="number" value={f.moneyOut} onChange={e=>setRow(i,"moneyOut",e.target.value)} placeholder="0.00" min="0" step="0.01"/></div>
-                </div>
-              </div>
-
-              <div className="form-group full"><label>Notes</label><textarea value={f.notes} onChange={e=>setRow(i,"notes",e.target.value)} placeholder="Additional notes..." rows={2}/></div>
-            </div>
-          </div>
-        );
-      })}
+      {!isEdit && (
+        <div style={{marginTop:10,fontSize:"0.78rem",color:"var(--text3)",textAlign:"center"}}>
+          💡 A new row appears automatically as you fill in entries. {filledCount>0&&<span style={{color:"var(--gold)",fontWeight:600}}>{filledCount} {filledCount===1?"entry":"entries"} ready to save.</span>}
+        </div>
+      )}
     </Modal>
   );
 }
@@ -804,6 +829,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
       <div className="section-header">
         <div className="flex items-center gap3">
           <button className="btn btn-secondary btn-sm" onClick={onBack}><Icon name="back" size={16}/>Back</button>
+          <button className="btn btn-secondary btn-sm" onClick={()=>{onBack(); setTimeout(()=>window.scrollTo(0,0),100)}} style={{background:"var(--gold-dim)",color:"var(--gold)",border:"1px solid rgba(251,191,36,0.3)"}}><Icon name="dashboard" size={14}/>Home</button>
           <div>
             <div className="section-title">{person.name}</div>
             <div className="section-sub">{person.ptype==="customer"?"Customer":"Worker"}{person.phone&&` · ${person.phone}`}</div>
@@ -995,7 +1021,7 @@ function Reports({ entries, customers, workers, companyName }) {
     <style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
       *{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;color:#111;padding:32px;font-size:13px;background:#fff}
       .header{margin-bottom:24px;padding-bottom:20px;border-bottom:3px solid #f59e0b}
-      .biz-name{font-size:34px;font-weight:900;color:#111;letter-spacing:-0.5px}.report-title{font-size:14px;font-weight:600;color:#6b7280;margin-top:6px}.report-meta{font-size:11px;color:#9ca3af;margin-top:3px}
+      .biz-name{font-size:30px;font-weight:900;color:#92400e;letter-spacing:-0.5px;text-align:center;background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid #f59e0b;border-radius:12px;padding:14px 24px;display:inline-block;margin-bottom:4px;width:100%;box-shadow:0 2px 8px rgba(245,158,11,0.2)}.report-title{font-size:14px;font-weight:600;color:#6b7280;margin-top:6px}.report-meta{font-size:11px;color:#9ca3af;margin-top:3px}
       .badge{display:inline-block;margin-top:8px;background:#fef3c7;color:#92400e;padding:4px 14px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #fcd34d}
       .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:20px 0}
       .sum-card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;position:relative;overflow:hidden}
@@ -1080,7 +1106,7 @@ function Reports({ entries, customers, workers, companyName }) {
     </div>
   );
 
-  const RenderTable = ({ents}) => {
+  const RenderTable = ({ents, sumData}) => {
     if (!ents.length) return <div className="empty"><div className="empty-icon"><Icon name="reports" size={28}/></div><div className="empty-title">No entries found</div></div>;
     let rG=0, rM=0;
     const rows = [...ents].sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0)).map(e=>{
@@ -1090,41 +1116,71 @@ function Reports({ entries, customers, workers, companyName }) {
     });
     const showG = exportType==="all"||exportType==="gold";
     const showM = exportType==="all"||exportType==="money";
+    const s = sumData || {goldIn:0,goldOut:0,pureIn:0,pureOut:0,moneyIn:0,moneyOut:0};
     return (
-      <div className="table-wrap">
-        <table>
-          <thead><tr>
-            <th>Date &amp; Time</th><th>Name</th><th>Description</th>
-            {showG&&<><th className="th-right">Gold In</th><th className="th-right">Gold Out</th><th className="th-center">Purity</th><th className="th-right">Pure Gold</th><th className="th-right">Gold Bal</th></>}
-            {showM&&<><th className="th-right">Money In</th><th className="th-right">Money Out</th><th className="th-right">Money Bal</th></>}
-          </tr></thead>
-          <tbody>
-            {rows.map(e=>{
-              const p=allPeople.find(x=>x.id===e.personId);
-              const isC=e.personType==="customer";
-              const time=e.createdAt?new Date(e.createdAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"";
-              return (
-                <tr key={e.id}>
-                  <td><div style={{color:"var(--text2)"}}>{fmtDate(e.date)}</div>{time&&<div style={{fontSize:"0.7rem",color:"var(--text3)"}}>{time}</div>}</td>
-                  <td><div className="fw6">{p?.name||"-"}</div><div className="fs-xs" style={{color:isC?"var(--blue)":"#a78bfa",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>{isC?"👤 Customer":"🔧 Worker"}</div></td>
-                  <td style={{color:"var(--text2)"}}>{e.description||"-"}</td>
-                  {showG&&<>
-                    <td className="right text-green">{e.goldIn?fmtGold(e.goldIn):"-"}</td>
-                    <td className="right text-red">{e.goldOut?fmtGold(e.goldOut):"-"}</td>
-                    <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
-                    <td className="right fs-xs text2">{e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}{e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}{!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
-                    <td className="right"><span style={{fontWeight:700,color:e.rG>=0?"var(--gold)":"var(--red)"}}>{fmtGold(e.rG)}</span></td>
-                  </>}
-                  {showM&&<>
-                    <td className="right text-green">{e.moneyIn?fmtMoney(e.moneyIn):"-"}</td>
-                    <td className="right text-red">{e.moneyOut?fmtMoney(e.moneyOut):"-"}</td>
-                    <td className="right"><span style={{fontWeight:700,color:e.rM>=0?"var(--green)":"var(--red)"}}>{fmtMoney(e.rM)}</span></td>
-                  </>}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+      <div>
+        <div className="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Date &amp; Time</th><th>Name</th><th>Description</th>
+              {showG&&<><th className="th-right">Gold In</th><th className="th-right">Gold Out</th><th className="th-center">Purity</th><th className="th-right">Pure Gold</th><th className="th-right">Gold Bal</th></>}
+              {showM&&<><th className="th-right">Money In</th><th className="th-right">Money Out</th><th className="th-right">Money Bal</th></>}
+            </tr></thead>
+            <tbody>
+              {rows.map(e=>{
+                const p=allPeople.find(x=>x.id===e.personId);
+                const isC=e.personType==="customer";
+                const time=e.createdAt?new Date(e.createdAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"";
+                return (
+                  <tr key={e.id}>
+                    <td><div style={{color:"var(--text2)"}}>{fmtDate(e.date)}</div>{time&&<div style={{fontSize:"0.7rem",color:"var(--text3)"}}>{time}</div>}</td>
+                    <td><div className="fw6">{p?.name||"-"}</div><div className="fs-xs" style={{color:isC?"var(--blue)":"#a78bfa",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>{isC?"👤 Customer":"🔧 Worker"}</div></td>
+                    <td style={{color:"var(--text2)"}}>{e.description||"-"}</td>
+                    {showG&&<>
+                      <td className="right text-green">{e.goldIn?fmtGold(e.goldIn):"-"}</td>
+                      <td className="right text-red">{e.goldOut?fmtGold(e.goldOut):"-"}</td>
+                      <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
+                      <td className="right fs-xs text2">{e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}{e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}{!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
+                      <td className="right"><span style={{fontWeight:700,color:e.rG>=0?"var(--gold)":"var(--red)"}}>{fmtGold(e.rG)}</span></td>
+                    </>}
+                    {showM&&<>
+                      <td className="right text-green">{e.moneyIn?fmtMoney(e.moneyIn):"-"}</td>
+                      <td className="right text-red">{e.moneyOut?fmtMoney(e.moneyOut):"-"}</td>
+                      <td className="right"><span style={{fontWeight:700,color:e.rM>=0?"var(--green)":"var(--red)"}}>{fmtMoney(e.rM)}</span></td>
+                    </>}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        {/* ── Balance Summary at BOTTOM ── */}
+        <div style={{marginTop:16,background:"var(--surface)",border:"2px solid var(--border)",borderRadius:12,padding:16}}>
+          <div style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:"0.9rem",marginBottom:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
+            <Icon name="reports" size={15}/>Final Balances — {ents.length} entries
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
+            {showG&&<>
+              <div style={{background:"var(--gold-dim)",border:"1px solid rgba(251,191,36,0.3)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Gold</div>
+                <div style={{fontFamily:"var(--font-display)",fontSize:"1.3rem",fontWeight:800,color:"var(--gold)"}}>{fmtGold(s.goldIn-s.goldOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div>
+              </div>
+              <div style={{background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure 24K</div>
+                <div style={{fontFamily:"var(--font-display)",fontSize:"1.3rem",fontWeight:800,color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div>
+              </div>
+            </>}
+            {showM&&<>
+              <div style={{background:s.moneyIn-s.moneyOut>=0?"var(--green-dim)":"var(--red-dim)",border:`1px solid ${s.moneyIn-s.moneyOut>=0?"rgba(34,211,160,0.3)":"rgba(244,63,94,0.3)"}`,borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Cash</div>
+                <div style={{fontFamily:"var(--font-display)",fontSize:"1.3rem",fontWeight:800,color:s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}}>{fmtMoney(s.moneyIn-s.moneyOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div>
+              </div>
+            </>}
+          </div>
+        </div>
       </div>
     );
   };
@@ -1153,11 +1209,14 @@ function Reports({ entries, customers, workers, companyName }) {
         <div><div className="section-title">Reports</div></div>
         {activeEnts.length>0&&(
           <div className="flex gap2" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
-            <select value={exportType} onChange={e=>setExportType(e.target.value)} style={{minWidth:130,padding:"6px 10px",borderRadius:"var(--radius-sm)",border:"1px solid var(--border)",background:"var(--surface2)",color:"var(--text)",fontSize:"0.85rem"}}>
-              <option value="all">Full Report</option>
-              <option value="gold">Gold Only</option>
-              <option value="money">Money Only</option>
-            </select>
+<div style={{display:"flex",gap:6,alignItems:"center",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",padding:"5px 10px"}}>
+              {[{v:"all",l:"Both"},  {v:"gold",l:"Gold Only"}, {v:"money",l:"Cash Only"}].map(opt=>(
+                <label key={opt.v} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:"0.82rem",fontWeight:exportType===opt.v?700:400,color:exportType===opt.v?"var(--gold)":"var(--text2)",whiteSpace:"nowrap"}}>
+                  <input type="radio" name="exportType" value={opt.v} checked={exportType===opt.v} onChange={()=>setExportType(opt.v)} style={{accentColor:"var(--gold)",cursor:"pointer"}}/>
+                  {opt.l}
+                </label>
+              ))}
+            </div>
             <button className="btn btn-secondary" onClick={()=>exportCSV(activeEnts,reportTitle)}><Icon name="download" size={16}/>CSV</button>
             <button className="btn btn-gold" onClick={()=>openPreview(activeEnts,reportTitle)}><Icon name="pdf" size={16}/>Preview &amp; Export</button>
           </div>
@@ -1175,8 +1234,7 @@ function Reports({ entries, customers, workers, companyName }) {
             <input type="date" value={dateTo}   onChange={e=>setDateTo(e.target.value)}   style={{minWidth:140}}/>
             {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
           </div>
-          <SummaryCards s={summary(monthEntries)}/>
-          <RenderTable ents={monthEntries}/>
+          <RenderTable ents={monthEntries} sumData={summary(monthEntries)}/>
         </div>
       )}
       {tab==="person"&&(
@@ -1191,7 +1249,7 @@ function Reports({ entries, customers, workers, companyName }) {
             <input type="date" value={dateTo}   onChange={e=>setDateTo(e.target.value)}   style={{minWidth:140}}/>
             {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
           </div>
-          {person&&<><SummaryCards s={summary(personEntries)}/><RenderTable ents={personEntries}/></>}
+          {person&&<><RenderTable ents={personEntries} sumData={summary(personEntries)}/></>}
           {!person&&<div className="empty"><div className="empty-icon"><Icon name="customers" size={28}/></div><div className="empty-title">Select a person to view their report</div></div>}
         </div>
       )}
@@ -1201,12 +1259,12 @@ function Reports({ entries, customers, workers, companyName }) {
 
 // ─── Settings ────────────────────────────────────────────────────────
 function SettingsPage({ data, onChange, addToast, currentUser }) {
-  const [co, setCo] = useState({ name:data.companyName||"", address:data.companyAddress||"", phone:data.companyPhone||"" });
+  const [co, setCo] = useState({ name:data.companyName||"", owner:data.companyOwner||"", address:data.companyAddress||"", phone:data.companyPhone||"" });
   const [pw, setPw] = useState({ old:"", nw:"", cf:"" });
   const [pwErr, setPwErr] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
 
-  const saveCompany = () => { onChange({ companyName:co.name, companyAddress:co.address, companyPhone:co.phone }); addToast("Business info saved!"); };
+  const saveCompany = () => { onChange({ companyName:co.name, companyOwner:co.owner||'', companyAddress:co.address, companyPhone:co.phone }); addToast("Business info saved!"); };
 
   const changePw = async () => {
     if (currentUser.password!==pw.old) return setPwErr("Current password incorrect.");
@@ -1237,6 +1295,7 @@ function SettingsPage({ data, onChange, addToast, currentUser }) {
         <div className="card">
           <div className="fw7 mb4 flex items-center gap2"><Icon name="building" size={18}/>Business Information</div>
           <div className="form-group" style={{marginBottom:12}}><label>Business Name</label><input value={co.name} onChange={e=>setCo(c=>({...c,name:e.target.value}))} placeholder="Your Gold Shop Name"/></div>
+          <div className="form-group" style={{marginBottom:12}}><label>Owner / Proprietor Name</label><input value={co.owner||""} onChange={e=>setCo(c=>({...c,owner:e.target.value}))} placeholder="Owner name shown in reports"/></div>
           <div className="form-group" style={{marginBottom:12}}><label>Address</label><textarea value={co.address} onChange={e=>setCo(c=>({...c,address:e.target.value}))} rows={2}/></div>
           <div className="form-group" style={{marginBottom:16}}><label>Phone</label><input value={co.phone} onChange={e=>setCo(c=>({...c,phone:e.target.value}))}/></div>
           <button className="btn btn-gold" onClick={saveCompany}>Save Info</button>
