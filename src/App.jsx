@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 // ─── GITHUB CONFIG ─────────────────────────────────────────────────
 // Replace with your own values:
-const GITHUB_USERNAME = "LogeshApps";
-const GITHUB_REPO     = "ledger";
+const GITHUB_USERNAME = "LogeshApps";       // ← already know this!
+const GITHUB_REPO     = "ledger";       // ← already know this!
+
 // Split your PAT token into 2 halves to avoid GitHub scanner revoking it
 const PAT_PART1  = "ghp_F4oz8Z9OiPZx8bHi";
 const PAT_PART2  = "VpD0uKHAopeDJs2a6PJk";
@@ -476,8 +477,8 @@ function LoginPage({ onLogin }) {
     <div className="form-group" style={{marginBottom:14}}>
       <label>{label}</label>
       <div style={{position:"relative"}}>
-        <input type={show?"text":"password"} value={value} onChange={onChange} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&onEnter()} style={{paddingRight:40}}/>
-        <button onClick={()=>setShow(!show)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--text3)"}}>
+        <input type={show?"text":"password"} value={value} onChange={onChange} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&onEnter()} style={{paddingRight:44, caretColor:"var(--text)", color:"var(--text)"}}/>
+        <button type="button" onClick={()=>setShow(!show)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--text3)",zIndex:2,padding:4,lineHeight:0}}>
           <Icon name={show?"eyeOff":"eye"} size={16}/>
         </button>
       </div>
@@ -1670,3 +1671,4 @@ export default function App() {
     </>
   );
 }
+
