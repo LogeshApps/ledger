@@ -1,5 +1,15 @@
 {
-  "customers": [],
+  "customers": [
+    {
+      "name": "Logesh",
+      "phone": "9894058144",
+      "address": "selvapuram",
+      "workType": "",
+      "notes": "",
+      "id": "k6h5zledmmltgpoo",
+      "createdAt": 1773220099849
+    }
+  ],
   "workers": [],
   "entries": [],
   "companyName": "SG ANTIQUES",
