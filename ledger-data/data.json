@@ -37,6 +37,23 @@
       "pureGoldOut": 50,
       "id": "rdtpbgjsmmllvukt",
       "createdAt": 1773207369101
+    },
+    {
+      "date": "2026-03-11",
+      "personId": "zpk0ezfhmmllwv9g",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 0,
+      "goldOut": 56,
+      "purity": "22K (916)",
+      "customPurity": "",
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 0,
+      "pureGoldOut": 51.33333333333333,
+      "id": "q4ysg67tmmllx1ud",
+      "createdAt": 1773207425173
     }
   ],
   "companyName": "My Gold Shop",
