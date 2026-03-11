@@ -476,20 +476,21 @@ function LoginPage({ onLogin }) {
   const PwField = ({label, value, onChange, onEnter}) => (
     <div className="form-group" style={{marginBottom:14}}>
       <label>{label}</label>
-      <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
         <input
           type={show?"text":"password"}
           value={value}
           onChange={onChange}
           placeholder="••••••••"
           onKeyDown={e=>e.key==="Enter"&&onEnter()}
-          style={{flex:1,paddingRight:42,width:"100%",position:"relative",zIndex:1}}
+          style={{flex:1}}
         />
         <button
           type="button"
+          tabIndex={-1}
           onMouseDown={e=>e.preventDefault()}
           onClick={()=>setShow(s=>!s)}
-          style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"transparent",border:"none",cursor:"pointer",color:"var(--text3)",zIndex:3,padding:"4px",lineHeight:0,pointerEvents:"all"}}
+          style={{flexShrink:0,background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",cursor:"pointer",color:"var(--text3)",padding:"9px 10px",lineHeight:0,height:40}}
         >
           <Icon name={show?"eyeOff":"eye"} size={16}/>
         </button>
