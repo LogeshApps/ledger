@@ -412,13 +412,12 @@ function Confirm({ msg, onOk, onCancel }) {
 
 // ─── Login + Register ────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
-  const [tab,      setTab]    = useState("login");
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
-  const [bizName,  setBizName]  = useState("");
-  const [showPw,   setShowPw]   = useState(false);
-  const [err,      setErr]      = useState("");
-  const [busy,     setBusy]     = useState(false);
+  const [tab,      setTab]     = useState("login");
+  const [username, setUsername]= useState("");
+  const [password, setPassword]= useState("");
+  const [bizName,  setBizName] = useState("");
+  const [err,      setErr]     = useState("");
+  const [busy,     setBusy]    = useState(false);
 
   const switchTab = (t) => { setTab(t); setErr(""); };
 
@@ -458,13 +457,13 @@ function LoginPage({ onLogin }) {
     setBusy(false);
   };
 
-  const togglePw = (e) => { e.preventDefault(); setShowPw(s => !s); };
+  const inp = {background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",color:"var(--text)",fontFamily:"var(--font)",fontSize:"0.9rem",padding:"10px 12px",width:"100%",outline:"none",boxSizing:"border-box"};
+  const btn = {width:"100%",display:"block",padding:"12px",fontSize:"1rem",fontWeight:600,background:"linear-gradient(135deg,var(--gold),var(--amber))",color:"#000",border:"none",borderRadius:"var(--radius-sm)",cursor:"pointer",marginTop:4};
 
   return (
     <div className="login-page">
       <div className="login-card">
 
-        {/* Logo */}
         <div className="login-logo">
           <div className="login-logo-icon"><Icon name="gold" size={32} color="#000"/></div>
           <div>
@@ -473,102 +472,47 @@ function LoginPage({ onLogin }) {
           </div>
         </div>
 
-        {/* Tabs */}
         <div className="tabs" style={{marginBottom:20}}>
           <div className={`tab${tab==="login"?" active":""}`} style={{flex:1,textAlign:"center"}} onClick={()=>switchTab("login")}>Sign In</div>
           <div className={`tab${tab==="register"?" active":""}`} style={{flex:1,textAlign:"center"}} onClick={()=>switchTab("register")}>Register</div>
         </div>
 
-        {/* Error */}
         {err && <div className="alert alert-error" style={{marginBottom:14}}>{err}</div>}
 
-        {/* ── SIGN IN ── */}
         {tab==="login" && (
           <div>
-            <div className="form-group" style={{marginBottom:14}}>
-              <label>Username</label>
-              <input
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                placeholder="your username"
-                onKeyDown={e => e.key==="Enter" && doLogin()}
-                autoFocus
-              />
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:"0.78rem",fontWeight:600,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Username</div>
+              <input style={inp} value={username} onChange={e=>setUsername(e.target.value)} placeholder="your username" onKeyDown={e=>e.key==="Enter"&&doLogin()} autoFocus/>
             </div>
-            <div className="form-group" style={{marginBottom:20}}>
-              <label>Password</label>
-              <div style={{position:"relative"}}>
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  onKeyDown={e => e.key==="Enter" && doLogin()}
-                  style={{paddingRight:42}}
-                />
-                <span
-                  onMouseDown={togglePw}
-                  style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",cursor:"pointer",color:"var(--text3)",userSelect:"none",lineHeight:0}}
-                >
-                  <Icon name={showPw?"eyeOff":"eye"} size={16}/>
-                </span>
-              </div>
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:"0.78rem",fontWeight:600,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Password</div>
+              <input style={inp} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&doLogin()}/>
             </div>
-            <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem"}} onClick={doLogin} disabled={busy}>
-              {busy ? "Signing in..." : "Sign In"}
-            </button>
+            <button style={btn} onClick={doLogin} disabled={busy}>{busy?"Signing in...":"Sign In"}</button>
             <div style={{marginTop:14,textAlign:"center",fontSize:"0.82rem",color:"var(--text3)"}}>
-              No account?{" "}
-              <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>switchTab("register")}>Register your business →</span>
+              No account? <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>switchTab("register")}>Register your business →</span>
             </div>
           </div>
         )}
 
-        {/* ── REGISTER ── */}
         {tab==="register" && (
           <div>
-            <div className="form-group" style={{marginBottom:14}}>
-              <label>Business Name</label>
-              <input
-                value={bizName}
-                onChange={e => setBizName(e.target.value)}
-                placeholder="e.g. Sri Lakshmi Jewellers"
-                autoFocus
-              />
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:"0.78rem",fontWeight:600,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Business Name</div>
+              <input style={inp} value={bizName} onChange={e=>setBizName(e.target.value)} placeholder="e.g. Sri Lakshmi Jewellers" autoFocus/>
             </div>
-            <div className="form-group" style={{marginBottom:14}}>
-              <label>Username <span style={{color:"var(--text3)",fontSize:"0.75rem"}}>(letters, numbers, _ only)</span></label>
-              <input
-                value={username}
-                onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}
-                placeholder="e.g. srilakshmi"
-              />
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:"0.78rem",fontWeight:600,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Username <span style={{color:"var(--text3)",fontSize:"0.72rem",textTransform:"none"}}>(letters, numbers, _ only)</span></div>
+              <input style={inp} value={username} onChange={e=>setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))} placeholder="e.g. srilakshmi"/>
             </div>
-            <div className="form-group" style={{marginBottom:20}}>
-              <label>Password <span style={{color:"var(--text3)",fontSize:"0.75rem"}}>(min 6 characters)</span></label>
-              <div style={{position:"relative"}}>
-                <input
-                  type={showPw ? "text" : "password"}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  onKeyDown={e => e.key==="Enter" && doRegister()}
-                  style={{paddingRight:42}}
-                />
-                <span
-                  onMouseDown={togglePw}
-                  style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",cursor:"pointer",color:"var(--text3)",userSelect:"none",lineHeight:0}}
-                >
-                  <Icon name={showPw?"eyeOff":"eye"} size={16}/>
-                </span>
-              </div>
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:"0.78rem",fontWeight:600,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.04em",marginBottom:5}}>Password <span style={{color:"var(--text3)",fontSize:"0.72rem",textTransform:"none"}}>(min 6 characters)</span></div>
+              <input style={inp} type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&doRegister()}/>
             </div>
-            <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem"}} onClick={doRegister} disabled={busy}>
-              {busy ? "Creating account..." : "Create Business Account"}
-            </button>
+            <button style={btn} onClick={doRegister} disabled={busy}>{busy?"Creating account...":"Create Business Account"}</button>
             <div style={{marginTop:14,textAlign:"center",fontSize:"0.82rem",color:"var(--text3)"}}>
-              Already have account?{" "}
-              <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>switchTab("login")}>Sign in →</span>
+              Already have account? <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>switchTab("login")}>Sign in →</span>
             </div>
           </div>
         )}
