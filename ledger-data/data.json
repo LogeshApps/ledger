@@ -1,0 +1,11 @@
+{
+  "customers": [],
+  "workers": [],
+  "entries": [],
+  "companyName": "My Gold Shop",
+  "companyAddress": "",
+  "companyPhone": "",
+  "users": [
+    { "id": "u1", "username": "admin", "password": "admin123", "role": "admin" }
+  ]
+}
