@@ -1134,10 +1134,10 @@ async function autoGenerateMonthEndReport(user, businessData) {
 
     if (!monthEntries.length) return; // no entries, skip
 
-    const title    = `Monthly Report — ${monthName} ${yr}`;
+    const title    = `Monthly Report - ${monthName} ${yr}`;
     const now2     = new Date();
     const stamp    = now2.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) + " " + now2.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
-    const saveName = `${title} — ${stamp}`;
+    const saveName = `${title} - ${stamp}`;
     const html     = buildReportHTML(monthEntries, title, "all", "", businessData, "desc");
 
     const newRec = {
@@ -1750,8 +1750,8 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
   const activeEnts = tab==="monthly" ? activeEntries : personEntries;
   const reportTitle = tab==="monthly"
-    ? `Report — ${rangeLabel}`
-    : `${allPeople.find(p=>p.id===person)?.name||"Person"} — ${rangeLabel}`;
+    ? `Report - ${rangeLabel}`
+    : `${allPeople.find(p=>p.id===person)?.name||"Person"} - ${rangeLabel}`;
 
   const presets = [
     {v:"thisMonth", l:"This Month"},
@@ -1796,7 +1796,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
               const sorted = applySortToEnts(activeEnts, sortBy, sortDir);
               const now = new Date();
               const stamp = now.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) + " " + now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
-              const defaultName = `${reportTitle} — ${stamp}`;
+              const defaultName = `${reportTitle} - ${stamp}`;
               const html = buildHTML(sorted, reportTitle, exportType, pName, sortBy, sortDir, false);
               setSaveModal({html, ents: sorted, defaultName});
             }} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 16px",borderRadius:"var(--radius-sm)",fontSize:"0.875rem",fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",background:"rgba(34,211,160,0.15)",color:"var(--green)",border:"1px solid rgba(34,211,160,0.3)"}}><Icon name="download" size={16}/>💾 Save Report</button>
@@ -2869,7 +2869,13 @@ function SavedReports({ currentUser }) {
               </div>
               {/* Actions */}
               <div style={{display:"flex",gap:6,flexShrink:0}}>
-                <button className="btn btn-gold btn-sm" onClick={()=>setPreview(r.html)} title="View Report"><Icon name="eye" size={13}/>View</button>
+                <button className="btn btn-gold btn-sm" onClick={()=>setPreview(r)} title="View Report"><Icon name="eye" size={13}/>View</button>
+                <button className="btn btn-secondary btn-sm" onClick={()=>{
+                  const blob = new Blob([r.html],{type:"text/html;charset=utf-8"});
+                  const url  = URL.createObjectURL(blob);
+                  window.open(url,"_blank");
+                  setTimeout(()=>URL.revokeObjectURL(url),10000);
+                }} title="Export PDF"><Icon name="pdf" size={13}/>PDF</button>
                 <button className="btn btn-secondary btn-sm" onClick={()=>setEditRec(r)} title="Edit name/tags"><Icon name="edit" size={13}/></button>
                 <button className="btn btn-danger btn-sm" onClick={()=>setDel(r)} title="Delete"><Icon name="trash" size={13}/></button>
               </div>
@@ -2881,11 +2887,21 @@ function SavedReports({ currentUser }) {
       {/* Preview overlay */}
       {preview&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",flexDirection:"column"}}>
-          <div style={{background:"var(--surface)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid var(--border)",flexShrink:0}}>
-            <div style={{fontWeight:700,fontSize:"0.95rem"}}>Report Preview</div>
-            <button className="btn btn-secondary btn-sm" onClick={()=>setPreview(null)}>✕ Close</button>
+          <div style={{background:"var(--surface)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid var(--border)",flexShrink:0,gap:12}}>
+            <div style={{fontWeight:700,fontSize:"0.95rem",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{preview.name}</div>
+            <div style={{display:"flex",gap:8,flexShrink:0}}>
+              <button className="btn btn-gold btn-sm" onClick={()=>{
+                // Inject auto-print into a copy of the HTML, open in new tab
+                const printHtml = preview.html.replace("</body>","<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body>");
+                const blob = new Blob([printHtml],{type:"text/html;charset=utf-8"});
+                const url  = URL.createObjectURL(blob);
+                window.open(url,"_blank");
+                setTimeout(()=>URL.revokeObjectURL(url),10000);
+              }}><Icon name="pdf" size={14}/>Print / Save PDF</button>
+              <button className="btn btn-secondary btn-sm" onClick={()=>setPreview(null)}>✕ Close</button>
+            </div>
           </div>
-          <iframe srcDoc={preview} style={{flex:1,border:"none",background:"#fff"}}/>
+          <iframe srcDoc={preview.html} style={{flex:1,border:"none",background:"#fff"}}/>
         </div>
       )}
 
