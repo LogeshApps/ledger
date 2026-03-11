@@ -53,6 +53,24 @@
       "id": "ls5sl2zdmmlz1lh4",
       "deletedAt": 1773229581597,
       "deletedBy": "rishvik123"
+    },
+    {
+      "date": "2026-03-11",
+      "personId": "v0rqdq29mmlnzmq0",
+      "personType": "worker",
+      "description": "",
+      "goldIn": 0,
+      "goldOut": 1000,
+      "purity": "100",
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 0,
+      "pureGoldOut": 1000,
+      "createdAt": 1773229403342,
+      "id": "5xuvztjtmmlz04b2",
+      "deletedAt": 1773229586014,
+      "deletedBy": "rishvik123"
     }
   ]
 }
