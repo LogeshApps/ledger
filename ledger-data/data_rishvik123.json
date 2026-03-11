@@ -33,23 +33,6 @@
   "entries": [
     {
       "date": "2026-03-11",
-      "personId": "v0rqdq29mmlnzmq0",
-      "personType": "customer",
-      "description": "Gold purchase",
-      "goldIn": 0,
-      "goldOut": 50,
-      "purity": "24K (999)",
-      "customPurity": "",
-      "moneyIn": 0,
-      "moneyOut": 455.99,
-      "notes": "",
-      "pureGoldIn": 0,
-      "pureGoldOut": 50,
-      "id": "q95no76jmmlnzxy0",
-      "createdAt": 1773210919320
-    },
-    {
-      "date": "2026-03-11",
       "personId": "ybbb6a76mmlyeauf",
       "personType": "worker",
       "description": "",
