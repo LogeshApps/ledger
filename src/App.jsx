@@ -124,6 +124,8 @@ const fmtMoney = (n) => {
   return label;
 };
 const fmtMoneyFull = (n) => new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 }).format(Number(n)||0);
+// PDF-safe version: replaces raw ₹ Unicode with HTML entity so it survives JSON→base64→GitHub round-trips without mojibake
+const fmtMoneyPDF  = (n) => fmtMoneyFull(n).replace(/₹/g, "&#8377;");
 const fmtGold  = (n) => `${(Number(n)||0).toFixed(3)}g`;
 const pureGold = (weight, purity) => {
   const w = parseFloat(weight);
@@ -1068,7 +1070,7 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
     rM+=Number(e.moneyIn||0)-Number(e.moneyOut||0);
     let cols=`<td>${fmtDate(e.date)}</td><td><strong>${e._personName||"-"}</strong><br/><small style="color:${e.personType==="customer"?"#2563eb":"#7c3aed"};font-weight:600">${e.personType==="customer"?"Customer":"Worker"}</small></td><td>${e.description||"-"}</td>`;
     if(showGold) cols+=`<td style="text-align:right;color:#16a34a">${e.goldIn?fmtGold(e.goldIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.goldOut?fmtGold(e.goldOut):"-"}</td><td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:600">${e.purity||"-"}</span></td><td style="text-align:right;color:#7c3aed;font-size:11px">${e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}${e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}${!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td><td style="text-align:right;font-weight:700;color:${rG>=0?"#d97706":"#dc2626"}">${fmtGold(rG)}</td>`;
-    if(showMoney) cols+=`<td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyFull(e.moneyIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyFull(e.moneyOut):"-"}</td><td style="text-align:right;font-weight:700;color:${rM>=0?"#16a34a":"#dc2626"}">${fmtMoneyFull(rM)}</td>`;
+    if(showMoney) cols+=`<td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyPDF(e.moneyOut):"-"}</td><td style="text-align:right;font-weight:700;color:${rM>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(rM)}</td>`;
     return `<tr>${cols}</tr>`;
   }).join("");
   let headCols=`<th>Date</th><th>Name</th><th>Description</th>`;
@@ -1134,7 +1136,7 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
   <tbody>${tableRows}
     <tr class="totals-row"><td colspan="3">TOTALS (${sorted.length} entries)</td>
       ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
-      ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyFull(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyFull(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</td>`:""}
+      ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</td>`:""}
     </tr>
   </tbody></table>
   <div class="balances">
@@ -1142,7 +1144,7 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
     <div class="bal-grid">
       ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
       <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div></div>`:""}
-      ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div></div>`:""}
+      ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div></div>`:""}
       <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${sorted.length}</div></div>
     </div>
   </div>
@@ -1337,9 +1339,9 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         <td style="text-align:right;color:#7c3aed;font-size:11px">${e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}${e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}${!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
         <td style="text-align:right;font-weight:700;color:${e.runGold>=0?"#d97706":"#dc2626"}">${fmtGold(e.runGold)}</td>`;
       if (showMoney) cols += `
-        <td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyFull(e.moneyIn):"-"}</td>
-        <td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyFull(e.moneyOut):"-"}</td>
-        <td style="text-align:right;font-weight:700;color:${e.runMoney>=0?"#16a34a":"#dc2626"}">${fmtMoneyFull(e.runMoney)}</td>`;
+        <td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td>
+        <td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyPDF(e.moneyOut):"-"}</td>
+        <td style="text-align:right;font-weight:700;color:${e.runMoney>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(e.runMoney)}</td>`;
       return `<tr>${cols}</tr>`;
     }).join("");
     let headCols = `<th>Date &amp; Time</th><th>Name</th><th>Description</th>`;
@@ -1563,7 +1565,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       <tbody>${tableRows}
         <tr class="totals-row"><td colspan="3">TOTALS (${ents.length} entries)</td>
           ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
-          ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyFull(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyFull(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</td>`:""}
+          ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</td>`:""}
         </tr>
       </tbody></table>
       <div class="balances">
@@ -1571,7 +1573,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         <div class="bal-grid">
           ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
           <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
-          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyFull(s.moneyIn)} · Out: ${fmtMoneyFull(s.moneyOut)}</div></div>`:""}
+          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} · Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
       </div>
