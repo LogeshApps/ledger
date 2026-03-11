@@ -124,8 +124,13 @@ const fmtMoney = (n) => {
   return label;
 };
 const fmtMoneyFull = (n) => new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 }).format(Number(n)||0);
-// PDF-safe version: replaces raw ₹ Unicode with HTML entity so it survives JSON→base64→GitHub round-trips without mojibake
-const fmtMoneyPDF  = (n) => fmtMoneyFull(n).replace(/₹/g, "&#8377;");
+// PDF-safe: manually formats with HTML entity &#8377; so the rupee symbol NEVER appears as raw Unicode in HTML strings.
+// This prevents mojibake in iframe srcDoc, blob URLs, and JSON→GitHub→atob round-trips.
+const fmtMoneyPDF = (n) => {
+  const num = Number(n) || 0;
+  const formatted = new Intl.NumberFormat("en-IN", { maximumFractionDigits:2, minimumFractionDigits:2 }).format(Math.abs(num));
+  return (num < 0 ? "-&#8377;" : "&#8377;") + formatted;
+};
 const fmtGold  = (n) => `${(Number(n)||0).toFixed(3)}g`;
 const pureGold = (weight, purity) => {
   const w = parseFloat(weight);
@@ -1142,7 +1147,7 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
   <div class="balances">
     <div class="balances-title">Final Balances</div>
     <div class="bal-grid">
-      ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
+      ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} &middot; Out: ${fmtGold(s.goldOut)}</div></div>
       <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div></div>`:""}
       ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div></div>`:""}
       <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${sorted.length}</div></div>
@@ -1571,9 +1576,9 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       <div class="balances">
         <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
-          ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
-          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} · Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
+          ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} &middot; Out: ${fmtGold(s.goldOut)}</div></div>
+          <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} &middot; Out: ${fmtGold(s.pureOut)}</div></div>`:""}
+          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
       </div>
