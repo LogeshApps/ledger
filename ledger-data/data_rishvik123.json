@@ -50,22 +50,6 @@
     },
     {
       "date": "2026-03-11",
-      "personId": "v0rqdq29mmlnzmq0",
-      "personType": "customer",
-      "description": "",
-      "goldIn": 50,
-      "goldOut": 0,
-      "purity": "100",
-      "moneyIn": 0,
-      "moneyOut": 600000,
-      "notes": "",
-      "pureGoldIn": 5,
-      "pureGoldOut": 0,
-      "createdAt": 1773226942254,
-      "id": "hjnwt4bummlxjdbi"
-    },
-    {
-      "date": "2026-03-11",
       "personId": "ybbb6a76mmlyeauf",
       "personType": "worker",
       "description": "",
