@@ -28,7 +28,9 @@
       "username": "senthil916",
       "password": "Senthil916",
       "businessName": "SG ANTIQUES",
-      "createdAt": 1773220009372
+      "createdAt": 1773220009372,
+      "expiryDate": "2027-03-11",
+      "plan": "yearly"
     }
   ]
 }
