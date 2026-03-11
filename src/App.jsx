@@ -1070,13 +1070,13 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
       <div class="biz-name">${bizName}</div>
       ${bizOwner?`<div class="biz-sub">Proprietor: ${bizOwner}</div>`:""}
       <div class="biz-divider"><div class="biz-divider-line"></div><div class="biz-divider-diamond"></div><div class="biz-divider-line"></div></div>
-      ${(bizAddress||bizPhone)?`<div class="biz-details">${bizAddress?`<span>📍 ${bizAddress}</span>`:""}${bizPhone?`<span>📞 ${bizPhone}</span>`:""}</div>`:""}
+      ${(bizAddress||bizPhone)?`<div class="biz-details">${bizAddress?`<span><b style="color:#fbbf24">Addr:</b> ${bizAddress}</span>`:""}${bizPhone?`<span><b style="color:#fbbf24">Ph:</b> ${bizPhone}</span>`:""}</div>`:""}
     </div>
   </div>
   <div class="report-title-block">
     <div class="report-title-text">${title}</div>
     <div class="report-meta-row">
-      <span>🕐 Generated: ${genTime}</span>
+      <span>Generated: ${genTime}</span>
       <span class="badge">${type==="all"?"FULL REPORT":type==="gold"?"GOLD REPORT":"MONEY REPORT"}</span>
       ${personName?`<span>${personName}</span>`:""}
     </div>
@@ -1261,7 +1261,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
     const bizOwner = companyData?.companyOwner || "";
     const genTime = new Date().toLocaleString("en-IN",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
     const sortLabels = {date:"Date",name:"Name",goldIn:"Gold In",goldOut:"Gold Out",moneyIn:"Money In",moneyOut:"Money Out"};
-    const sortLabel = `Sorted by ${sortLabels[sortByArg]||"Date"} (${sortDirArg==="asc"?"↑ Ascending":"↓ Descending"})`;
+    const sortLabel = `Sorted by ${sortLabels[sortByArg]||"Date"} (${sortDirArg==="asc"?"Asc":"Desc"})`;
     // entries are already sorted by caller
     const sortedEnts = ents;
     let runGold=0, runMoney=0;
@@ -1485,8 +1485,8 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
           ${bizOwner ? `<div class="biz-sub">Proprietor: ${bizOwner}</div>` : ""}
           <div class="biz-divider"><div class="biz-divider-line"></div><div class="biz-divider-diamond"></div><div class="biz-divider-line"></div></div>
           ${(bizAddress||bizPhone) ? `<div class="biz-details">
-            ${bizAddress ? `<span>📍 ${bizAddress}</span>` : ""}
-            ${bizPhone   ? `<span>📞 ${bizPhone}</span>`   : ""}
+            ${bizAddress ? `<span><b style="color:#fbbf24">Addr:</b> ${bizAddress}</span>` : ""}
+            ${bizPhone   ? `<span><b style="color:#fbbf24">Ph:</b> ${bizPhone}</span>`   : ""}
           </div>` : ""}
         </div>
       </div>
@@ -1495,8 +1495,8 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       <div class="report-title-block">
         <div class="report-title-text">${title}</div>
         <div class="report-meta-row">
-          <span>🕐 Generated: ${genTime}</span>
-          <span>⇅ ${sortLabel}</span>
+          <span>Generated: ${genTime}</span>
+          <span>${sortLabel}</span>
           <span class="badge">${type==="all"?"FULL REPORT":type==="gold"?"GOLD REPORT":"MONEY REPORT"}</span>
         </div>
       </div>
@@ -2871,7 +2871,8 @@ function SavedReports({ currentUser }) {
               <div style={{display:"flex",gap:6,flexShrink:0}}>
                 <button className="btn btn-gold btn-sm" onClick={()=>setPreview(r)} title="View Report"><Icon name="eye" size={13}/>View</button>
                 <button className="btn btn-secondary btn-sm" onClick={()=>{
-                  const blob = new Blob([r.html],{type:"text/html;charset=utf-8"});
+                  const printHtml = r.html.replace("</body>","<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(r.name)+";setTimeout(function(){window.print();},400);};<\/scr"+"ipt></body>");
+                  const blob = new Blob([printHtml],{type:"text/html;charset=utf-8"});
                   const url  = URL.createObjectURL(blob);
                   window.open(url,"_blank");
                   setTimeout(()=>URL.revokeObjectURL(url),10000);
@@ -2891,8 +2892,7 @@ function SavedReports({ currentUser }) {
             <div style={{fontWeight:700,fontSize:"0.95rem",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{preview.name}</div>
             <div style={{display:"flex",gap:8,flexShrink:0}}>
               <button className="btn btn-gold btn-sm" onClick={()=>{
-                // Inject auto-print into a copy of the HTML, open in new tab
-                const printHtml = preview.html.replace("</body>","<script>window.onload=function(){setTimeout(function(){window.print();},400);};<\/script></body>");
+                const printHtml = preview.html.replace("</body>","<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(preview.name)+";setTimeout(function(){window.print();},400);};<\\/scr"+"ipt></body>");
                 const blob = new Blob([printHtml],{type:"text/html;charset=utf-8"});
                 const url  = URL.createObjectURL(blob);
                 window.open(url,"_blank");
