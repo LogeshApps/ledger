@@ -63,6 +63,21 @@ const defaultBusinessData = {
 
 // ─── Utils ──────────────────────────────────────────────────────────
 const uid  = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36);
+// Sanitize report names — strips mojibake from em-dash and other special chars stored in old records
+const cleanName = (s) => {
+  if (!s) return s;
+  return s
+    .replace(/\u00e2\u0080\u0094/g, " - ")
+    .replace(/\u00e2\u0080\u0093/g, " - ")
+    .replace(/\u2014/g, " - ")
+    .replace(/\u2013/g, " - ")
+    .replace(/â€"/g, " - ")
+    .replace(/â/g, "")
+    .replace(/\uFFFD/g, "-")
+    .replace(/ {2,}/g, " ")
+    .replace(/ - - /g, " - ")
+    .trim();
+};
 const today = () => new Date().toISOString().split("T")[0];
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) : "-";
 const fmtMoney = (n) => {
@@ -1572,7 +1587,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       const prev     = existing?.data?.reports || [];
       const rec = {
         id:          uid(),
-        name:        name,
+        name:        cleanName(name),
         tags:        tags,
         notes:       notes,
         html:        saveModal.html,
@@ -2842,7 +2857,7 @@ function SavedReports({ currentUser }) {
               {/* Content */}
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
-                  <div style={{fontWeight:700,fontSize:"0.95rem"}}>{r.name}</div>
+                  <div style={{fontWeight:700,fontSize:"0.95rem"}}>{cleanName(r.name)}</div>
                   <span style={{fontSize:"0.7rem",color:"var(--text3)",background:"var(--surface2)",padding:"2px 8px",borderRadius:99,border:"1px solid var(--border)",flexShrink:0}}>
                     {r.reportType==="gold"?"Gold Only":r.reportType==="money"?"Cash Only":"Full Report"}
                   </span>
@@ -2861,10 +2876,10 @@ function SavedReports({ currentUser }) {
                 )}
                 {r.notes&&<div style={{fontSize:"0.78rem",color:"var(--text2)",marginBottom:4}}>{r.notes}</div>}
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",display:"flex",gap:12,flexWrap:"wrap"}}>
-                  <span>📅 Saved: {fmtDate(new Date(r.savedAt).toISOString().split("T")[0])} {new Date(r.savedAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</span>
-                  <span>📊 {r.entryCount} entries</span>
-                  <span>📆 Range: {r.rangeLabel}</span>
-                  {r.updatedAt&&<span style={{color:"var(--amber)"}}>✏️ Edited {fmtDate(new Date(r.updatedAt).toISOString().split("T")[0])}</span>}
+                  <span>Saved: {fmtDate(new Date(r.savedAt).toISOString().split("T")[0])} {new Date(r.savedAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</span>
+                  <span>{r.entryCount} entries</span>
+                  <span>Range: {r.rangeLabel}</span>
+                  {r.updatedAt&&<span style={{color:"var(--amber)"}}>Edited: {fmtDate(new Date(r.updatedAt).toISOString().split("T")[0])}</span>}
                 </div>
               </div>
               {/* Actions */}
@@ -2889,7 +2904,7 @@ function SavedReports({ currentUser }) {
       {preview&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",flexDirection:"column"}}>
           <div style={{background:"var(--surface)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid var(--border)",flexShrink:0,gap:12}}>
-            <div style={{fontWeight:700,fontSize:"0.95rem",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{preview.name}</div>
+            <div style={{fontWeight:700,fontSize:"0.95rem",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanName(preview.name)}</div>
             <div style={{display:"flex",gap:8,flexShrink:0}}>
               <button className="btn btn-gold btn-sm" onClick={()=>{
                 const printHtml = preview.html.replace("</body>","<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(preview.name)+";setTimeout(function(){window.print();},400);};<\\/scr"+"ipt></body>");
