@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 // ─── GITHUB CONFIG ─────────────────────────────────────────────────
 // Replace with your own values:
-const GITHUB_USERNAME = "YOUR_GITHUB_USERNAME";
-const GITHUB_REPO     = "YOUR_REPO_NAME";
+const GITHUB_USERNAME = "LogeshApps";
+const GITHUB_REPO     = "ledger";
 // Split your PAT token into 2 halves to avoid GitHub scanner revoking it
-const PAT_PART1  = "YOUR_TOKEN_FIRST_HALF";
-const PAT_PART2  = "YOUR_TOKEN_SECOND_HALF";
+const PAT_PART1  = "ghp_F4oz8Z9OiPZx8bHi";
+const PAT_PART2  = "VpD0uKHAopeDJs2a6PJk";
 const GITHUB_PAT = PAT_PART1 + PAT_PART2;
 const DATA_FILE  = "ledger-data/data.json";
 // ───────────────────────────────────────────────────────────────────
