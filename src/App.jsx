@@ -76,12 +76,10 @@ const fmtMoney = (n) => {
 const fmtMoneyFull = (n) => new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 }).format(Number(n)||0);
 const fmtGold  = (n) => `${(Number(n)||0).toFixed(3)}g`;
 const pureGold = (weight, purity) => {
-  const p = parseFloat(purity);
-  if (!p || !weight) return 0;
-  // purity can be "22K", "916", "24K", "18K", "750", etc.
-  if (String(purity).includes("K")) return (p / 24) * parseFloat(weight);
-  if (p > 1) return (p / 1000) * parseFloat(weight); // millesimal fineness like 916, 750
-  return p * parseFloat(weight);
+  const w = parseFloat(weight);
+  if (!w) return 0;
+  const ratio = parsePurity(purity); // reuse parsePurity for consistent logic
+  return ratio * w;
 };
 const parsePurity = (str) => {
   if (!str) return 1;
@@ -783,7 +781,9 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
 function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntry, onDeleteEntry }) {
   const [monthFilter, setMonthFilter] = useState("");
   const [yearFilter,  setYearFilter]  = useState("");
-  const [del, setDel] = useState(null);
+  const [del,    setDel]    = useState(null);
+  const [sortCol, setSortCol] = useState("date");
+  const [sortDir, setSortDir] = useState("desc");
 
   const personEntries = useMemo(() =>
     entries.filter(e=>e.personId===person.id)
@@ -805,15 +805,30 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
     });
   }, [personEntries, yearFilter, monthFilter]);
 
-  // Running balance
+  // Sort helper for ledger
+  const sortedFiltered = useMemo(()=>{
+    return [...filtered].sort((a,b)=>{
+      let va, vb;
+      if (sortCol==="date")     { va=a.date+(a.createdAt||0); vb=b.date+(b.createdAt||0); return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va); }
+      if (sortCol==="goldIn")   { va=Number(a.goldIn||0);   vb=Number(b.goldIn||0); }
+      else if (sortCol==="goldOut")  { va=Number(a.goldOut||0);  vb=Number(b.goldOut||0); }
+      else if (sortCol==="moneyIn")  { va=Number(a.moneyIn||0);  vb=Number(b.moneyIn||0); }
+      else if (sortCol==="moneyOut") { va=Number(a.moneyOut||0); vb=Number(b.moneyOut||0); }
+      else if (sortCol==="desc")     { va=a.description||""; vb=b.description||""; return sortDir==="asc"?va.localeCompare(vb):vb.localeCompare(va); }
+      else { va=0; vb=0; }
+      return sortDir==="asc" ? va-vb : vb-va;
+    });
+  }, [filtered, sortCol, sortDir]);
+
+  // Running balance computed on sorted order
   const rows = useMemo(()=>{
     let goldBal=0, moneyBal=0;
-    return filtered.map(e=>{
+    return sortedFiltered.map(e=>{
       goldBal  += Number(e.goldIn||0)  - Number(e.goldOut||0);
       moneyBal += Number(e.moneyIn||0) - Number(e.moneyOut||0);
       return { ...e, goldBal, moneyBal };
     });
-  }, [filtered]);
+  }, [sortedFiltered]);
 
   const totals = useMemo(()=>({
     goldIn:   filtered.reduce((s,e)=>s+Number(e.goldIn||0),0),
@@ -892,16 +907,20 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
           <table className="ledger-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Description</th>
-                <th className="th-right">Gold In (g)</th>
-                <th className="th-right">Gold Out (g)</th>
-                <th className="th-center">Purity</th>
-                <th className="th-right">Pure Gold (g)</th>
-                <th className="th-right">Gold Balance</th>
-                <th className="th-right">Money In (₹)</th>
-                <th className="th-right">Money Out (₹)</th>
-                <th className="th-right">Money Balance</th>
+                {[["date","Date"],["desc","Description"],["goldIn","Gold In (g)"],["goldOut","Gold Out (g)"],["purity","Purity"],["pureGold","Pure Gold (g)"],["goldBal","Gold Balance"]].map(([col,lbl])=>(
+                  <th key={col} className={col==="goldIn"||col==="goldOut"||col==="pureGold"||col==="goldBal"?"th-right":col==="purity"?"th-center":""}
+                    onClick={()=>{ if(["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)){ if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc"); else{setSortCol(col);setSortDir("desc");} } }}
+                    style={{cursor:["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)?"pointer":"default",userSelect:"none",whiteSpace:"nowrap"}}>
+                    {lbl}{sortCol===col?<span style={{color:"var(--gold)",marginLeft:3,fontSize:"0.7rem"}}>{sortDir==="asc"?"↑":"↓"}</span>:<span style={{opacity:0.2,marginLeft:3,fontSize:"0.7rem"}}>⇅</span>}
+                  </th>
+                ))}
+                {[["moneyIn","Money In (₹)"],["moneyOut","Money Out (₹)"],["moneyBal","Money Balance"]].map(([col,lbl])=>(
+                  <th key={col} className="th-right"
+                    onClick={()=>{ if(["moneyIn","moneyOut"].includes(col)){ if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc"); else{setSortCol(col);setSortDir("desc");} } }}
+                    style={{cursor:["moneyIn","moneyOut"].includes(col)?"pointer":"default",userSelect:"none",whiteSpace:"nowrap"}}>
+                    {lbl}{sortCol===col?<span style={{color:"var(--gold)",marginLeft:3,fontSize:"0.7rem"}}>{sortDir==="asc"?"↑":"↓"}</span>:<span style={{opacity:["moneyIn","moneyOut"].includes(col)?0.2:0,marginLeft:3,fontSize:"0.7rem"}}>⇅</span>}
+                  </th>
+                ))}
                 <th className="no-print">Actions</th>
               </tr>
             </thead>
@@ -1085,9 +1104,9 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
     if (showMoney) headCols += `<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
     <style>
-      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@700;800;900&display=swap');
+      /* Using system Arial font */
       *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'DM Sans',sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.5}
+      body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.5}
 
       /* ── Business Header ── */
       .biz-box{
@@ -1097,7 +1116,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
         box-shadow:0 0 0 4px rgba(245,158,11,0.08),0 0 28px rgba(245,158,11,0.18),0 4px 16px rgba(0,0,0,0.07);
       }
       .biz-name{
-        font-family:'Syne',sans-serif;font-size:26px;font-weight:900;
+        font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:900;
         color:#78350f;letter-spacing:0.02em;line-height:1.2;
         text-shadow:0 1px 2px rgba(255,255,255,0.7);
       }
@@ -1107,14 +1126,14 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
 
       /* ── Report title block ── */
       .report-title-block{margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #f59e0b}
-      .report-title-text{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:4px}
+      .report-title-text{font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:4px}
       .report-meta-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
       .report-meta-row span{font-size:12px;color:#6b7280;display:inline-flex;align-items:center;gap:4px}
       .badge{display:inline-block;background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #fcd34d;letter-spacing:0.04em}
 
       /* ── Person banner ── */
       .person-banner{margin-bottom:14px;padding:11px 18px;background:linear-gradient(90deg,#eff6ff,#dbeafe);border-left:4px solid #2563eb;border-radius:0 10px 10px 0;display:flex;align-items:center;justify-content:space-between}
-      .person-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#1e40af}
+      .person-name{font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:800;color:#1e40af}
       .person-label{font-size:10px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px}
       .person-type{font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:0.06em;background:#bfdbfe;padding:3px 10px;border-radius:99px}
 
@@ -1127,7 +1146,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
 
       /* ── Balances footer ── */
       .balances{margin-top:22px;padding:16px 18px;border:2px solid #e5e7eb;border-radius:12px;background:#f9fafb}
-      .balances-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#374151;margin-bottom:12px}
+      .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#374151;margin-bottom:12px}
       .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
       .bal-item{text-align:center;padding:12px 10px;background:#fff;border-radius:9px;border:1px solid #e5e7eb}
       .bal-label{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
@@ -2435,7 +2454,7 @@ export default function App() {
         <aside className={`sidebar${sidebarOpen?" open":""}`}>
           <div className="sidebar-logo">
             <div className="logo-icon"><Icon name="gold" size={20} color="#000"/></div>
-            <div><div className="logo-text">Ledger</div><div className="logo-sub">Ledger System</div></div>
+            <div><div className="logo-text">Ledger</div><div className="logo-sub">Ledger Report</div></div>
           </div>
           <nav className="sidebar-nav">
             {navItems.map(item=>(
