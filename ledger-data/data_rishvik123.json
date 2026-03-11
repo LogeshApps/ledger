@@ -19,7 +19,17 @@
       "createdAt": 1773227533454
     }
   ],
-  "workers": [],
+  "workers": [
+    {
+      "name": "lab",
+      "phone": "",
+      "address": "",
+      "workType": "",
+      "notes": "",
+      "id": "ybbb6a76mmlyeauf",
+      "createdAt": 1773228385383
+    }
+  ],
   "entries": [
     {
       "date": "2026-03-11",
