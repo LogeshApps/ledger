@@ -135,7 +135,7 @@ const Icon = ({ name, size=18, color="currentColor" }) => {
 
 // ─── Styles ─────────────────────────────────────────────────────────
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg:#0c0e14;--surface:#13161f;--surface2:#1a1e2a;--surface3:#222636;
@@ -147,7 +147,7 @@ const styles = `
     --blue:#38bdf8;--blue-dim:rgba(56,189,248,0.12);
     --gold:#fbbf24;--gold-dim:rgba(251,191,36,0.12);
     --radius:12px;--radius-sm:8px;--shadow:0 4px 24px rgba(0,0,0,0.4);
-    --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
+    --font:Arial,Helvetica,sans-serif;--font-display:Arial,Helvetica,sans-serif;
     --sidebar-w:240px;--tr:0.2s cubic-bezier(0.4,0,0.2,1);
   }
   html{font-size:15px}
@@ -161,7 +161,7 @@ const styles = `
   .sidebar.open{transform:translateX(0)!important}
   .sidebar-logo{padding:20px 20px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
   .logo-icon{width:38px;height:38px;background:linear-gradient(135deg,var(--gold),var(--amber));border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 12px var(--gold-dim)}
-  .logo-text{font-family:var(--font-display);font-weight:700;font-size:1.05rem}
+  .logo-text{font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:1.05rem}
   .logo-sub{font-size:0.7rem;color:var(--text3);letter-spacing:0.06em;text-transform:uppercase}
   .sidebar-nav{flex:1;padding:12px 10px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
   .nav-section{padding:14px 12px 6px;font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;font-weight:600}
@@ -171,7 +171,7 @@ const styles = `
   .sidebar-footer{padding:12px 10px;border-top:1px solid var(--border)}
   .main{flex:1;margin-left:var(--sidebar-w);display:flex;flex-direction:column;min-height:100vh}
   .header{height:64px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 24px;position:sticky;top:0;z-index:50;gap:16px}
-  .header-title{font-family:var(--font-display);font-weight:700;font-size:1.15rem}
+  .header-title{font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:1.15rem}
   .header-right{display:flex;align-items:center;gap:10px}
   .user-badge{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--surface2);border-radius:99px;border:1px solid var(--border);font-size:0.85rem}
   .user-avatar{width:28px;height:28px;background:linear-gradient(135deg,var(--gold),var(--amber));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:700;color:#000}
@@ -199,7 +199,7 @@ const styles = `
   .stat-icon.red{background:var(--red-dim);color:var(--red)}
   .stat-icon.blue{background:var(--blue-dim);color:var(--blue)}
   .stat-label{font-size:0.8rem;color:var(--text2);font-weight:500}
-  .stat-value{font-family:var(--font-display);font-size:1.5rem;font-weight:700;line-height:1.2}
+  .stat-value{font-family:Arial,Helvetica,sans-serif;font-size:1.5rem;font-weight:700;line-height:1.2}
   .stat-value.gold{color:var(--gold)}
   .stat-value.green{color:var(--green)}
   .stat-value.red{color:var(--red)}
@@ -262,13 +262,13 @@ const styles = `
   .modal.fullwide{max-width:96vw!important;width:96vw}
   .modal.fullwide{max-width:98vw;width:98vw}
   .modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
-  .modal-title{font-family:var(--font-display);font-weight:700;font-size:1.1rem}
+  .modal-title{font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:1.1rem}
   .modal-body{padding:16px 20px}
   .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
 
   /* Section header */
   .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px}
-  .section-title{font-family:var(--font-display);font-weight:700;font-size:1.1rem}
+  .section-title{font-family:Arial,Helvetica,sans-serif;font-weight:700;font-size:1.1rem}
   .section-sub{color:var(--text2);font-size:0.85rem;margin-top:2px}
 
   /* Toolbar */
@@ -282,7 +282,7 @@ const styles = `
   .login-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;width:100%;max-width:420px;box-shadow:var(--shadow)}
   .login-logo{display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:32px}
   .login-logo-icon{width:64px;height:64px;background:linear-gradient(135deg,var(--gold),var(--amber));border-radius:18px;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 24px var(--gold-dim)}
-  .login-title{font-family:var(--font-display);font-weight:800;font-size:1.6rem;text-align:center}
+  .login-title{font-family:Arial,Helvetica,sans-serif;font-weight:800;font-size:1.6rem;text-align:center}
   .login-sub{color:var(--text2);font-size:0.875rem;text-align:center}
 
   /* Ledger table specific */
@@ -626,7 +626,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
   const isEdit = !!initial;
   const [rows, setRows] = useState(
     isEdit
-      ? [{ ...initial, purity: initial.purity||"22K" }]
+      ? [{ ...initial, purity: initial.purity||"100" }]
       : [emptyRow(defaultPersonId||"", defaultPersonType||"customer")]
   );
   const [err, setErr] = useState("");
@@ -646,20 +646,21 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
       if (!r.goldIn && !r.goldOut && !r.moneyIn && !r.moneyOut) return setErr(`Row ${i+1}: Enter at least one value.`);
     }
     setErr("");
-    filled.forEach(r => {
-      const pv = r.purity||"22K";
-      onSave({
+    const prepared = filled.map(r => {
+      const pv = r.purity||"100";
+      return {
         ...r,
         goldIn:      Number(r.goldIn||0),
         goldOut:     Number(r.goldOut||0),
         moneyIn:     Number(r.moneyIn||0),
         moneyOut:    Number(r.moneyOut||0),
         purity:      pv,
-        pureGoldIn:  pureGold(r.goldIn||0,  pv),
+        pureGoldIn:  pureGold(r.goldIn||0, pv),
         pureGoldOut: pureGold(r.goldOut||0, pv),
         createdAt:   Date.now(),
-      });
+      };
     });
+    onSave(prepared);
   };
 
   const filledCount = rows.filter(r=>r.personId||r.goldIn||r.goldOut||r.moneyIn||r.moneyOut).length;
@@ -691,7 +692,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
               <th style={{...hdr,width:90,color:"var(--gold)"}}>Gold In (g)</th>
               <th style={{...hdr,width:90,color:"var(--red)"}}>Gold Out (g)</th>
               <th style={{...hdr,width:90}}>Purity %</th>
-              <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>24K</th>
+              <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>Pure Gold 100%</th>
               <th style={{...hdr,width:100,color:"var(--green)"}}>Money In ₹</th>
               <th style={{...hdr,width:100,color:"var(--red)"}}>Money Out ₹</th>
               <th style={{...hdr,width:80}}>Notes</th>
@@ -700,7 +701,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
           </thead>
           <tbody>
             {rows.map((f,i)=>{
-              const pv = f.purity||"22K";
+              const pv = f.purity||"100";
               const pureIn  = f.goldIn  ? pureGold(Number(f.goldIn),  pv).toFixed(3) : null;
               const pureOut = f.goldOut ? pureGold(Number(f.goldOut), pv).toFixed(3) : null;
               const isLast = i===rows.length-1;
@@ -869,7 +870,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
         </div>
         <div className="stat-card gold" style={{"--gold":"#a78bfa"}}>
           <div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div>
-          <div className="stat-label">Pure Gold Balance (24K)</div>
+          <div className="stat-label">Pure Gold Balance (100%)</div>
           <div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(totals.pureIn - totals.pureOut)}</div>
           <div className="stat-sub">In: {fmtGold(totals.pureIn)} · Out: {fmtGold(totals.pureOut)}</div>
         </div>
@@ -1223,7 +1224,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
           ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure 24K</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
+          <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
           ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyFull(s.moneyIn)} · Out: ${fmtMoneyFull(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
@@ -1264,7 +1265,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
   const SummaryCards = ({s}) => (
     <div className="stats-grid" style={{marginBottom:16}}>
       <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Net Gold Balance</div><div className="stat-value gold">{fmtGold(s.goldIn-s.goldOut)}</div><div className="stat-sub">In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div></div>
-      <div className="stat-card" style={{"--accent":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div><div className="stat-label">Pure Gold (24K)</div><div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div><div className="stat-sub">In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div></div>
+      <div className="stat-card" style={{"--accent":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div><div className="stat-label">Pure Gold (100%)</div><div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div><div className="stat-sub">In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div></div>
       <div className={`stat-card ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}><div className={`stat-icon ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}><Icon name="money" size={18} color={s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Money Balance</div><div className={`stat-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}>{fmtMoney(s.moneyIn-s.moneyOut)}</div><div className="stat-sub">In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div></div>
     </div>
   );
@@ -1389,26 +1390,26 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         {bulkConfirm&&onDeleteEntry&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{[...selectedIds].forEach(id=>onDeleteEntry(id));setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
         {/* ── Balance Summary at BOTTOM ── */}
         <div style={{marginTop:16,background:"var(--surface)",border:"2px solid var(--border)",borderRadius:12,padding:16}}>
-          <div style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:"0.9rem",marginBottom:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
+          <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontWeight:700,fontSize:"0.9rem",marginBottom:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
             <Icon name="reports" size={15}/>Final Balances — {ents.length} entries
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
             {showG&&<>
               <div style={{background:"var(--gold-dim)",border:"1px solid rgba(251,191,36,0.3)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
                 <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Gold</div>
-                <div style={{fontFamily:"var(--font-display)",fontSize:"1.3rem",fontWeight:800,color:"var(--gold)"}}>{fmtGold(s.goldIn-s.goldOut)}</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:"var(--gold)"}}>{fmtGold(s.goldIn-s.goldOut)}</div>
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div>
               </div>
               <div style={{background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure 24K</div>
-                <div style={{fontFamily:"var(--font-display)",fontSize:"1.3rem",fontWeight:800,color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div>
+                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure Gold 100%</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div>
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div>
               </div>
             </>}
             {showM&&<>
               <div style={{background:s.moneyIn-s.moneyOut>=0?"var(--green-dim)":"var(--red-dim)",border:`1px solid ${s.moneyIn-s.moneyOut>=0?"rgba(34,211,160,0.3)":"rgba(244,63,94,0.3)"}`,borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
                 <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Cash</div>
-                <div style={{fontFamily:"var(--font-display)",fontSize:"1.3rem",fontWeight:800,color:s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}}>{fmtMoney(s.moneyIn-s.moneyOut)}</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}}>{fmtMoney(s.moneyIn-s.moneyOut)}</div>
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div>
               </div>
             </>}
@@ -1623,12 +1624,12 @@ function Dashboard({ data, setPage, setViewPerson, currentUser }) {
   return (
     <div>
       <div style={{marginBottom:24}}>
-        <div style={{fontFamily:"var(--font-display)",fontSize:"1.4rem",fontWeight:800,marginBottom:4}}>Dashboard</div>
+        <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,marginBottom:4}}>Dashboard</div>
         <div className="text2 fs-sm">Welcome, <strong>{currentUser?.businessName||currentUser?.username}</strong> — Gold &amp; Money Ledger</div>
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Total Gold Balance</div><div className="stat-value gold">{fmtGold(totalGoldBal)}</div><div className="stat-sub">Pure 24K: {fmtGold(totalPureBal)}</div></div>
+        <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Total Gold Balance</div><div className="stat-value gold">{fmtGold(totalGoldBal)}</div><div className="stat-sub">Pure Gold 100%: {fmtGold(totalPureBal)}</div></div>
         <div className={`stat-card ${totalMoneyBal>=0?"green":"red"}`}><div className={`stat-icon ${totalMoneyBal>=0?"green":"red"}`}><Icon name="money" size={18} color={totalMoneyBal>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Total Money Balance</div><div className={`stat-value ${totalMoneyBal>=0?"green":"red"}`}>{fmtMoney(totalMoneyBal)}</div><div className="stat-sub">{totalMoneyBal>=0?"Receivable":"Payable"}</div></div>
         <div className="stat-card blue"><div className="stat-icon blue"><Icon name="customers" size={18} color="var(--blue)"/></div><div className="stat-label">Customers</div><div className="stat-value blue">{customers.length}</div><div className="stat-sub">Active accounts</div></div>
         <div className="stat-card" style={{"--green":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="workers" size={18} color="#a78bfa"/></div><div className="stat-label">Workers</div><div className="stat-value" style={{color:"#a78bfa"}}>{workers.length}</div><div className="stat-sub">Active workers</div></div>
@@ -1780,7 +1781,7 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
           <div style={{width:56,height:56,background:"linear-gradient(135deg,var(--gold),var(--amber))",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 12px"}}>
             <Icon name="gold" size={28} color="#000"/>
           </div>
-          <div style={{fontFamily:"var(--font-display)",fontSize:"1.5rem",fontWeight:800}}>Ledger</div>
+          <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.5rem",fontWeight:800}}>Ledger</div>
           {expired
             ? <div style={{marginTop:6,color:"var(--red)",fontWeight:600}}>⚠️ Your subscription has expired</div>
             : <div style={{marginTop:6,color:"var(--gold)",fontWeight:600}}>⚡ {left} days remaining — Renew now</div>
@@ -1792,14 +1793,14 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
 
           {/* ── Step 1: Choose Plan ── */}
           {step==="plan" && <>
-            <div style={{fontFamily:"var(--font-display)",fontSize:"1.1rem",fontWeight:700,marginBottom:18,textAlign:"center"}}>Choose Your Plan</div>
+            <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.1rem",fontWeight:700,marginBottom:18,textAlign:"center"}}>Choose Your Plan</div>
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:22}}>
               {[{id:"monthly",label:"Monthly",price:PRICE_MONTHLY,sub:"Billed every month"},{id:"yearly",label:"Yearly",price:PRICE_YEARLY,sub:"Save ₹"+(PRICE_MONTHLY*12-PRICE_YEARLY)+"!",badge:"BEST VALUE"}].map(pl=>(
                 <div key={pl.id} onClick={()=>setPlan(pl.id)} style={{border:`2px solid ${plan===pl.id?"var(--gold)":"var(--border)"}`,borderRadius:12,padding:"16px 12px",cursor:"pointer",textAlign:"center",position:"relative",background:plan===pl.id?"rgba(234,179,8,0.06)":"var(--surface2)",transition:"all 0.2s"}}>
                   {pl.badge&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",background:"var(--gold)",color:"#000",fontSize:"0.65rem",fontWeight:700,padding:"2px 8px",borderRadius:20,whiteSpace:"nowrap"}}>{pl.badge}</div>}
                   <div style={{fontWeight:700,fontSize:"0.95rem",marginBottom:4}}>{pl.label}</div>
-                  <div style={{fontFamily:"var(--font-display)",fontSize:"1.6rem",fontWeight:800,color:"var(--gold)"}}>₹{pl.price}</div>
+                  <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.6rem",fontWeight:800,color:"var(--gold)"}}>₹{pl.price}</div>
                   <div style={{fontSize:"0.75rem",color:"var(--text3)",marginTop:3}}>{pl.sub}</div>
                 </div>
               ))}
@@ -1815,7 +1816,7 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
 
           {/* ── Step 2: Pay via UPI ── */}
           {step==="pay" && <>
-            <div style={{fontFamily:"var(--font-display)",fontSize:"1.1rem",fontWeight:700,marginBottom:4,textAlign:"center"}}>Pay ₹{amount} via UPI</div>
+            <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.1rem",fontWeight:700,marginBottom:4,textAlign:"center"}}>Pay ₹{amount} via UPI</div>
             <div style={{textAlign:"center",fontSize:"0.82rem",color:"var(--text3)",marginBottom:18}}>{plan==="monthly"?"1 Month Access":"1 Year Access"} · {currentUser.businessName||currentUser.username}</div>
 
             {/* UPI QR Code */}
@@ -1824,9 +1825,9 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
               <div style={{display:"inline-block",background:"#fff",padding:10,borderRadius:10,marginBottom:10}}>
                 <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`} alt="UPI QR" width={180} height={180} style={{display:"block",borderRadius:4}}/>
               </div>
-              <div style={{fontFamily:"var(--font-display)",fontSize:"1.1rem",fontWeight:800,color:"var(--gold)",marginBottom:2}}>{UPI_ID}</div>
+              <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.1rem",fontWeight:800,color:"var(--gold)",marginBottom:2}}>{UPI_ID}</div>
               <div style={{fontSize:"0.82rem",color:"var(--text2)",marginBottom:10}}>{UPI_NAME}</div>
-              <div style={{display:"inline-block",background:"linear-gradient(135deg,var(--gold),var(--amber))",color:"#000",fontFamily:"var(--font-display)",fontSize:"1.6rem",fontWeight:900,padding:"6px 24px",borderRadius:8,marginBottom:10}}>₹{amount}</div>
+              <div style={{display:"inline-block",background:"linear-gradient(135deg,var(--gold),var(--amber))",color:"#000",fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.6rem",fontWeight:900,padding:"6px 24px",borderRadius:8,marginBottom:10}}>₹{amount}</div>
               <div style={{fontSize:"0.78rem",color:"var(--text3)",marginBottom:12}}>{plan==="monthly"?"1 Month Access":"1 Year Full Access"}</div>
               <a href={upiLink} style={{display:"inline-block",padding:"9px 20px",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",borderRadius:8,fontWeight:700,fontSize:"0.88rem",textDecoration:"none"}}>📱 Open in UPI App</a>
               <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:6}}>PhonePe · GPay · Paytm · BHIM</div>
@@ -1853,7 +1854,7 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
           {step==="submitted" && <>
             <div style={{textAlign:"center",padding:"10px 0"}}>
               <div style={{fontSize:"3rem",marginBottom:12}}>🎉</div>
-              <div style={{fontFamily:"var(--font-display)",fontSize:"1.2rem",fontWeight:800,marginBottom:8}}>Payment Submitted!</div>
+              <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.2rem",fontWeight:800,marginBottom:8}}>Payment Submitted!</div>
               <div style={{color:"var(--text2)",fontSize:"0.9rem",lineHeight:1.6,marginBottom:20}}>
                 Your UTR has been sent for approval.<br/>
                 Admin will verify and activate your account<br/>
@@ -2053,7 +2054,7 @@ function AdminPanel({ onLogout }) {
                 {/* Pending first */}
                 {pending.length>0&&(
                   <div className="card" style={{marginBottom:16,border:"1px solid rgba(234,179,8,0.3)"}}>
-                    <div style={{fontFamily:"var(--font-display)",fontWeight:700,marginBottom:14,color:"var(--gold)"}}>⏳ Pending Approval ({pending.length})</div>
+                    <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontWeight:700,marginBottom:14,color:"var(--gold)"}}>⏳ Pending Approval ({pending.length})</div>
                     <div className="table-wrap" style={{border:"none"}}>
                       <table>
                         <thead><tr><th>Business</th><th>Plan</th><th>Amount</th><th>UTR / Txn ID</th><th>Submitted</th><th className="th-center">Action</th></tr></thead>
@@ -2399,8 +2400,17 @@ export default function App() {
   const deleteWorker   = id=> { updateData({workers:data.workers.filter(w=>w.id!==id)}); addToast("Deleted.","error"); };
 
   const saveEntry = f => {
-    if(f.id) { updateData({entries:data.entries.map(e=>e.id===f.id?{...e,...f}:e)}); addToast("Entry updated!"); }
-    else { updateData({entries:[...data.entries,{...f,id:uid(),createdAt:Date.now()}]}); addToast("Entry saved!"); }
+    if (Array.isArray(f)) {
+      const newEntries = f.map(entry => ({...entry, id: uid(), createdAt: Date.now()}));
+      updateData({entries: [...data.entries, ...newEntries]});
+      addToast(`${newEntries.length} ${newEntries.length===1?"entry":"entries"} saved!`);
+    } else if (f.id) {
+      updateData({entries: data.entries.map(e => e.id===f.id ? {...e,...f} : e)});
+      addToast("Entry updated!");
+    } else {
+      updateData({entries: [...data.entries, {...f, id: uid(), createdAt: Date.now()}]});
+      addToast("Entry saved!");
+    }
     setEntryForm(null);
   };
   const deleteEntry = async (id) => {
@@ -2480,7 +2490,7 @@ export default function App() {
       <style>{styles}</style>
       <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"var(--bg)",gap:16}}>
         <div style={{width:56,height:56,background:"linear-gradient(135deg,var(--gold),var(--amber))",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="gold" size={28} color="#000"/></div>
-        <div style={{fontFamily:"var(--font-display)",fontSize:"1.4rem",fontWeight:800}}>Ledger</div>
+        <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800}}>Ledger</div>
         <div className="text3 fs-sm">Loading {currentUser.businessName||currentUser.username}'s data...</div>
         <div style={{width:200,height:3,background:"var(--surface2)",borderRadius:99,overflow:"hidden"}}>
           <div style={{width:"60%",height:"100%",background:"linear-gradient(90deg,var(--gold),var(--amber))",borderRadius:99,animation:"toastIn 1s ease infinite alternate"}}/>
