@@ -14,8 +14,8 @@ const userDataFile = (username) => `ledger-data/data_${username.toLowerCase().re
 // Master users registry file (stores all registered usernames/passwords)
 const USERS_FILE = "ledger-data/users.json";
 // ─── ADMIN credentials (hardcoded — only you know this) ─────────────
-const ADMIN_USERNAME = "goldadmin";
-const ADMIN_PASSWORD = "Admin@gold2024";
+const ADMIN_USERNAME = "admin";
+const ADMIN_PASSWORD = "admin123";
 // ─── UPI + Subscription config ──────────────────────────────────────
 const UPI_ID        = "logeshunique@oksbi";
 const UPI_NAME      = "GoldLedger";
