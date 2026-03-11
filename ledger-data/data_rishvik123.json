@@ -178,6 +178,22 @@
       "pureGoldOut": 0,
       "createdAt": 1773229435499,
       "id": "zog9k2krmmlz0t4b"
+    },
+    {
+      "date": "2026-03-11",
+      "personId": "v0rqdq29mmlnzmq0",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 20,
+      "goldOut": 0,
+      "purity": "100",
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 20,
+      "pureGoldOut": 0,
+      "createdAt": 1773229472248,
+      "id": "j61fgch8mmlz1lh4"
     }
   ],
   "companyName": "Rishvik Jewellery",
