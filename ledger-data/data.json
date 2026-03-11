@@ -11,7 +11,25 @@
     }
   ],
   "workers": [],
-  "entries": [],
+  "entries": [
+    {
+      "date": "2026-03-11",
+      "personId": "uo6vrcoqmmllumd9",
+      "personType": "customer",
+      "description": "Gold purchase",
+      "goldIn": 0,
+      "goldOut": 50,
+      "purity": "24K (999)",
+      "customPurity": "",
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 0,
+      "pureGoldOut": 50,
+      "id": "rdtpbgjsmmllvukt",
+      "createdAt": 1773207369101
+    }
+  ],
   "companyName": "My Gold Shop",
   "companyAddress": "",
   "companyPhone": "",
