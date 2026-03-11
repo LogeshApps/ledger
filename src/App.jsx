@@ -135,7 +135,6 @@ const Icon = ({ name, size=18, color="currentColor" }) => {
 
 // ─── Styles ─────────────────────────────────────────────────────────
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg:#0c0e14;--surface:#13161f;--surface2:#1a1e2a;--surface3:#222636;
@@ -147,7 +146,7 @@ const styles = `
     --blue:#38bdf8;--blue-dim:rgba(56,189,248,0.12);
     --gold:#fbbf24;--gold-dim:rgba(251,191,36,0.12);
     --radius:12px;--radius-sm:8px;--shadow:0 4px 24px rgba(0,0,0,0.4);
-    --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
+    --font:Arial,Helvetica,sans-serif;--font-display:Arial,Helvetica,sans-serif;
     --sidebar-w:240px;--tr:0.2s cubic-bezier(0.4,0,0.2,1);
   }
   html{font-size:15px}
@@ -626,7 +625,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
   const isEdit = !!initial;
   const [rows, setRows] = useState(
     isEdit
-      ? [{ ...initial, purity: initial.purity||"22K" }]
+      ? [{ ...initial, purity: initial.purity||"100" }]
       : [emptyRow(defaultPersonId||"", defaultPersonType||"customer")]
   );
   const [err, setErr] = useState("");
@@ -646,9 +645,9 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
       if (!r.goldIn && !r.goldOut && !r.moneyIn && !r.moneyOut) return setErr(`Row ${i+1}: Enter at least one value.`);
     }
     setErr("");
-    filled.forEach(r => {
-      const pv = r.purity||"22K";
-      onSave({
+    const prepared = filled.map(r => {
+      const pv = r.purity||"100";
+      return {
         ...r,
         goldIn:      Number(r.goldIn||0),
         goldOut:     Number(r.goldOut||0),
@@ -658,8 +657,9 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
         pureGoldIn:  pureGold(r.goldIn||0,  pv),
         pureGoldOut: pureGold(r.goldOut||0, pv),
         createdAt:   Date.now(),
-      });
+      };
     });
+    onSave(prepared);
   };
 
   const filledCount = rows.filter(r=>r.personId||r.goldIn||r.goldOut||r.moneyIn||r.moneyOut).length;
@@ -691,7 +691,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
               <th style={{...hdr,width:90,color:"var(--gold)"}}>Gold In (g)</th>
               <th style={{...hdr,width:90,color:"var(--red)"}}>Gold Out (g)</th>
               <th style={{...hdr,width:90}}>Purity %</th>
-              <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>24K</th>
+              <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>Pure Gold 100%</th>
               <th style={{...hdr,width:100,color:"var(--green)"}}>Money In ₹</th>
               <th style={{...hdr,width:100,color:"var(--red)"}}>Money Out ₹</th>
               <th style={{...hdr,width:80}}>Notes</th>
@@ -700,7 +700,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
           </thead>
           <tbody>
             {rows.map((f,i)=>{
-              const pv = f.purity||"22K";
+              const pv = f.purity||"100";
               const pureIn  = f.goldIn  ? pureGold(Number(f.goldIn),  pv).toFixed(3) : null;
               const pureOut = f.goldOut ? pureGold(Number(f.goldOut), pv).toFixed(3) : null;
               const isLast = i===rows.length-1;
@@ -868,7 +868,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
         </div>
         <div className="stat-card gold" style={{"--gold":"#a78bfa"}}>
           <div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div>
-          <div className="stat-label">Pure Gold Balance (24K)</div>
+          <div className="stat-label">Pure Gold Balance (100%)</div>
           <div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(totals.pureIn - totals.pureOut)}</div>
           <div className="stat-sub">In: {fmtGold(totals.pureIn)} · Out: {fmtGold(totals.pureOut)}</div>
         </div>
@@ -1199,7 +1199,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
         <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
           ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure 24K</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
+          <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
           ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyFull(s.moneyIn)} · Out: ${fmtMoneyFull(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
@@ -1240,7 +1240,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
   const SummaryCards = ({s}) => (
     <div className="stats-grid" style={{marginBottom:16}}>
       <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Net Gold Balance</div><div className="stat-value gold">{fmtGold(s.goldIn-s.goldOut)}</div><div className="stat-sub">In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div></div>
-      <div className="stat-card" style={{"--accent":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div><div className="stat-label">Pure Gold (24K)</div><div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div><div className="stat-sub">In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div></div>
+      <div className="stat-card" style={{"--accent":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div><div className="stat-label">Pure Gold (100%)</div><div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div><div className="stat-sub">In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div></div>
       <div className={`stat-card ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}><div className={`stat-icon ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}><Icon name="money" size={18} color={s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Money Balance</div><div className={`stat-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}>{fmtMoney(s.moneyIn-s.moneyOut)}</div><div className="stat-sub">In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div></div>
     </div>
   );
@@ -1357,7 +1357,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div>
               </div>
               <div style={{background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure 24K</div>
+                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure Gold 100%</div>
                 <div style={{fontFamily:"var(--font-display)",fontSize:"1.3rem",fontWeight:800,color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div>
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div>
               </div>
@@ -1585,7 +1585,7 @@ function Dashboard({ data, setPage, setViewPerson, currentUser }) {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Total Gold Balance</div><div className="stat-value gold">{fmtGold(totalGoldBal)}</div><div className="stat-sub">Pure 24K: {fmtGold(totalPureBal)}</div></div>
+        <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Total Gold Balance</div><div className="stat-value gold">{fmtGold(totalGoldBal)}</div><div className="stat-sub">Pure Gold 100%: {fmtGold(totalPureBal)}</div></div>
         <div className={`stat-card ${totalMoneyBal>=0?"green":"red"}`}><div className={`stat-icon ${totalMoneyBal>=0?"green":"red"}`}><Icon name="money" size={18} color={totalMoneyBal>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Total Money Balance</div><div className={`stat-value ${totalMoneyBal>=0?"green":"red"}`}>{fmtMoney(totalMoneyBal)}</div><div className="stat-sub">{totalMoneyBal>=0?"Receivable":"Payable"}</div></div>
         <div className="stat-card blue"><div className="stat-icon blue"><Icon name="customers" size={18} color="var(--blue)"/></div><div className="stat-label">Customers</div><div className="stat-value blue">{customers.length}</div><div className="stat-sub">Active accounts</div></div>
         <div className="stat-card" style={{"--green":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="workers" size={18} color="#a78bfa"/></div><div className="stat-label">Workers</div><div className="stat-value" style={{color:"#a78bfa"}}>{workers.length}</div><div className="stat-sub">Active workers</div></div>
@@ -2356,8 +2356,18 @@ export default function App() {
   const deleteWorker   = id=> { updateData({workers:data.workers.filter(w=>w.id!==id)}); addToast("Deleted.","error"); };
 
   const saveEntry = f => {
-    if(f.id) { updateData({entries:data.entries.map(e=>e.id===f.id?{...e,...f}:e)}); addToast("Entry updated!"); }
-    else { updateData({entries:[...data.entries,{...f,id:uid(),createdAt:Date.now()}]}); addToast("Entry saved!"); }
+    if (Array.isArray(f)) {
+      // Multi-row new entries: batch all at once in a single updateData call
+      const newEntries = f.map(entry => ({...entry, id: uid(), createdAt: Date.now()}));
+      updateData({entries: [...data.entries, ...newEntries]});
+      addToast(`${newEntries.length} ${newEntries.length===1?"entry":"entries"} saved!`);
+    } else if (f.id) {
+      updateData({entries: data.entries.map(e => e.id===f.id ? {...e,...f} : e)});
+      addToast("Entry updated!");
+    } else {
+      updateData({entries: [...data.entries, {...f, id: uid(), createdAt: Date.now()}]});
+      addToast("Entry saved!");
+    }
     setEntryForm(null);
   };
   const deleteEntry = async (id) => {
