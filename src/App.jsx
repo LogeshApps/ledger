@@ -1135,10 +1135,40 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
       /* ── Business Header ── */
       .biz-box{
-        text-align:center;padding:18px 32px 14px;border-radius:14px;margin-bottom:18px;
+        position:relative;overflow:hidden;
+        text-align:center;padding:22px 120px 18px;border-radius:16px;margin-bottom:18px;
         background:linear-gradient(160deg,#fffde7,#fef3c7 50%,#fde68a);
         border:2px solid #f59e0b;
         box-shadow:0 0 0 4px rgba(245,158,11,0.08),0 0 28px rgba(245,158,11,0.18),0 4px 16px rgba(0,0,0,0.07);
+      }
+      /* Decorative circles — left side */
+      .biz-box::before{
+        content:'';position:absolute;left:-38px;top:50%;transform:translateY(-50%);
+        width:130px;height:130px;border-radius:50%;
+        background:radial-gradient(circle,rgba(245,158,11,0.28) 0%,rgba(245,158,11,0.08) 60%,transparent 100%);
+        border:2px solid rgba(245,158,11,0.35);
+        box-shadow:inset 0 0 0 18px rgba(255,255,255,0.18),inset 0 0 0 36px rgba(245,158,11,0.07);
+      }
+      /* Decorative circles — right side */
+      .biz-box::after{
+        content:'';position:absolute;right:-38px;top:50%;transform:translateY(-50%);
+        width:130px;height:130px;border-radius:50%;
+        background:radial-gradient(circle,rgba(245,158,11,0.28) 0%,rgba(245,158,11,0.08) 60%,transparent 100%);
+        border:2px solid rgba(245,158,11,0.35);
+        box-shadow:inset 0 0 0 18px rgba(255,255,255,0.18),inset 0 0 0 36px rgba(245,158,11,0.07);
+      }
+      .biz-inner{position:relative;z-index:1;}
+      .biz-circles-left{
+        position:absolute;left:10px;top:50%;transform:translateY(-50%);
+        display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;
+      }
+      .biz-circles-right{
+        position:absolute;right:10px;top:50%;transform:translateY(-50%);
+        display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;
+      }
+      .biz-ring{
+        border-radius:50%;border:1.5px solid rgba(180,83,9,0.25);
+        background:rgba(255,255,255,0.12);
       }
       .biz-name{
         font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:900;
@@ -1186,12 +1216,50 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
       <!-- Business Box -->
       <div class="biz-box">
-        <div class="biz-name">${bizName}</div>
-        ${bizOwner ? `<div class="biz-sub">Proprietor: ${bizOwner}</div>` : ""}
-        ${(bizAddress||bizPhone) ? `<div class="biz-details">
-          ${bizAddress ? `<span>📍 ${bizAddress}</span>` : ""}
-          ${bizPhone   ? `<span>📞 ${bizPhone}</span>`   : ""}
-        </div>` : ""}
+        <!-- Left decorative rings -->
+        <div class="biz-circles-left">
+          <svg width="90" height="90" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="45" cy="45" r="42" stroke="rgba(180,83,9,0.30)" stroke-width="1.5" fill="rgba(255,255,255,0.10)"/>
+            <circle cx="45" cy="45" r="32" stroke="rgba(180,83,9,0.22)" stroke-width="1.5" fill="rgba(245,158,11,0.08)"/>
+            <circle cx="45" cy="45" r="21" stroke="rgba(180,83,9,0.18)" stroke-width="1.5" fill="rgba(245,158,11,0.12)"/>
+            <circle cx="45" cy="45" r="10" fill="rgba(245,158,11,0.22)" stroke="rgba(180,83,9,0.25)" stroke-width="1"/>
+            <!-- Subtle sparkle dots on outer ring -->
+            <circle cx="45" cy="3"  r="2.5" fill="rgba(180,83,9,0.35)"/>
+            <circle cx="87" cy="45" r="2.5" fill="rgba(180,83,9,0.35)"/>
+            <circle cx="45" cy="87" r="2.5" fill="rgba(180,83,9,0.35)"/>
+            <circle cx="3"  cy="45" r="2.5" fill="rgba(180,83,9,0.35)"/>
+            <circle cx="76" cy="14" r="1.8" fill="rgba(180,83,9,0.25)"/>
+            <circle cx="76" cy="76" r="1.8" fill="rgba(180,83,9,0.25)"/>
+            <circle cx="14" cy="76" r="1.8" fill="rgba(180,83,9,0.25)"/>
+            <circle cx="14" cy="14" r="1.8" fill="rgba(180,83,9,0.25)"/>
+          </svg>
+        </div>
+        <!-- Right decorative rings -->
+        <div class="biz-circles-right">
+          <svg width="90" height="90" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="45" cy="45" r="42" stroke="rgba(180,83,9,0.30)" stroke-width="1.5" fill="rgba(255,255,255,0.10)"/>
+            <circle cx="45" cy="45" r="32" stroke="rgba(180,83,9,0.22)" stroke-width="1.5" fill="rgba(245,158,11,0.08)"/>
+            <circle cx="45" cy="45" r="21" stroke="rgba(180,83,9,0.18)" stroke-width="1.5" fill="rgba(245,158,11,0.12)"/>
+            <circle cx="45" cy="45" r="10" fill="rgba(245,158,11,0.22)" stroke="rgba(180,83,9,0.25)" stroke-width="1"/>
+            <circle cx="45" cy="3"  r="2.5" fill="rgba(180,83,9,0.35)"/>
+            <circle cx="87" cy="45" r="2.5" fill="rgba(180,83,9,0.35)"/>
+            <circle cx="45" cy="87" r="2.5" fill="rgba(180,83,9,0.35)"/>
+            <circle cx="3"  cy="45" r="2.5" fill="rgba(180,83,9,0.35)"/>
+            <circle cx="76" cy="14" r="1.8" fill="rgba(180,83,9,0.25)"/>
+            <circle cx="76" cy="76" r="1.8" fill="rgba(180,83,9,0.25)"/>
+            <circle cx="14" cy="76" r="1.8" fill="rgba(180,83,9,0.25)"/>
+            <circle cx="14" cy="14" r="1.8" fill="rgba(180,83,9,0.25)"/>
+          </svg>
+        </div>
+        <!-- Main content -->
+        <div class="biz-inner">
+          <div class="biz-name">${bizName}</div>
+          ${bizOwner ? `<div class="biz-sub">Proprietor: ${bizOwner}</div>` : ""}
+          ${(bizAddress||bizPhone) ? `<div class="biz-details">
+            ${bizAddress ? `<span>📍 ${bizAddress}</span>` : ""}
+            ${bizPhone   ? `<span>📞 ${bizPhone}</span>`   : ""}
+          </div>` : ""}
+        </div>
       </div>
 
       <!-- Report Title Block -->
@@ -1230,6 +1298,13 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         </div>
       </div>
       <div class="page-footer"><span>${bizName}</span><span>Powered by Ledger</span></div>
+      <script>
+        // Auto-trigger print/save dialog as soon as the page finishes loading
+        window.onload = function() {
+          document.title = "${title.replace(/"/g,"'")}";
+          setTimeout(function(){ window.print(); }, 400);
+        };
+      </script>
     </body></html>`;
   };
 
@@ -1240,10 +1315,13 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
   const doPrint = () => {
     if (!preview) return;
-    const w = window.open("","_blank");
-    w.document.write(preview.html);
-    w.document.close();
-    setTimeout(()=>w.print(), 600);
+    // Open HTML in new tab — page auto-prints on load (print dialog opens immediately)
+    // User selects "Save as PDF" destination in print dialog for zero-click saving
+    const blob = new Blob([preview.html], {type:"text/html;charset=utf-8"});
+    const url  = URL.createObjectURL(blob);
+    const win  = window.open(url, "_blank");
+    // Revoke blob URL after a delay to free memory
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   const exportCSV = (ents, name) => {
