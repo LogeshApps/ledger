@@ -79,6 +79,40 @@ const cleanName = (s) => {
     .trim();
 };
 const today = () => new Date().toISOString().split("T")[0];
+
+// ── Print HTML via hidden iframe (no popup blocker, no new tab needed) ──
+const printHTMLDoc = (html, title) => {
+  // Remove any existing print iframe
+  const old = document.getElementById("__ledger_print_frame__");
+  if (old) old.remove();
+
+  const iframe = document.createElement("iframe");
+  iframe.id = "__ledger_print_frame__";
+  // Must be visible and sized for print to work cross-browser
+  iframe.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;border:none;z-index:-1;opacity:0;pointer-events:none;";
+  document.body.appendChild(iframe);
+
+  const blob = new Blob([html], {type:"text/html;charset=utf-8"});
+  const url  = URL.createObjectURL(blob);
+
+  iframe.onload = () => {
+    try {
+      if (title) iframe.contentWindow.document.title = title;
+      iframe.contentWindow.focus();
+      setTimeout(() => {
+        iframe.contentWindow.print();
+        setTimeout(() => {
+          try { iframe.remove(); URL.revokeObjectURL(url); } catch(e){}
+        }, 30000);
+      }, 300);
+    } catch(e) {
+      window.open(url, "_blank");
+      setTimeout(() => { try { iframe.remove(); URL.revokeObjectURL(url); } catch(e){} }, 15000);
+    }
+  };
+
+  iframe.src = url;
+};
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) : "-";
 const fmtMoney = (n) => {
   const num = Number(n) || 0;
@@ -1542,7 +1576,6 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         </div>
       </div>
       <div class="page-footer"><span>${bizName}</span><span>Powered by Ledger</span></div>
-      ${autoPrint ? `<scr${"ipt"}>window.onload=function(){document.title="${title.replace(/"/g,"'")}";setTimeout(function(){window.print();},400);};${"<"}/scr${"ipt"}>` : ""}
     </body></html>`;
   };
 
@@ -1553,12 +1586,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
   const doPrint = () => {
     if (!preview) return;
-    const printScript = "<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(preview.title||"Report")+";setTimeout(function(){window.print();},400);};<"+"/scr"+"ipt>";
-    const html = preview.html.includes("window.print") ? preview.html : preview.html.replace("</body>", printScript+"</body>");
-    const blob = new Blob([html], {type:"text/html;charset=utf-8"});
-    const url  = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    printHTMLDoc(preview.html, preview.title || "Report");
   };
 
   const exportCSV = (ents, name) => {
@@ -2809,12 +2837,7 @@ function SavedReports({ currentUser }) {
   };
 
   const openPDF = (r) => {
-    const ps = "<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(cleanName(r.name))+";setTimeout(function(){window.print();},400);};<"+"/scr"+"ipt>";
-    const html = r.html.includes("window.print") ? r.html : r.html.replace("</body>", ps+"</body>");
-    const blob = new Blob([html],{type:"text/html;charset=utf-8"});
-    const url  = URL.createObjectURL(blob);
-    window.open(url,"_blank");
-    setTimeout(()=>URL.revokeObjectURL(url),12000);
+    printHTMLDoc(r.html, cleanName(r.name));
   };
 
   const TAG_COLORS = ["#6366f1","#22d3a0","#f59e0b","#f43f5e","#38bdf8","#a78bfa","#fb923c"];
