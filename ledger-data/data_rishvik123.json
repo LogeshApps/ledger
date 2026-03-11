@@ -1,5 +1,15 @@
 {
-  "customers": [],
+  "customers": [
+    {
+      "name": "Loki",
+      "phone": "",
+      "address": "",
+      "workType": "",
+      "notes": "",
+      "id": "v0rqdq29mmlnzmq0",
+      "createdAt": 1773210904776
+    }
+  ],
   "workers": [],
   "entries": [],
   "companyName": "Rishvik Jewellery",
