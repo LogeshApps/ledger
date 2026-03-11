@@ -1542,7 +1542,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         </div>
       </div>
       <div class="page-footer"><span>${bizName}</span><span>Powered by Ledger</span></div>
-      ${autoPrint ? `<script>window.onload=function(){document.title="${title.replace(/"/g,"'")}";setTimeout(function(){window.print();},400);};</script>` : ""}
+      ${autoPrint ? `<scr${"ipt"}>window.onload=function(){document.title="${title.replace(/"/g,"'")}";setTimeout(function(){window.print();},400);};${"<"}/scr${"ipt"}>` : ""}
     </body></html>`;
   };
 
@@ -1553,12 +1553,11 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
   const doPrint = () => {
     if (!preview) return;
-    // Open HTML in new tab — page auto-prints on load (print dialog opens immediately)
-    // User selects "Save as PDF" destination in print dialog for zero-click saving
-    const blob = new Blob([preview.html], {type:"text/html;charset=utf-8"});
+    const printScript = "<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(preview.title||"Report")+";setTimeout(function(){window.print();},400);};<"+"/scr"+"ipt>";
+    const html = preview.html.includes("window.print") ? preview.html : preview.html.replace("</body>", printScript+"</body>");
+    const blob = new Blob([html], {type:"text/html;charset=utf-8"});
     const url  = URL.createObjectURL(blob);
-    const win  = window.open(url, "_blank");
-    // Revoke blob URL after a delay to free memory
+    window.open(url, "_blank");
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
@@ -2735,14 +2734,16 @@ function SaveReportModal({ defaultName, onSave, onClose, saving }) {
 
 // ─── Saved Reports Page ──────────────────────────────────────────────
 function SavedReports({ currentUser }) {
-  const [records,  setRecords]  = useState(null);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState("");
-  const [tagFilter,setTagFilter]= useState("");
-  const [del,      setDel]      = useState(null);
-  const [editRec,  setEditRec]  = useState(null);
-  const [saving,   setSaving]   = useState(false);
-  const [preview,  setPreview]  = useState(null);
+  const [records,    setRecords]   = useState(null);
+  const [loading,    setLoading]   = useState(true);
+  const [search,     setSearch]    = useState("");
+  const [tagFilter,  setTagFilter] = useState("");
+  const [del,        setDel]       = useState(null);
+  const [editRec,    setEditRec]   = useState(null);
+  const [saving,     setSaving]    = useState(false);
+  const [preview,    setPreview]   = useState(null);
+  const [selectedIds,setSelectedIds] = useState(new Set());
+  const [bulkConfirm,setBulkConfirm] = useState(false);
 
   const loadReports = async () => {
     setLoading(true);
@@ -2784,6 +2785,17 @@ function SavedReports({ currentUser }) {
     setDel(null);
   };
 
+  const bulkDelete = async () => {
+    try {
+      const existing = await ghGet(reportsFile(currentUser.username));
+      const updated  = (existing?.data?.reports||[]).filter(r=>!selectedIds.has(r.id));
+      await ghPut(reportsFile(currentUser.username),{reports:updated},existing?.sha||null,"Bulk delete saved reports");
+      setRecords(updated);
+      setSelectedIds(new Set());
+    } catch(e) { alert("Bulk delete failed"); }
+    setBulkConfirm(false);
+  };
+
   const saveEdit = async ({name,tags,notes}) => {
     setSaving(true);
     try {
@@ -2796,8 +2808,35 @@ function SavedReports({ currentUser }) {
     setSaving(false);
   };
 
+  const openPDF = (r) => {
+    const ps = "<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(cleanName(r.name))+";setTimeout(function(){window.print();},400);};<"+"/scr"+"ipt>";
+    const html = r.html.includes("window.print") ? r.html : r.html.replace("</body>", ps+"</body>");
+    const blob = new Blob([html],{type:"text/html;charset=utf-8"});
+    const url  = URL.createObjectURL(blob);
+    window.open(url,"_blank");
+    setTimeout(()=>URL.revokeObjectURL(url),12000);
+  };
+
   const TAG_COLORS = ["#6366f1","#22d3a0","#f59e0b","#f43f5e","#38bdf8","#a78bfa","#fb923c"];
   const tagColor  = (t) => TAG_COLORS[Math.abs([...t].reduce((a,c)=>a+c.charCodeAt(0),0)) % TAG_COLORS.length];
+
+  const allFilteredSelected = filtered.length>0 && filtered.every(r=>selectedIds.has(r.id));
+  const toggleAll = () => {
+    if (allFilteredSelected) {
+      const next = new Set(selectedIds);
+      filtered.forEach(r=>next.delete(r.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      filtered.forEach(r=>next.add(r.id));
+      setSelectedIds(next);
+    }
+  };
+  const toggleOne = (id) => {
+    const next = new Set(selectedIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    setSelectedIds(next);
+  };
 
   return (
     <div>
@@ -2834,6 +2873,17 @@ function SavedReports({ currentUser }) {
         {records&&<div style={{fontSize:"0.82rem",color:"var(--text3)"}}>{filtered.length} of {records.length} reports</div>}
       </div>
 
+      {/* Bulk delete toolbar */}
+      {selectedIds.size>0&&(
+        <div style={{background:"rgba(244,63,94,0.1)",border:"1px solid rgba(244,63,94,0.35)",borderRadius:"var(--radius-sm)",padding:"10px 16px",marginBottom:12,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+          <span style={{fontSize:"0.88rem",fontWeight:600,color:"var(--red)"}}>{selectedIds.size} report{selectedIds.size>1?"s":""} selected</span>
+          <div style={{display:"flex",gap:8}}>
+            <button className="btn btn-secondary btn-sm" onClick={()=>setSelectedIds(new Set())}>Clear</button>
+            <button className="btn btn-danger btn-sm" onClick={()=>setBulkConfirm(true)}><Icon name="trash" size={13}/>Delete Selected</button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="empty"><div className="empty-icon"><Icon name="sync" size={28}/></div><div className="empty-title">Loading saved reports...</div></div>
       ) : !records || records.length===0 ? (
@@ -2846,10 +2896,18 @@ function SavedReports({ currentUser }) {
         <div className="empty"><div className="empty-title">No results found</div><div className="empty-sub">Try a different search or tag filter.</div></div>
       ) : (
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {/* Select-all row */}
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"4px 6px"}}>
+            <input type="checkbox" checked={allFilteredSelected} onChange={toggleAll}
+              style={{width:16,height:16,accentColor:"var(--gold)",cursor:"pointer",flexShrink:0}}/>
+            <span style={{fontSize:"0.78rem",color:"var(--text3)"}}>Select all ({filtered.length})</span>
+          </div>
+
           {filtered.map(r=>(
-            <div key={r.id} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:"14px 18px",display:"flex",gap:14,alignItems:"flex-start",transition:"border-color 0.15s"}}
-              onMouseEnter={e=>e.currentTarget.style.borderColor="var(--border2)"}
-              onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
+            <div key={r.id} style={{background:selectedIds.has(r.id)?"rgba(244,63,94,0.06)":"var(--surface)",border:`1px solid ${selectedIds.has(r.id)?"rgba(244,63,94,0.3)":"var(--border)"}`,borderRadius:"var(--radius)",padding:"14px 18px",display:"flex",gap:14,alignItems:"flex-start",transition:"border-color 0.15s"}}>
+              {/* Checkbox */}
+              <input type="checkbox" checked={selectedIds.has(r.id)} onChange={()=>toggleOne(r.id)}
+                style={{width:16,height:16,accentColor:"var(--gold)",cursor:"pointer",flexShrink:0,marginTop:4}}/>
               {/* Icon */}
               <div style={{width:40,height:40,background:"var(--gold-dim)",border:"1px solid rgba(251,191,36,0.3)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
                 <Icon name="pdf" size={18} color="var(--gold)"/>
@@ -2861,9 +2919,8 @@ function SavedReports({ currentUser }) {
                   <span style={{fontSize:"0.7rem",color:"var(--text3)",background:"var(--surface2)",padding:"2px 8px",borderRadius:99,border:"1px solid var(--border)",flexShrink:0}}>
                     {r.reportType==="gold"?"Gold Only":r.reportType==="money"?"Cash Only":"Full Report"}
                   </span>
-                  {r.autoGenerated&&<span style={{fontSize:"0.7rem",background:"rgba(99,102,241,0.12)",color:"#6366f1",padding:"2px 8px",borderRadius:99,border:"1px solid rgba(99,102,241,0.3)",flexShrink:0,fontWeight:700}}>🤖 Auto</span>}
+                  {r.autoGenerated&&<span style={{fontSize:"0.7rem",background:"rgba(99,102,241,0.12)",color:"#6366f1",padding:"2px 8px",borderRadius:99,border:"1px solid rgba(99,102,241,0.3)",flexShrink:0,fontWeight:700}}>Auto</span>}
                 </div>
-                {/* Tags */}
                 {r.tags?.length>0&&(
                   <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:5}}>
                     {r.tags.map(t=>(
@@ -2884,16 +2941,10 @@ function SavedReports({ currentUser }) {
               </div>
               {/* Actions */}
               <div style={{display:"flex",gap:6,flexShrink:0}}>
-                <button className="btn btn-gold btn-sm" onClick={()=>setPreview(r)} title="View Report"><Icon name="eye" size={13}/>View</button>
-                <button className="btn btn-secondary btn-sm" onClick={()=>{
-                  const printHtml = r.html.replace("</body>","<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(r.name)+";setTimeout(function(){window.print();},400);};<\/scr"+"ipt></body>");
-                  const blob = new Blob([printHtml],{type:"text/html;charset=utf-8"});
-                  const url  = URL.createObjectURL(blob);
-                  window.open(url,"_blank");
-                  setTimeout(()=>URL.revokeObjectURL(url),10000);
-                }} title="Export PDF"><Icon name="pdf" size={13}/>PDF</button>
-                <button className="btn btn-secondary btn-sm" onClick={()=>setEditRec(r)} title="Edit name/tags"><Icon name="edit" size={13}/></button>
-                <button className="btn btn-danger btn-sm" onClick={()=>setDel(r)} title="Delete"><Icon name="trash" size={13}/></button>
+                <button className="btn btn-gold btn-sm" onClick={()=>setPreview(r)}><Icon name="eye" size={13}/>View</button>
+                <button className="btn btn-secondary btn-sm" onClick={()=>openPDF(r)}><Icon name="pdf" size={13}/>PDF</button>
+                <button className="btn btn-secondary btn-sm" onClick={()=>setEditRec(r)}><Icon name="edit" size={13}/></button>
+                <button className="btn btn-danger btn-sm" onClick={()=>setDel(r)}><Icon name="trash" size={13}/></button>
               </div>
             </div>
           ))}
@@ -2906,13 +2957,7 @@ function SavedReports({ currentUser }) {
           <div style={{background:"var(--surface)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid var(--border)",flexShrink:0,gap:12}}>
             <div style={{fontWeight:700,fontSize:"0.95rem",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cleanName(preview.name)}</div>
             <div style={{display:"flex",gap:8,flexShrink:0}}>
-              <button className="btn btn-gold btn-sm" onClick={()=>{
-                const printHtml = preview.html.replace("</body>","<scr"+"ipt>window.onload=function(){document.title="+JSON.stringify(preview.name)+";setTimeout(function(){window.print();},400);};<\\/scr"+"ipt></body>");
-                const blob = new Blob([printHtml],{type:"text/html;charset=utf-8"});
-                const url  = URL.createObjectURL(blob);
-                window.open(url,"_blank");
-                setTimeout(()=>URL.revokeObjectURL(url),10000);
-              }}><Icon name="pdf" size={14}/>Print / Save PDF</button>
+              <button className="btn btn-gold btn-sm" onClick={()=>openPDF(preview)}><Icon name="pdf" size={14}/>Print / Save PDF</button>
               <button className="btn btn-secondary btn-sm" onClick={()=>setPreview(null)}>✕ Close</button>
             </div>
           </div>
@@ -2920,7 +2965,8 @@ function SavedReports({ currentUser }) {
         </div>
       )}
 
-      {del&&<Confirm msg={`Delete report "${del.name}"? This cannot be undone.`} onOk={()=>deleteReport(del.id)} onCancel={()=>setDel(null)}/>}
+      {del&&<Confirm msg={`Delete "${cleanName(del.name)}"? This cannot be undone.`} onOk={()=>deleteReport(del.id)} onCancel={()=>setDel(null)}/>}
+      {bulkConfirm&&<Confirm msg={`Delete ${selectedIds.size} selected report${selectedIds.size>1?"s":""}? This cannot be undone.`} onOk={bulkDelete} onCancel={()=>setBulkConfirm(false)}/>}
       {editRec&&<SaveReportModal defaultName={editRec.name} onSave={saveEdit} onClose={()=>setEditRec(null)} saving={saving}/>}
     </div>
   );
