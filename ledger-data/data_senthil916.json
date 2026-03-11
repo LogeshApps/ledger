@@ -10,7 +10,17 @@
       "createdAt": 1773220099849
     }
   ],
-  "workers": [],
+  "workers": [
+    {
+      "name": "Kumar",
+      "phone": "12345678",
+      "address": "",
+      "workType": "Dye works",
+      "notes": "Salem",
+      "id": "pkxo04h4mmltht7g",
+      "createdAt": 1773220151068
+    }
+  ],
   "entries": [],
   "companyName": "SG ANTIQUES",
   "companyAddress": "",
