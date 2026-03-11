@@ -2,16 +2,19 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 // ─── GITHUB CONFIG ─────────────────────────────────────────────────
 // Replace with your own values:
-const GITHUB_USERNAME = "YOUR_GITHUB_USERNAME";
-const GITHUB_REPO     = "YOUR_REPO_NAME";
+const GITHUB_USERNAME = "LogeshApps";
+const GITHUB_REPO     = "ledger";
 // Split your PAT token into 2 halves to avoid GitHub scanner revoking it
-const PAT_PART1  = "YOUR_TOKEN_FIRST_HALF";
-const PAT_PART2  = "YOUR_TOKEN_SECOND_HALF";
+const PAT_PART1  = "ghp_F4oz8Z9OiPZx8bHi";
+const PAT_PART2  = "VpD0uKHAopeDJs2a6PJk";
 const GITHUB_PAT = PAT_PART1 + PAT_PART2;
 // Data file is per-business: ledger-data/data_<username>.json
 const userDataFile = (username) => `ledger-data/data_${username.toLowerCase().replace(/[^a-z0-9]/g,"_")}.json`;
 // Master users registry file (stores all registered usernames/passwords)
 const USERS_FILE = "ledger-data/users.json";
+// ─── ADMIN credentials (hardcoded — only you know this) ─────────────
+const ADMIN_USERNAME = "goldadmin";
+const ADMIN_PASSWORD = "Admin@gold2024";
 // ───────────────────────────────────────────────────────────────────
 
 // ─── GitHub API ─────────────────────────────────────────────────────
@@ -407,7 +410,7 @@ function Confirm({ msg, onOk, onCancel }) {
 }
 
 // ─── Login + Register ────────────────────────────────────────────────
-function LoginPage({ onLogin, onRegister }) {
+function LoginPage({ onLogin }) {
   const [tab,  setTab]  = useState("login"); // login | register
   const [u,    setU]    = useState("");
   const [p,    setP]    = useState("");
@@ -418,12 +421,17 @@ function LoginPage({ onLogin, onRegister }) {
 
   const doLogin = async () => {
     if (!u.trim() || !p.trim()) return setErr("Enter username and password.");
+    // Check admin credentials first (no GitHub read needed)
+    if (u.trim()===ADMIN_USERNAME && p===ADMIN_PASSWORD) {
+      onLogin({ id:"admin", username:ADMIN_USERNAME, role:"admin" }, true);
+      return;
+    }
     setBusy(true); setErr("");
     try {
       const result = await ghGet(USERS_FILE);
       const users = result?.data?.users || [];
       const user = users.find(x => x.username.toLowerCase()===u.toLowerCase().trim() && x.password===p);
-      if (user) { onLogin(user); }
+      if (user) { onLogin(user, false); }
       else setErr("Invalid username or password.");
     } catch(e) { setErr("Could not connect. Check GitHub config."); }
     setBusy(false);
@@ -1243,13 +1251,213 @@ function Dashboard({ data, setPage, setViewPerson, currentUser }) {
   );
 }
 
+
+// ─── Admin Panel ─────────────────────────────────────────────────────
+function AdminPanel({ onLogout }) {
+  const [users,   setUsers]   = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selUser, setSelUser] = useState(null); // selected user to view
+  const [userData, setUserData] = useState(null);
+  const [userLoading, setUserLoading] = useState(false);
+  const [tab, setTab] = useState("users"); // users | view
+  const { toasts, add: addToast, remove: removeToast } = useToast();
+
+  // Load all registered users
+  useEffect(()=>{
+    (async()=>{
+      setLoading(true);
+      try {
+        const result = await ghGet(USERS_FILE);
+        setUsers(result?.data?.users || []);
+      } catch(e) { addToast("Failed to load users","error"); }
+      setLoading(false);
+    })();
+  },[]);
+
+  const viewUser = async (user) => {
+    setSelUser(user);
+    setTab("view");
+    setUserLoading(true);
+    try {
+      const file = userDataFile(user.username);
+      const result = await ghGet(file);
+      setUserData(result?.data || null);
+    } catch(e) { addToast("Failed to load user data","error"); setUserData(null); }
+    setUserLoading(false);
+  };
+
+  const deleteUser = async (user) => {
+    if (!window.confirm(`Delete business "${user.businessName}" (${user.username})? This cannot be undone.`)) return;
+    try {
+      const result = await ghGet(USERS_FILE);
+      const updated = (result?.data?.users||[]).filter(u=>u.id!==user.id);
+      await ghPut(USERS_FILE, { users: updated }, result?.sha, `Admin deleted user: ${user.username}`);
+      setUsers(updated);
+      addToast("User deleted.");
+      if (selUser?.id===user.id) { setSelUser(null); setTab("users"); }
+    } catch(e) { addToast("Delete failed","error"); }
+  };
+
+  const allEntries  = userData?.entries   || [];
+  const allCustomers= userData?.customers || [];
+  const allWorkers  = userData?.workers   || [];
+  const goldBal   = allEntries.reduce((s,e)=>s+Number(e.goldIn||0)-Number(e.goldOut||0),0);
+  const moneyBal  = allEntries.reduce((s,e)=>s+Number(e.moneyIn||0)-Number(e.moneyOut||0),0);
+  const pureBal   = allEntries.reduce((s,e)=>s+Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0),0);
+
+  return (
+    <>
+      <style>{styles}</style>
+      <div className="app">
+        <aside className="sidebar">
+          <div className="sidebar-logo">
+            <div className="logo-icon" style={{background:"linear-gradient(135deg,#f43f5e,#e11d48)"}}><Icon name="gold" size={20} color="#fff"/></div>
+            <div><div className="logo-text">GoldLedger</div><div className="logo-sub" style={{color:"var(--red)"}}>Admin Panel</div></div>
+          </div>
+          <nav className="sidebar-nav">
+            <div className={`nav-item${tab==="users"?" active":""}`} onClick={()=>setTab("users")}><Icon name="customers" size={17}/>All Businesses</div>
+            {selUser&&<div className={`nav-item${tab==="view"?" active":""}`} onClick={()=>setTab("view")}><Icon name="ledger" size={17}/>Viewing: {selUser.username}</div>}
+          </nav>
+          <div className="sidebar-footer">
+            <div className="nav-item" onClick={onLogout}><Icon name="logout" size={17}/>Sign Out</div>
+          </div>
+        </aside>
+        <div className="main">
+          <header className="header">
+            <div className="header-title">
+              {tab==="users"?"All Registered Businesses":tab==="view"&&selUser?`${selUser.businessName} — Ledger View`:"Admin"}
+            </div>
+            <div className="header-right">
+              <div className="user-badge">
+                <div className="user-avatar" style={{background:"linear-gradient(135deg,#f43f5e,#e11d48)"}}>A</div>
+                <span style={{fontSize:"0.8rem",color:"var(--red)",fontWeight:600}}>ADMIN</span>
+              </div>
+            </div>
+          </header>
+          <div className="page">
+
+            {/* ── Users List ── */}
+            {tab==="users"&&(
+              <div>
+                <div className="section-header">
+                  <div>
+                    <div className="section-title">Registered Businesses</div>
+                    <div className="section-sub">{users.length} total businesses</div>
+                  </div>
+                </div>
+                {loading?(
+                  <div className="empty"><div className="empty-sub">Loading...</div></div>
+                ):users.length===0?(
+                  <div className="empty"><div className="empty-icon"><Icon name="customers" size={28}/></div><div className="empty-title">No businesses registered yet</div></div>
+                ):(
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Business Name</th>
+                          <th>Username</th>
+                          <th>Registered On</th>
+                          <th className="th-center">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {users.map((u,i)=>(
+                          <tr key={u.id}>
+                            <td className="text3">{i+1}</td>
+                            <td><div className="fw6">{u.businessName||"-"}</div></td>
+                            <td><span className="badge badge-blue">{u.username}</span></td>
+                            <td className="text2">{u.createdAt?fmtDate(new Date(u.createdAt).toISOString().split("T")[0]):"-"}</td>
+                            <td className="center">
+                              <div className="flex gap2" style={{justifyContent:"center"}}>
+                                <button className="btn btn-secondary btn-sm" onClick={()=>viewUser(u)}><Icon name="eye" size={13}/>View Ledger</button>
+                                <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u)}><Icon name="trash" size={13}/>Delete</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── View Selected User's Data ── */}
+            {tab==="view"&&selUser&&(
+              <div>
+                <div className="section-header">
+                  <div className="flex items-center gap3">
+                    <button className="btn btn-secondary btn-sm" onClick={()=>setTab("users")}><Icon name="back" size={16}/>Back</button>
+                    <div>
+                      <div className="section-title">{selUser.businessName}</div>
+                      <div className="section-sub">@{selUser.username}</div>
+                    </div>
+                  </div>
+                </div>
+                {userLoading?(
+                  <div className="empty"><div className="empty-sub">Loading business data...</div></div>
+                ):!userData?(
+                  <div className="empty"><div className="empty-title">No data found for this user</div></div>
+                ):(
+                  <>
+                    <div className="stats-grid" style={{marginBottom:20}}>
+                      <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Gold Balance</div><div className="stat-value gold">{fmtGold(goldBal)}</div><div className="stat-sub">Pure 24K: {fmtGold(pureBal)}</div></div>
+                      <div className={`stat-card ${moneyBal>=0?"green":"red"}`}><div className={`stat-icon ${moneyBal>=0?"green":"red"}`}><Icon name="money" size={18} color={moneyBal>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Money Balance</div><div className={`stat-value ${moneyBal>=0?"green":"red"}`}>{fmtMoney(moneyBal)}</div></div>
+                      <div className="stat-card blue"><div className="stat-icon blue"><Icon name="customers" size={18} color="var(--blue)"/></div><div className="stat-label">Customers</div><div className="stat-value blue">{allCustomers.length}</div></div>
+                      <div className="stat-card"><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="workers" size={18} color="#a78bfa"/></div><div className="stat-label">Workers</div><div className="stat-value" style={{color:"#a78bfa"}}>{allWorkers.length}</div></div>
+                    </div>
+
+                    <div className="card">
+                      <div className="fw7 fs-sm" style={{marginBottom:14}}>All Entries ({allEntries.length})</div>
+                      {allEntries.length===0?(
+                        <div className="empty" style={{padding:24}}><div className="empty-sub">No entries yet</div></div>
+                      ):(
+                        <div className="table-wrap" style={{border:"none"}}>
+                          <table>
+                            <thead><tr><th>Date</th><th>Person</th><th>Description</th><th className="th-right">Gold In</th><th className="th-right">Gold Out</th><th className="th-center">Purity</th><th className="th-right">Money In</th><th className="th-right">Money Out</th></tr></thead>
+                            <tbody>
+                              {[...allEntries].sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{
+                                const p=[...allCustomers,...allWorkers].find(x=>x.id===e.personId);
+                                return (
+                                  <tr key={e.id}>
+                                    <td style={{whiteSpace:"nowrap",color:"var(--text2)"}}>{fmtDate(e.date)}</td>
+                                    <td><span className="fw6">{p?.name||"-"}</span><span className="fs-xs text3" style={{marginLeft:6,textTransform:"capitalize"}}>{e.personType}</span></td>
+                                    <td className="text2">{e.description||"-"}</td>
+                                    <td className="right text-green">{e.goldIn?fmtGold(e.goldIn):"-"}</td>
+                                    <td className="right text-red">{e.goldOut?fmtGold(e.goldOut):"-"}</td>
+                                    <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
+                                    <td className="right text-green">{e.moneyIn?fmtMoney(e.moneyIn):"-"}</td>
+                                    <td className="right text-red">{e.moneyOut?fmtMoney(e.moneyOut):"-"}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+          </div>
+        </div>
+      </div>
+      <Toasts toasts={toasts} remove={removeToast}/>
+    </>
+  );
+}
+
 // ─── Main App ────────────────────────────────────────────────────────
 export default function App() {
   const [data,        setData]    = useState({...defaultBusinessData});
   const [fileSha,     setFileSha] = useState(null);
   const [page,        setPage]    = useState("dashboard");
-  const [loading,     setLoading] = useState(false); // false until user logs in
+  const [loading,     setLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isAdmin,     setIsAdmin] = useState(false);
   const [syncStatus,  setSync]    = useState("");
   const [sidebarOpen, setSidebar] = useState(false);
   const [viewPerson,  setViewPerson] = useState(null);
@@ -1278,7 +1486,9 @@ export default function App() {
     setLoading(false);
   }, [addToast]);
 
-  const handleLogin = useCallback((user) => {
+  const handleLogin = useCallback((user, adminMode=false) => {
+    if (adminMode) { setIsAdmin(true); setCurrentUser(user); return; }
+    setIsAdmin(false);
     setCurrentUser(user);
     loadUserData(user);
   }, [loadUserData]);
@@ -1339,11 +1549,16 @@ export default function App() {
     setPage(id); setSidebar(false);
   };
 
+  // ── Admin Panel ──
+  if(currentUser && isAdmin) return (
+    <AdminPanel onLogout={()=>{setCurrentUser(null);setIsAdmin(false);}}/>
+  );
+
   // ── Login screen ──
   if(!currentUser) return (
     <>
       <style>{styles}</style>
-      <LoginPage onLogin={handleLogin} onRegister={handleLogin}/>
+      <LoginPage onLogin={handleLogin}/>
     </>
   );
 
@@ -1380,7 +1595,7 @@ export default function App() {
             ))}
           </nav>
           <div className="sidebar-footer">
-            <div className="nav-item" onClick={()=>{setCurrentUser(null);setData({...defaultBusinessData});setFileSha(null);}}><Icon name="logout" size={17}/>Sign Out</div>
+            <div className="nav-item" onClick={()=>{setCurrentUser(null);setIsAdmin(false);setData({...defaultBusinessData});setFileSha(null);}}><Icon name="logout" size={17}/>Sign Out</div>
           </div>
         </aside>
 
