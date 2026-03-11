@@ -1,3 +1,16 @@
 {
-  "payments": []
+  "payments": [
+    {
+      "id": "w1jj07yrmmlr1o9s",
+      "username": "rishvik123",
+      "businessName": "Rishvik Jewellery",
+      "plan": "monthly",
+      "amount": 99,
+      "months": 1,
+      "utr": "1234567890",
+      "status": "pending",
+      "submittedAt": 1773216038944,
+      "approvedAt": null
+    }
+  ]
 }
