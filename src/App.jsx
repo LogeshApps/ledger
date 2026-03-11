@@ -14,11 +14,11 @@ const userDataFile = (username) => `ledger-data/data_${username.toLowerCase().re
 // Master users registry file (stores all registered usernames/passwords)
 const USERS_FILE = "ledger-data/users.json";
 // ─── ADMIN credentials (hardcoded — only you know this) ─────────────
-const ADMIN_USERNAME = "admin";
-const ADMIN_PASSWORD = "admin123";
+const ADMIN_USERNAME = "goldadmin";
+const ADMIN_PASSWORD = "Admin@gold2024";
 // ─── UPI + Subscription config ──────────────────────────────────────
 const UPI_ID        = "logeshunique@oksbi";
-const UPI_NAME      = "GoldLedger";
+const UPI_NAME      = "Ledger";
 const PRICE_MONTHLY = 99;
 const PRICE_YEARLY  = 999;
 const PAYMENTS_FILE = "ledger-data/payments.json";
@@ -473,8 +473,8 @@ function LoginPage({ onLogin }) {
         <div className="login-logo">
           <div className="login-logo-icon"><Icon name="gold" size={32} color="#000"/></div>
           <div>
-            <div className="login-title">GoldLedger</div>
-            <div className="login-sub">Gold &amp; Money Ledger Management</div>
+            <div className="login-title">Ledger</div>
+            <div className="login-sub">Gold &amp; Money Ledger</div>
           </div>
         </div>
 
@@ -612,98 +612,142 @@ function PeopleList({ type, data, entries, onAdd, onEdit, onDelete, onViewLedger
 }
 
 // ─── Entry Form ──────────────────────────────────────────────────────
-function EntryForm({ initial, people, defaultPersonId, onSave, onClose }) {
-  const [f, setF] = useState(initial || {
-    date: today(), personId: defaultPersonId||"", personType:"customer",
-    description:"", goldIn:"", goldOut:"", purity:"22K (916)",
-    customPurity:"", moneyIn:"", moneyOut:"", notes:""
-  });
+const emptyRow = (personId="", personType="customer") => ({
+  date: today(), personId, personType,
+  description:"", goldIn:"", goldOut:"",
+  purity:"22K (916)", customPurity:"", manualPurity:"",
+  useManualPurity: false,
+  moneyIn:"", moneyOut:"", notes:""
+});
+
+function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave, onClose }) {
+  // Multi-entry: array of rows
+  const [rows, setRows] = useState(
+    initial
+      ? [{ ...initial, purity: initial.purity||"22K (916)", customPurity:"", manualPurity: initial.purity||"", useManualPurity: false }]
+      : [emptyRow(defaultPersonId||"", defaultPersonType||"customer")]
+  );
   const [err, setErr] = useState("");
-  const set = (k,v) => setF(p=>({...p,[k]:v}));
+  const isEdit = !!initial;
 
-  const purityVal = f.purity==="Custom" ? f.customPurity : f.purity;
-  const pureIn  = f.goldIn  ? pureGold(f.goldIn,  purityVal).toFixed(3) : null;
-  const pureOut = f.goldOut ? pureGold(f.goldOut, purityVal).toFixed(3) : null;
+  const setRow = (i, k, v) => setRows(prev => prev.map((r,idx)=> idx===i ? {...r,[k]:v} : r));
 
-  const filteredPeople = people.filter(p=>p.ptype===f.personType);
+  const addRow = () => setRows(prev => [...prev, emptyRow(prev[0].personId, prev[0].personType)]);
+  const removeRow = (i) => setRows(prev => prev.filter((_,idx)=>idx!==i));
+
+  const getPurityVal = (row) => {
+    if (row.useManualPurity) return row.manualPurity;
+    if (row.purity==="Custom") return row.customPurity;
+    return row.purity;
+  };
 
   const handleSave = () => {
-    if (!f.personId) return setErr("Please select a person.");
-    if (!f.date) return setErr("Please select a date.");
-    if (!f.goldIn && !f.goldOut && !f.moneyIn && !f.moneyOut) return setErr("Enter at least one transaction value.");
+    for (let i=0; i<rows.length; i++) {
+      const r = rows[i];
+      if (!r.personId)  return setErr(`Row ${i+1}: Please select a person.`);
+      if (!r.date)      return setErr(`Row ${i+1}: Please select a date.`);
+      if (!r.goldIn && !r.goldOut && !r.moneyIn && !r.moneyOut) return setErr(`Row ${i+1}: Enter at least one value.`);
+    }
     setErr("");
-    const pv = f.purity==="Custom" ? f.customPurity : f.purity;
-    onSave({
-      ...f,
-      goldIn:   Number(f.goldIn||0),
-      goldOut:  Number(f.goldOut||0),
-      moneyIn:  Number(f.moneyIn||0),
-      moneyOut: Number(f.moneyOut||0),
-      purity: pv,
-      pureGoldIn:  pureGold(f.goldIn||0,  pv),
-      pureGoldOut: pureGold(f.goldOut||0, pv),
+    rows.forEach(r => {
+      const pv = getPurityVal(r);
+      onSave({
+        ...r,
+        goldIn:   Number(r.goldIn||0),
+        goldOut:  Number(r.goldOut||0),
+        moneyIn:  Number(r.moneyIn||0),
+        moneyOut: Number(r.moneyOut||0),
+        purity: pv,
+        pureGoldIn:  pureGold(r.goldIn||0,  pv),
+        pureGoldOut: pureGold(r.goldOut||0, pv),
+        createdAt: Date.now(),
+      });
     });
   };
 
   return (
-    <Modal title={initial?"Edit Entry":"New Ledger Entry"} onClose={onClose} wide footer={<>
+    <Modal title={isEdit?"Edit Entry":"New Ledger Entry"} onClose={onClose} wide footer={<>
       <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
-      <button className="btn btn-gold" onClick={handleSave}>Save Entry</button>
+      {!isEdit&&<button className="btn btn-secondary" onClick={addRow}><Icon name="plus" size={14}/>Add Another Row</button>}
+      <button className="btn btn-gold" onClick={handleSave}>{isEdit?"Save Changes":`Save ${rows.length>1?rows.length+" Entries":"Entry"}`}</button>
     </>}>
       {err&&<div className="alert alert-error">{err}</div>}
-      <div className="form-grid">
-        <div className="form-group"><label>Date *</label><input type="date" value={f.date} onChange={e=>set("date",e.target.value)}/></div>
-        <div className="form-group">
-          <label>Person Type</label>
-          <select value={f.personType} onChange={e=>{set("personType",e.target.value);set("personId","")}}>
-            <option value="customer">Customer</option>
-            <option value="worker">Worker</option>
-          </select>
-        </div>
-        <div className="form-group full">
-          <label>Name *</label>
-          <select value={f.personId} onChange={e=>set("personId",e.target.value)}>
-            <option value="">-- Select --</option>
-            {filteredPeople.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-        </div>
-        <div className="form-group full"><label>Description</label><input value={f.description} onChange={e=>set("description",e.target.value)} placeholder="e.g. Gold purchase, Wage payment..."/></div>
+      {rows.map((f,i)=>{
+        const purityVal = getPurityVal(f);
+        const pureIn  = f.goldIn  ? pureGold(f.goldIn,  purityVal).toFixed(3) : null;
+        const pureOut = f.goldOut ? pureGold(f.goldOut, purityVal).toFixed(3) : null;
+        const filteredPeople = people.filter(p=>p.ptype===f.personType);
+        return (
+          <div key={i} style={rows.length>1?{border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:14,position:"relative"}:{}}>
+            {rows.length>1&&<div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+              <div style={{fontWeight:700,fontSize:"0.85rem",color:"var(--text2)"}}>Entry {i+1}</div>
+              {i>0&&<button className="btn btn-danger btn-sm" onClick={()=>removeRow(i)}><Icon name="trash" size={13}/>Remove</button>}
+            </div>}
+            <div className="form-grid">
+              <div className="form-group"><label>Date *</label><input type="date" value={f.date} onChange={e=>setRow(i,"date",e.target.value)}/></div>
+              <div className="form-group">
+                <label>Person Type</label>
+                <select value={f.personType} onChange={e=>{setRow(i,"personType",e.target.value);setRow(i,"personId","")}}>
+                  <option value="customer">Customer</option>
+                  <option value="worker">Worker</option>
+                </select>
+              </div>
+              <div className="form-group full">
+                <label>Name *</label>
+                <select value={f.personId} onChange={e=>setRow(i,"personId",e.target.value)}>
+                  <option value="">-- Select --</option>
+                  {filteredPeople.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="form-group full"><label>Description</label><input value={f.description} onChange={e=>setRow(i,"description",e.target.value)} placeholder="e.g. Gold purchase, Wage payment..."/></div>
 
-        <div className="form-group full" style={{background:"var(--surface2)",padding:14,borderRadius:"var(--radius-sm)",border:"1px solid var(--border)"}}>
-          <div className="fw7 mb4" style={{display:"flex",alignItems:"center",gap:6}}><Icon name="gold" size={16} color="var(--gold)"/>Gold Transaction</div>
-          <div className="form-grid">
-            <div className="form-group"><label>Gold In (g) — Received</label><input type="number" value={f.goldIn} onChange={e=>set("goldIn",e.target.value)} placeholder="0.000" min="0" step="0.001"/></div>
-            <div className="form-group"><label>Gold Out (g) — Given</label><input type="number" value={f.goldOut} onChange={e=>set("goldOut",e.target.value)} placeholder="0.000" min="0" step="0.001"/></div>
-            <div className="form-group">
-              <label>Gold Purity</label>
-              <select value={f.purity} onChange={e=>set("purity",e.target.value)}>
-                {PURITY_OPTIONS.map(o=><option key={o} value={o}>{o}</option>)}
-              </select>
+              <div className="form-group full" style={{background:"var(--surface2)",padding:14,borderRadius:"var(--radius-sm)",border:"1px solid var(--border)"}}>
+                <div className="fw7 mb4" style={{display:"flex",alignItems:"center",gap:6}}><Icon name="gold" size={16} color="var(--gold)"/>Gold Transaction</div>
+                <div className="form-grid">
+                  <div className="form-group"><label>Gold In (g) — Received</label><input type="number" value={f.goldIn} onChange={e=>setRow(i,"goldIn",e.target.value)} placeholder="0.000" min="0" step="0.001"/></div>
+                  <div className="form-group"><label>Gold Out (g) — Given</label><input type="number" value={f.goldOut} onChange={e=>setRow(i,"goldOut",e.target.value)} placeholder="0.000" min="0" step="0.001"/></div>
+                  <div className="form-group">
+                    <label style={{display:"flex",alignItems:"center",gap:8}}>
+                      Gold Purity
+                      <span
+                        onClick={()=>setRow(i,"useManualPurity",!f.useManualPurity)}
+                        style={{fontSize:"0.72rem",cursor:"pointer",padding:"2px 8px",borderRadius:10,background:f.useManualPurity?"var(--gold)":"var(--surface)",color:f.useManualPurity?"#000":"var(--text3)",border:"1px solid var(--border)",fontWeight:600}}
+                      >{f.useManualPurity?"Manual ✓":"Type manually"}</span>
+                    </label>
+                    {f.useManualPurity
+                      ? <input value={f.manualPurity} onChange={e=>setRow(i,"manualPurity",e.target.value)} placeholder="e.g. 22K, 916, 875, 0.875"/>
+                      : <select value={f.purity} onChange={e=>setRow(i,"purity",e.target.value)}>
+                          {PURITY_OPTIONS.map(o=><option key={o} value={o}>{o}</option>)}
+                        </select>
+                    }
+                  </div>
+                  {!f.useManualPurity&&f.purity==="Custom"&&<div className="form-group"><label>Custom Purity</label><input value={f.customPurity} onChange={e=>setRow(i,"customPurity",e.target.value)} placeholder="e.g. 0.875 or 875"/></div>}
+                </div>
+                {(pureIn||pureOut)&&(
+                  <div className="gold-calc-box mt4">
+                    <Icon name="gold" size={16} color="var(--gold)"/>
+                    <span><strong>Pure Gold (24K):</strong>{" "}
+                      {pureIn&&<span className="text-green">+{pureIn}g in</span>}
+                      {pureIn&&pureOut&&" · "}
+                      {pureOut&&<span className="text-red">-{pureOut}g out</span>}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group full" style={{background:"var(--surface2)",padding:14,borderRadius:"var(--radius-sm)",border:"1px solid var(--border)"}}>
+                <div className="fw7 mb4" style={{display:"flex",alignItems:"center",gap:6}}><Icon name="money" size={16} color="var(--green)"/>Money Transaction</div>
+                <div className="form-grid">
+                  <div className="form-group"><label>Money In (₹) — Received</label><input type="number" value={f.moneyIn} onChange={e=>setRow(i,"moneyIn",e.target.value)} placeholder="0.00" min="0" step="0.01"/></div>
+                  <div className="form-group"><label>Money Out (₹) — Given</label><input type="number" value={f.moneyOut} onChange={e=>setRow(i,"moneyOut",e.target.value)} placeholder="0.00" min="0" step="0.01"/></div>
+                </div>
+              </div>
+
+              <div className="form-group full"><label>Notes</label><textarea value={f.notes} onChange={e=>setRow(i,"notes",e.target.value)} placeholder="Additional notes..." rows={2}/></div>
             </div>
-            {f.purity==="Custom"&&<div className="form-group"><label>Custom Purity</label><input value={f.customPurity} onChange={e=>set("customPurity",e.target.value)} placeholder="e.g. 0.875 or 875"/></div>}
           </div>
-          {(pureIn||pureOut)&&(
-            <div className="gold-calc-box mt4">
-              <Icon name="gold" size={16} color="var(--gold)"/>
-              <span><strong>Pure Gold (24K):</strong>{" "}
-                {pureIn&&<span className="text-green">+{pureIn}g in</span>}
-                {pureIn&&pureOut&&" · "}
-                {pureOut&&<span className="text-red">-{pureOut}g out</span>}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="form-group full" style={{background:"var(--surface2)",padding:14,borderRadius:"var(--radius-sm)",border:"1px solid var(--border)"}}>
-          <div className="fw7 mb4" style={{display:"flex",alignItems:"center",gap:6}}><Icon name="money" size={16} color="var(--green)"/>Money Transaction</div>
-          <div className="form-grid">
-            <div className="form-group"><label>Money In (₹) — Received</label><input type="number" value={f.moneyIn} onChange={e=>set("moneyIn",e.target.value)} placeholder="0.00" min="0" step="0.01"/></div>
-            <div className="form-group"><label>Money Out (₹) — Given</label><input type="number" value={f.moneyOut} onChange={e=>set("moneyOut",e.target.value)} placeholder="0.00" min="0" step="0.01"/></div>
-          </div>
-        </div>
-
-        <div className="form-group full"><label>Notes</label><textarea value={f.notes} onChange={e=>set("notes",e.target.value)} placeholder="Additional notes..." rows={2}/></div>
-      </div>
+        );
+      })}
     </Modal>
   );
 }
@@ -881,15 +925,25 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────
-function Reports({ entries, customers, workers }) {
-  const [tab, setTab]       = useState("monthly");
-  const [month, setMonth]   = useState(new Date().toISOString().slice(0,7));
-  const [person, setPerson] = useState("");
+function Reports({ entries, customers, workers, companyName }) {
+  const [tab,        setTab]       = useState("monthly");
+  const [month,      setMonth]     = useState(new Date().toISOString().slice(0,7));
+  const [person,     setPerson]    = useState("");
+  const [exportType, setExportType]= useState("all"); // all | gold | money
+  const [preview,    setPreview]   = useState(null);  // null | {html, title}
+  const [dateFrom,   setDateFrom]  = useState("");
+  const [dateTo,     setDateTo]    = useState("");
 
   const allPeople = useMemo(()=>[...customers.map(c=>({...c,ptype:"customer"})),...workers.map(w=>({...w,ptype:"worker"}))],[customers,workers]);
 
-  const monthEntries = useMemo(()=>entries.filter(e=>e.date.startsWith(month)),[entries,month]);
-  const personEntries= useMemo(()=>person?entries.filter(e=>e.personId===person):[]  ,[entries,person]);
+  const applyDateRange = (ents) => ents.filter(e=>{
+    if (dateFrom && e.date < dateFrom) return false;
+    if (dateTo   && e.date > dateTo)   return false;
+    return true;
+  });
+
+  const monthEntries  = useMemo(()=>applyDateRange(entries.filter(e=>e.date.startsWith(month))),[entries,month,dateFrom,dateTo]);
+  const personEntries = useMemo(()=>person?applyDateRange(entries.filter(e=>e.personId===person)):[],[entries,person,dateFrom,dateTo]);
 
   const summary = (ents) => ({
     goldIn:   ents.reduce((s,e)=>s+Number(e.goldIn||0),0),
@@ -900,126 +954,172 @@ function Reports({ entries, customers, workers }) {
     moneyOut: ents.reduce((s,e)=>s+Number(e.moneyOut||0),0),
   });
 
-  const exportPDF = (ents, title) => {
+  // ── Build HTML for preview/export ──
+  const buildHTML = (ents, title, type) => {
     const s = summary(ents);
-    const tableRows = ents.sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{
+    const bizName = companyName || "My Business";
+    const sortedEnts = [...ents].sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
+    let runGold=0, runMoney=0;
+    const rowsWithBal = sortedEnts.map(e=>{
+      runGold  += Number(e.goldIn||0) - Number(e.goldOut||0);
+      runMoney += Number(e.moneyIn||0) - Number(e.moneyOut||0);
+      return {...e, runGold, runMoney};
+    });
+    const showGold  = type==="all" || type==="gold";
+    const showMoney = type==="all" || type==="money";
+    const fmtTime = (ts) => ts ? new Date(ts).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : "";
+    const tableRows = rowsWithBal.map(e=>{
       const p = allPeople.find(x=>x.id===e.personId);
-      return `<tr>
-        <td>${fmtDate(e.date)}</td>
-        <td><strong>${p?.name||"-"}</strong><br/><small style="color:#9ca3af;text-transform:capitalize">${e.personType||""}</small></td>
-        <td>${e.description||"-"}</td>
+      const pName = p?.name || "-";
+      const isC = e.personType==="customer";
+      const time = fmtTime(e.createdAt);
+      let cols = `<td>${fmtDate(e.date)}${time?`<br/><small style="color:#9ca3af">${time}</small>`:""}</td>
+        <td><strong>${pName}</strong><br/><small style="color:${isC?"#2563eb":"#7c3aed"};font-weight:600">${isC?"Customer":"Worker"}</small></td>
+        <td>${e.description||"-"}</td>`;
+      if (showGold) cols += `
         <td style="text-align:right;color:#16a34a">${e.goldIn?fmtGold(e.goldIn):"-"}</td>
         <td style="text-align:right;color:#dc2626">${e.goldOut?fmtGold(e.goldOut):"-"}</td>
-        <td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:600">${e.purity||"-"}</span></td>
-        <td style="text-align:right;color:#7c3aed;font-size:12px">${e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}${e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}${!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
-        <td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoney(e.moneyIn):"-"}</td>
-        <td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoney(e.moneyOut):"-"}</td>
-      </tr>`;
+        <td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:600">${e.purity||"-"}</span></td>
+        <td style="text-align:right;color:#7c3aed;font-size:11px">${e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}${e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}${!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
+        <td style="text-align:right;font-weight:700;color:${e.runGold>=0?"#d97706":"#dc2626"}">${fmtGold(e.runGold)}</td>`;
+      if (showMoney) cols += `
+        <td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyFull(e.moneyIn):"-"}</td>
+        <td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyFull(e.moneyOut):"-"}</td>
+        <td style="text-align:right;font-weight:700;color:${e.runMoney>=0?"#16a34a":"#dc2626"}">${fmtMoneyFull(e.runMoney)}</td>`;
+      return `<tr>${cols}</tr>`;
     }).join("");
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-      *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:'DM Sans',sans-serif;color:#111;padding:32px;font-size:13px;background:#fff}
-      .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #f59e0b}
-      .company-name{font-size:22px;font-weight:700}.company-sub{color:#6b7280;font-size:13px;margin-top:4px}
-      .report-badge{background:#fef3c7;color:#92400e;padding:8px 16px;border-radius:8px;font-weight:700;font-size:15px;border:1px solid #fcd34d}
-      .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px}
-      .sum-card{border:1px solid #e5e7eb;border-radius:8px;padding:14px;position:relative;overflow:hidden}
-      .sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-      .sum-card.gold::before{background:#f59e0b}.sum-card.purple::before{background:#7c3aed}
-      .sum-card.green::before{background:#16a34a}.sum-card.red::before{background:#dc2626}.sum-card.blue::before{background:#2563eb}
-      .sum-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;font-weight:600}
-      .sum-value{font-size:16px;font-weight:700;margin-bottom:3px}.sum-sub{font-size:10px;color:#9ca3af}
+    let headCols = `<th>Date &amp; Time</th><th>Name</th><th>Description</th>`;
+    if (showGold)  headCols += `<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold</th><th style="text-align:right">Gold Balance</th>`;
+    if (showMoney) headCols += `<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
+    <style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
+      *{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;color:#111;padding:32px;font-size:13px;background:#fff}
+      .header{margin-bottom:24px;padding-bottom:20px;border-bottom:3px solid #f59e0b}
+      .biz-name{font-size:34px;font-weight:900;color:#111;letter-spacing:-0.5px}.report-title{font-size:14px;font-weight:600;color:#6b7280;margin-top:6px}.report-meta{font-size:11px;color:#9ca3af;margin-top:3px}
+      .badge{display:inline-block;margin-top:8px;background:#fef3c7;color:#92400e;padding:4px 14px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #fcd34d}
+      .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:20px 0}
+      .sum-card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;position:relative;overflow:hidden}
+      .sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
+      .sum-card.gold::before{background:#f59e0b}.sum-card.purple::before{background:#7c3aed}.sum-card.green::before{background:#16a34a}.sum-card.red::before{background:#dc2626}.sum-card.blue::before{background:#2563eb}
+      .sum-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:600}
+      .sum-value{font-size:17px;font-weight:800;margin-bottom:3px}.sum-sub{font-size:10px;color:#9ca3af}
       .gold-val{color:#d97706}.purple-val{color:#7c3aed}.green-val{color:#16a34a}.red-val{color:#dc2626}.blue-val{color:#2563eb}
-      table{width:100%;border-collapse:collapse;margin-top:4px}
-      th{background:#f9fafb;padding:9px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
-      td{padding:9px 10px;border-bottom:1px solid #f3f4f6;font-size:12px;vertical-align:middle}
-      .totals-row td{background:#f9fafb;font-weight:700;border-top:2px solid #e5e7eb;border-bottom:none;font-size:13px}
-      .footer{margin-top:28px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
-      @media print{body{padding:16px}@page{margin:1cm}}
-    </style></head><body>
+      table{width:100%;border-collapse:collapse}th{background:#f9fafb;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+      td{padding:8px 10px;border-bottom:1px solid #f3f4f6;font-size:12px;vertical-align:middle}
+      .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:13px}
+      .balances{margin-top:24px;padding:16px;border:2px solid #e5e7eb;border-radius:10px;background:#f9fafb}
+      .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:10px}
+      .bal-item{text-align:center;padding:12px;background:#fff;border-radius:8px;border:1px solid #e5e7eb}
+      .bal-label{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:600;margin-bottom:4px}
+      .bal-value{font-size:18px;font-weight:800}
+      .footer{margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
+      @media print{body{padding:16px}@page{margin:1cm}}</style></head><body>
       <div class="header">
-        <div>
-          <div class="company-name">GoldLedger</div>
-          <div class="company-sub">${title}</div>
-          <div class="company-sub">Generated: ${new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"long",year:"numeric"})}</div>
-        </div>
-        <div class="report-badge">LEDGER REPORT</div>
+        <div class="biz-name">${bizName}</div>
+        <div class="report-title">${title}</div>
+        <div class="report-meta">Generated: ${new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"long",year:"numeric"})}</div>
+        <span class="badge">${type==="all"?"FULL REPORT":type==="gold"?"GOLD REPORT":"MONEY REPORT"}</span>
       </div>
       <div class="summary">
-        <div class="sum-card gold"><div class="sum-label">Gold Balance</div><div class="sum-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="sum-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
-        <div class="sum-card purple"><div class="sum-label">Pure Gold (24K)</div><div class="sum-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="sum-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>
-        <div class="sum-card ${s.moneyIn-s.moneyOut>=0?"green":"red"}"><div class="sum-label">Money Balance</div><div class="sum-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoney(s.moneyIn-s.moneyOut)}</div><div class="sum-sub">In: ${fmtMoney(s.moneyIn)} · Out: ${fmtMoney(s.moneyOut)}</div></div>
-        <div class="sum-card blue"><div class="sum-label">Total Entries</div><div class="sum-value blue-val">${ents.length}</div><div class="sum-sub">transactions</div></div>
+        ${showGold?`<div class="sum-card gold"><div class="sum-label">Gold Balance</div><div class="sum-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="sum-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
+        <div class="sum-card purple"><div class="sum-label">Pure Gold (24K)</div><div class="sum-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="sum-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
+        ${showMoney?`<div class="sum-card ${s.moneyIn-s.moneyOut>=0?"green":"red"}"><div class="sum-label">Money Balance</div><div class="sum-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div><div class="sum-sub">In: ${fmtMoneyFull(s.moneyIn)} · Out: ${fmtMoneyFull(s.moneyOut)}</div></div>`:""}
+        <div class="sum-card blue"><div class="sum-label">Entries</div><div class="sum-value blue-val">${ents.length}</div></div>
       </div>
-      <table>
-        <thead><tr><th>Date</th><th>Person</th><th>Description</th><th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold</th><th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th></tr></thead>
-        <tbody>
-          ${tableRows}
-          <tr class="totals-row">
-            <td colspan="3">TOTALS (${ents.length} entries)</td>
-            <td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td>
-            <td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td>
-            <td></td>
-            <td style="text-align:right;color:#7c3aed">${fmtGold(s.pureIn-s.pureOut)} net</td>
-            <td style="text-align:right;color:#16a34a">${fmtMoney(s.moneyIn)}</td>
-            <td style="text-align:right;color:#dc2626">${fmtMoney(s.moneyOut)}</td>
-          </tr>
-        </tbody>
-      </table>
-      <div class="footer">
-        <span>Net Money: <strong class="${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoney(s.moneyIn-s.moneyOut)}</strong> &nbsp;|&nbsp; Net Gold: <strong class="gold-val">${fmtGold(s.goldIn-s.goldOut)}</strong></span>
-        <span>GoldLedger — Gold &amp; Money Ledger System</span>
+      <table><thead><tr>${headCols}</tr></thead>
+      <tbody>${tableRows}
+        <tr class="totals-row"><td colspan="3">TOTALS (${ents.length} entries)</td>
+          ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
+          ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyFull(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyFull(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</td>`:""}
+        </tr>
+      </tbody></table>
+      <div class="balances">
+        <div style="font-weight:700;font-size:13px;margin-bottom:4px">Final Balances</div>
+        <div class="bal-grid">
+          ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div></div>
+          <div class="bal-item"><div class="bal-label">Pure 24K</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div></div>`:""}
+          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Money</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div></div>`:""}
+          <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
+        </div>
       </div>
+      <div class="footer"><span>${bizName}</span><span>Ledger System</span></div>
     </body></html>`;
+  };
+
+  const openPreview = (ents, title) => setPreview({html: buildHTML(ents, title, exportType), title, ents});
+
+  const doPrint = () => {
+    if (!preview) return;
     const w = window.open("","_blank");
-    w.document.write(html);
+    w.document.write(preview.html);
     w.document.close();
-    setTimeout(()=>{ w.print(); w.close(); }, 600);
+    setTimeout(()=>w.print(), 600);
   };
 
   const exportCSV = (ents, name) => {
-    const headers = ["Date","Person","Description","GoldIn(g)","GoldOut(g)","Purity","PureGoldIn(g)","PureGoldOut(g)","MoneyIn","MoneyOut","Notes"];
-    const rows = ents.map(e=>{
+    const headers = ["Date","Time","Person","Type","Description","GoldIn(g)","GoldOut(g)","Purity","PureGoldIn(g)","PureGoldOut(g)","GoldBalance","MoneyIn","MoneyOut","MoneyBalance","Notes"];
+    let rG=0, rM=0;
+    const csvRows = [...ents].sort((a,b)=>a.date.localeCompare(b.date)).map(e=>{
+      rG += Number(e.goldIn||0)-Number(e.goldOut||0);
+      rM += Number(e.moneyIn||0)-Number(e.moneyOut||0);
       const p = allPeople.find(x=>x.id===e.personId);
-      return [e.date,p?.name||"",e.description||"",e.goldIn||0,e.goldOut||0,e.purity||"",
-              (e.pureGoldIn||0).toFixed(3),(e.pureGoldOut||0).toFixed(3),e.moneyIn||0,e.moneyOut||0,e.notes||""];
+      const time = e.createdAt ? new Date(e.createdAt).toLocaleTimeString("en-IN") : "";
+      return [e.date,time,p?.name||"",e.personType||"",e.description||"",
+              e.goldIn||0,e.goldOut||0,e.purity||"",(e.pureGoldIn||0).toFixed(3),(e.pureGoldOut||0).toFixed(3),rG.toFixed(3),
+              e.moneyIn||0,e.moneyOut||0,rM.toFixed(2),e.notes||""];
     });
-    const csv = [headers,...rows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
-    const a = document.createElement("a");
-    a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);
-    a.download=`${name}.csv`; a.click();
+    const csv = [headers,...csvRows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
+    const a = document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download=`${name}.csv`; a.click();
   };
 
   const SummaryCards = ({s}) => (
     <div className="stats-grid" style={{marginBottom:16}}>
       <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Net Gold Balance</div><div className="stat-value gold">{fmtGold(s.goldIn-s.goldOut)}</div><div className="stat-sub">In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div></div>
-      <div className="stat-card" style={{"--accent":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div><div className="stat-label">Pure Gold (24K) Net</div><div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div><div className="stat-sub">In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div></div>
+      <div className="stat-card" style={{"--accent":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div><div className="stat-label">Pure Gold (24K)</div><div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div><div className="stat-sub">In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div></div>
       <div className={`stat-card ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}><div className={`stat-icon ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}><Icon name="money" size={18} color={s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Money Balance</div><div className={`stat-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}>{fmtMoney(s.moneyIn-s.moneyOut)}</div><div className="stat-sub">In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div></div>
     </div>
   );
 
   const RenderTable = ({ents}) => {
     if (!ents.length) return <div className="empty"><div className="empty-icon"><Icon name="reports" size={28}/></div><div className="empty-title">No entries found</div></div>;
+    let rG=0, rM=0;
+    const rows = [...ents].sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0)).map(e=>{
+      rG += Number(e.goldIn||0)-Number(e.goldOut||0);
+      rM += Number(e.moneyIn||0)-Number(e.moneyOut||0);
+      return {...e, rG, rM};
+    });
+    const showG = exportType==="all"||exportType==="gold";
+    const showM = exportType==="all"||exportType==="money";
     return (
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Person</th><th>Description</th><th className="th-right">Gold In</th><th className="th-right">Gold Out</th><th className="th-center">Purity</th><th className="th-right">Pure Gold</th><th className="th-right">Money In</th><th className="th-right">Money Out</th></tr></thead>
+          <thead><tr>
+            <th>Date &amp; Time</th><th>Name</th><th>Description</th>
+            {showG&&<><th className="th-right">Gold In</th><th className="th-right">Gold Out</th><th className="th-center">Purity</th><th className="th-right">Pure Gold</th><th className="th-right">Gold Bal</th></>}
+            {showM&&<><th className="th-right">Money In</th><th className="th-right">Money Out</th><th className="th-right">Money Bal</th></>}
+          </tr></thead>
           <tbody>
-            {ents.sort((a,b)=>b.date.localeCompare(a.date)).map(e=>{
+            {rows.map(e=>{
               const p=allPeople.find(x=>x.id===e.personId);
+              const isC=e.personType==="customer";
+              const time=e.createdAt?new Date(e.createdAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"";
               return (
                 <tr key={e.id}>
-                  <td style={{whiteSpace:"nowrap",color:"var(--text2)"}}>{fmtDate(e.date)}</td>
-                  <td><div className="fw6">{p?.name||"-"}</div><div className="fs-xs text3 capitalize">{e.personType}</div></td>
+                  <td><div style={{color:"var(--text2)"}}>{fmtDate(e.date)}</div>{time&&<div style={{fontSize:"0.7rem",color:"var(--text3)"}}>{time}</div>}</td>
+                  <td><div className="fw6">{p?.name||"-"}</div><div className="fs-xs" style={{color:isC?"var(--blue)":"#a78bfa",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>{isC?"👤 Customer":"🔧 Worker"}</div></td>
                   <td style={{color:"var(--text2)"}}>{e.description||"-"}</td>
-                  <td className="right text-green">{e.goldIn?fmtGold(e.goldIn):"-"}</td>
-                  <td className="right text-red">{e.goldOut?fmtGold(e.goldOut):"-"}</td>
-                  <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
-                  <td className="right" style={{fontSize:"0.8rem",color:"var(--text2)"}}>{e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}{e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}{!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
-                  <td className="right text-green">{e.moneyIn?fmtMoney(e.moneyIn):"-"}</td>
-                  <td className="right text-red">{e.moneyOut?fmtMoney(e.moneyOut):"-"}</td>
+                  {showG&&<>
+                    <td className="right text-green">{e.goldIn?fmtGold(e.goldIn):"-"}</td>
+                    <td className="right text-red">{e.goldOut?fmtGold(e.goldOut):"-"}</td>
+                    <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
+                    <td className="right fs-xs text2">{e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}{e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}{!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
+                    <td className="right"><span style={{fontWeight:700,color:e.rG>=0?"var(--gold)":"var(--red)"}}>{fmtGold(e.rG)}</span></td>
+                  </>}
+                  {showM&&<>
+                    <td className="right text-green">{e.moneyIn?fmtMoney(e.moneyIn):"-"}</td>
+                    <td className="right text-red">{e.moneyOut?fmtMoney(e.moneyOut):"-"}</td>
+                    <td className="right"><span style={{fontWeight:700,color:e.rM>=0?"var(--green)":"var(--red)"}}>{fmtMoney(e.rM)}</span></td>
+                  </>}
                 </tr>
               );
             })}
@@ -1030,21 +1130,36 @@ function Reports({ entries, customers, workers }) {
   };
 
   const activeEnts = tab==="monthly" ? monthEntries : personEntries;
+  const reportTitle = tab==="monthly"
+    ? `Monthly Report — ${new Date(month+"-01").toLocaleString("default",{month:"long",year:"numeric"})}`
+    : (allPeople.find(p=>p.id===person)?.name||"Person")+" — Ledger Report";
 
   return (
     <div>
+      {preview&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.75)",zIndex:1000,display:"flex",flexDirection:"column"}}>
+          <div style={{background:"var(--surface)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid var(--border)",flexShrink:0,gap:12}}>
+            <div style={{fontWeight:700,fontSize:"0.95rem"}}>{preview.title}</div>
+            <div className="flex gap2" style={{flexWrap:"wrap"}}>
+              <button className="btn btn-secondary btn-sm" onClick={()=>exportCSV(preview.ents,preview.title)}><Icon name="download" size={14}/>CSV</button>
+              <button className="btn btn-gold btn-sm" onClick={doPrint}><Icon name="pdf" size={14}/>Print / Save PDF</button>
+              <button className="btn btn-secondary btn-sm" onClick={()=>setPreview(null)}>✕ Close</button>
+            </div>
+          </div>
+          <iframe srcDoc={preview.html} style={{flex:1,border:"none",background:"#fff"}}/>
+        </div>
+      )}
       <div className="section-header">
-        <div className="section-title">Reports</div>
+        <div><div className="section-title">Reports</div></div>
         {activeEnts.length>0&&(
-          <div className="flex gap2">
-            <button className="btn btn-secondary" onClick={()=>exportCSV(activeEnts,`report_${tab==="monthly"?month:allPeople.find(p=>p.id===person)?.name||"person"}`)}>
-              <Icon name="download" size={16}/>CSV
-            </button>
-            <button className="btn btn-gold" onClick={()=>exportPDF(activeEnts, tab==="monthly"
-              ? `Monthly Report — ${new Date(month+"-01").toLocaleString("default",{month:"long",year:"numeric"})}`
-              : (allPeople.find(p=>p.id===person)?.name||"Person")+" — Full Ledger Report")}>
-              <Icon name="pdf" size={16}/>Export PDF
-            </button>
+          <div className="flex gap2" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
+            <select value={exportType} onChange={e=>setExportType(e.target.value)} style={{minWidth:130,padding:"6px 10px",borderRadius:"var(--radius-sm)",border:"1px solid var(--border)",background:"var(--surface2)",color:"var(--text)",fontSize:"0.85rem"}}>
+              <option value="all">Full Report</option>
+              <option value="gold">Gold Only</option>
+              <option value="money">Money Only</option>
+            </select>
+            <button className="btn btn-secondary" onClick={()=>exportCSV(activeEnts,reportTitle)}><Icon name="download" size={16}/>CSV</button>
+            <button className="btn btn-gold" onClick={()=>openPreview(activeEnts,reportTitle)}><Icon name="pdf" size={16}/>Preview &amp; Export</button>
           </div>
         )}
       </div>
@@ -1054,19 +1169,27 @@ function Reports({ entries, customers, workers }) {
       </div>
       {tab==="monthly"&&(
         <div>
-          <div className="toolbar"><input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{minWidth:160}}/></div>
+          <div className="toolbar" style={{flexWrap:"wrap",gap:8}}>
+            <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{minWidth:160}}/>
+            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{minWidth:140}}/>
+            <input type="date" value={dateTo}   onChange={e=>setDateTo(e.target.value)}   style={{minWidth:140}}/>
+            {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
+          </div>
           <SummaryCards s={summary(monthEntries)}/>
           <RenderTable ents={monthEntries}/>
         </div>
       )}
       {tab==="person"&&(
         <div>
-          <div className="toolbar">
+          <div className="toolbar" style={{flexWrap:"wrap",gap:8}}>
             <select value={person} onChange={e=>setPerson(e.target.value)} style={{minWidth:220}}>
               <option value="">-- Select Person --</option>
               <optgroup label="Customers">{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
               <optgroup label="Workers">{workers.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</optgroup>
             </select>
+            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{minWidth:140}}/>
+            <input type="date" value={dateTo}   onChange={e=>setDateTo(e.target.value)}   style={{minWidth:140}}/>
+            {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
           </div>
           {person&&<><SummaryCards s={summary(personEntries)}/><RenderTable ents={personEntries}/></>}
           {!person&&<div className="empty"><div className="empty-icon"><Icon name="customers" size={28}/></div><div className="empty-title">Select a person to view their report</div></div>}
@@ -1273,7 +1396,7 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
   const amount = plan === "monthly" ? PRICE_MONTHLY : PRICE_YEARLY;
   const months = plan === "monthly" ? 1 : 12;
 
-  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent("GoldLedger "+plan+" plan - "+currentUser.username)}`;
+  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent("Ledger "+plan+" plan - "+currentUser.username)}`;
 
   const submitUTR = async () => {
     const trimmed = utr.trim();
@@ -1320,7 +1443,7 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
           <div style={{width:56,height:56,background:"linear-gradient(135deg,var(--gold),var(--amber))",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 12px"}}>
             <Icon name="gold" size={28} color="#000"/>
           </div>
-          <div style={{fontFamily:"var(--font-display)",fontSize:"1.5rem",fontWeight:800}}>GoldLedger</div>
+          <div style={{fontFamily:"var(--font-display)",fontSize:"1.5rem",fontWeight:800}}>Ledger</div>
           {expired
             ? <div style={{marginTop:6,color:"var(--red)",fontWeight:600}}>⚠️ Your subscription has expired</div>
             : <div style={{marginTop:6,color:"var(--gold)",fontWeight:600}}>⚡ {left} days remaining — Renew now</div>
@@ -1358,20 +1481,18 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
             <div style={{fontFamily:"var(--font-display)",fontSize:"1.1rem",fontWeight:700,marginBottom:4,textAlign:"center"}}>Pay ₹{amount} via UPI</div>
             <div style={{textAlign:"center",fontSize:"0.82rem",color:"var(--text3)",marginBottom:18}}>{plan==="monthly"?"1 Month Access":"1 Year Access"} · {currentUser.businessName||currentUser.username}</div>
 
-            {/* UPI Details box */}
+            {/* UPI QR Code */}
             <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:12,padding:18,marginBottom:18,textAlign:"center"}}>
-              <div style={{fontSize:"0.78rem",color:"var(--text3)",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.05em"}}>Pay to UPI ID</div>
-              <div style={{fontFamily:"var(--font-display)",fontSize:"1.2rem",fontWeight:800,color:"var(--gold)",letterSpacing:1}}>{UPI_ID}</div>
-              <div style={{fontSize:"0.82rem",color:"var(--text2)",marginTop:4}}>{UPI_NAME}</div>
-              <div style={{margin:"14px 0",height:1,background:"var(--border)"}}/>
-              <div style={{fontSize:"0.78rem",color:"var(--text3)",marginBottom:4}}>Amount to pay</div>
-              <div style={{fontFamily:"var(--font-display)",fontSize:"2rem",fontWeight:900,color:"var(--text)"}}>₹{amount}</div>
-
-              {/* Open in UPI app button */}
-              <a href={upiLink} style={{display:"inline-block",marginTop:14,padding:"10px 22px",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",borderRadius:8,fontWeight:700,fontSize:"0.9rem",textDecoration:"none"}}>
-                📱 Open UPI App
-              </a>
-              <div style={{fontSize:"0.75rem",color:"var(--text3)",marginTop:8}}>Works with PhonePe, GPay, Paytm, BHIM</div>
+              <div style={{fontSize:"0.78rem",color:"var(--text3)",marginBottom:10,textTransform:"uppercase",letterSpacing:"0.05em"}}>Scan &amp; Pay via UPI</div>
+              <div style={{display:"inline-block",background:"#fff",padding:10,borderRadius:10,marginBottom:10}}>
+                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(upiLink)}`} alt="UPI QR" width={180} height={180} style={{display:"block",borderRadius:4}}/>
+              </div>
+              <div style={{fontFamily:"var(--font-display)",fontSize:"1.1rem",fontWeight:800,color:"var(--gold)",marginBottom:2}}>{UPI_ID}</div>
+              <div style={{fontSize:"0.82rem",color:"var(--text2)",marginBottom:10}}>{UPI_NAME}</div>
+              <div style={{display:"inline-block",background:"linear-gradient(135deg,var(--gold),var(--amber))",color:"#000",fontFamily:"var(--font-display)",fontSize:"1.6rem",fontWeight:900,padding:"6px 24px",borderRadius:8,marginBottom:10}}>₹{amount}</div>
+              <div style={{fontSize:"0.78rem",color:"var(--text3)",marginBottom:12}}>{plan==="monthly"?"1 Month Access":"1 Year Full Access"}</div>
+              <a href={upiLink} style={{display:"inline-block",padding:"9px 20px",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",borderRadius:8,fontWeight:700,fontSize:"0.88rem",textDecoration:"none"}}>📱 Open in UPI App</a>
+              <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:6}}>PhonePe · GPay · Paytm · BHIM</div>
             </div>
 
             {/* UTR input */}
@@ -1552,7 +1673,7 @@ function AdminPanel({ onLogout }) {
         <aside className="sidebar">
           <div className="sidebar-logo">
             <div className="logo-icon" style={{background:"linear-gradient(135deg,#f43f5e,#e11d48)"}}><Icon name="gold" size={20} color="#fff"/></div>
-            <div><div className="logo-text">GoldLedger</div><div className="logo-sub" style={{color:"var(--red)"}}>Admin Panel</div></div>
+            <div><div className="logo-text">Ledger</div><div className="logo-sub" style={{color:"var(--red)"}}>Admin Panel</div></div>
           </div>
           <nav className="sidebar-nav">
             <div className={`nav-item${tab==="payments"?" active":""}`} onClick={()=>setTab("payments")}>
@@ -1898,7 +2019,7 @@ export default function App() {
       <style>{styles}</style>
       <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"var(--bg)",gap:16}}>
         <div style={{width:56,height:56,background:"linear-gradient(135deg,var(--gold),var(--amber))",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="gold" size={28} color="#000"/></div>
-        <div style={{fontFamily:"var(--font-display)",fontSize:"1.4rem",fontWeight:800}}>GoldLedger</div>
+        <div style={{fontFamily:"var(--font-display)",fontSize:"1.4rem",fontWeight:800}}>Ledger</div>
         <div className="text3 fs-sm">Loading {currentUser.businessName||currentUser.username}'s data...</div>
         <div style={{width:200,height:3,background:"var(--surface2)",borderRadius:99,overflow:"hidden"}}>
           <div style={{width:"60%",height:"100%",background:"linear-gradient(90deg,var(--gold),var(--amber))",borderRadius:99,animation:"toastIn 1s ease infinite alternate"}}/>
@@ -1915,7 +2036,7 @@ export default function App() {
         <aside className={`sidebar${sidebarOpen?" open":""}`}>
           <div className="sidebar-logo">
             <div className="logo-icon"><Icon name="gold" size={20} color="#000"/></div>
-            <div><div className="logo-text">GoldLedger</div><div className="logo-sub">Ledger System</div></div>
+            <div><div className="logo-text">Ledger</div><div className="logo-sub">Ledger System</div></div>
           </div>
           <nav className="sidebar-nav">
             {navItems.map(item=>(
@@ -1936,7 +2057,7 @@ export default function App() {
             <div className="flex items-center gap3">
               <button className="hamburger" onClick={()=>setSidebar(o=>!o)}><Icon name="menu" size={20}/></button>
               <div>
-                <div className="header-title">{page==="ledger"&&viewPerson?viewPerson.name:(pageTitles[page]||"GoldLedger")}</div>
+                <div className="header-title">{page==="ledger"&&viewPerson?viewPerson.name:(pageTitles[page]||"Ledger")}</div>
               </div>
             </div>
             <div className="header-right">
@@ -1981,7 +2102,7 @@ export default function App() {
                 onEditEntry={e=>setEntryForm({entry:e,personId:e.personId})}
                 onDeleteEntry={deleteEntry}/>
             )}
-            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers}/>}
+            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName}/>}
             {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser}/>}
           </div>
         </div>
