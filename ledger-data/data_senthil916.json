@@ -30,7 +30,25 @@
       "createdAt": 1773220151068
     }
   ],
-  "entries": [],
+  "entries": [
+    {
+      "date": "2026-03-11",
+      "personId": "k6h5zledmmltgpoo",
+      "personType": "customer",
+      "description": "gold",
+      "goldIn": 500,
+      "goldOut": 0,
+      "purity": "24K (999)",
+      "customPurity": "",
+      "moneyIn": 0,
+      "moneyOut": 50000,
+      "notes": "trade",
+      "pureGoldIn": 500,
+      "pureGoldOut": 0,
+      "id": "ekxq5im5mmltjt5z",
+      "createdAt": 1773220244327
+    }
+  ],
   "companyName": "SG ANTIQUES",
   "companyAddress": "",
   "companyPhone": ""
