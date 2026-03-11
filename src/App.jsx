@@ -1609,7 +1609,6 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
             <div className="flex gap2" style={{flexWrap:"wrap"}}>
               <button className="btn btn-secondary btn-sm" onClick={()=>exportCSV(preview.ents,preview.title)}><Icon name="download" size={14}/>CSV</button>
               <button className="btn btn-gold btn-sm" onClick={doPrint}><Icon name="pdf" size={14}/>Print / Save PDF</button>
-              <button className="btn btn-success btn-sm" onClick={()=>setSaveModal(true)} style={{background:"rgba(34,211,160,0.15)",color:"var(--green)",border:"1px solid rgba(34,211,160,0.3)"}}><Icon name="download" size={14}/>💾 Save Report</button>
               <button className="btn btn-secondary btn-sm" onClick={()=>setPreview(null)}>✕ Close</button>
             </div>
           </div>
@@ -1631,6 +1630,13 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
             </div>
             <button className="btn btn-secondary" onClick={()=>exportCSV(activeEnts,reportTitle)}><Icon name="download" size={16}/>CSV</button>
             <button className="btn btn-gold" onClick={()=>openPreview(activeEnts, reportTitle, tab==="person" ? allPeople.find(p=>p.id===person)?.name : "")}><Icon name="pdf" size={16}/>Preview &amp; Export</button>
+            <button onClick={()=>{
+              const pName = tab==="person" ? allPeople.find(p=>p.id===person)?.name : "";
+              const sorted = applySortToEnts(activeEnts, sortBy, sortDir);
+              const html = buildHTML(sorted, reportTitle, exportType, pName, sortBy, sortDir);
+              setPreview({html, title: reportTitle, ents: sorted});
+              setSaveModal(true);
+            }} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 16px",borderRadius:"var(--radius-sm)",fontSize:"0.875rem",fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",background:"rgba(34,211,160,0.15)",color:"var(--green)",border:"1px solid rgba(34,211,160,0.3)"}}><Icon name="download" size={16}/>💾 Save Report</button>
           </div>
         )}
       </div>
