@@ -1136,48 +1136,74 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       /* ── Business Header ── */
       .biz-box{
         position:relative;overflow:hidden;
-        text-align:center;padding:22px 120px 18px;border-radius:16px;margin-bottom:18px;
-        background:linear-gradient(160deg,#fffde7,#fef3c7 50%,#fde68a);
-        border:2px solid #f59e0b;
-        box-shadow:0 0 0 4px rgba(245,158,11,0.08),0 0 28px rgba(245,158,11,0.18),0 4px 16px rgba(0,0,0,0.07);
+        text-align:center;padding:20px 16px 16px;border-radius:16px;margin-bottom:18px;
+        background:linear-gradient(135deg,#78350f 0%,#92400e 30%,#b45309 60%,#78350f 100%);
+        border:3px solid #f59e0b;
+        box-shadow:0 0 0 1px rgba(245,158,11,0.5),0 8px 32px rgba(120,53,15,0.4),0 2px 8px rgba(0,0,0,0.3);
       }
-      /* Decorative circles — left side */
+      /* Top gold shimmer line */
       .biz-box::before{
-        content:'';position:absolute;left:-38px;top:50%;transform:translateY(-50%);
-        width:130px;height:130px;border-radius:50%;
-        background:radial-gradient(circle,rgba(245,158,11,0.28) 0%,rgba(245,158,11,0.08) 60%,transparent 100%);
-        border:2px solid rgba(245,158,11,0.35);
-        box-shadow:inset 0 0 0 18px rgba(255,255,255,0.18),inset 0 0 0 36px rgba(245,158,11,0.07);
+        content:'';position:absolute;top:0;left:0;right:0;height:3px;
+        background:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent);
       }
-      /* Decorative circles — right side */
+      /* Bottom gold shimmer line */
       .biz-box::after{
-        content:'';position:absolute;right:-38px;top:50%;transform:translateY(-50%);
-        width:130px;height:130px;border-radius:50%;
-        background:radial-gradient(circle,rgba(245,158,11,0.28) 0%,rgba(245,158,11,0.08) 60%,transparent 100%);
-        border:2px solid rgba(245,158,11,0.35);
-        box-shadow:inset 0 0 0 18px rgba(255,255,255,0.18),inset 0 0 0 36px rgba(245,158,11,0.07);
+        content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
+        background:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent);
       }
-      .biz-inner{position:relative;z-index:1;}
-      .biz-circles-left{
-        position:absolute;left:10px;top:50%;transform:translateY(-50%);
-        display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;
+      .biz-inner{position:relative;z-index:2;padding:0 8px;}
+
+      /* Left ornament panel */
+      .biz-orn-left{
+        position:absolute;left:0;top:0;bottom:0;width:130px;
+        display:flex;align-items:center;justify-content:center;pointer-events:none;
+        border-right:1px solid rgba(251,191,36,0.25);
+        background:linear-gradient(135deg,rgba(0,0,0,0.15),rgba(0,0,0,0.05));
       }
-      .biz-circles-right{
-        position:absolute;right:10px;top:50%;transform:translateY(-50%);
-        display:flex;flex-direction:column;align-items:center;gap:0;pointer-events:none;
+      /* Right ornament panel */
+      .biz-orn-right{
+        position:absolute;right:0;top:0;bottom:0;width:130px;
+        display:flex;align-items:center;justify-content:center;pointer-events:none;
+        border-left:1px solid rgba(251,191,36,0.25);
+        background:linear-gradient(135deg,rgba(0,0,0,0.05),rgba(0,0,0,0.15));
       }
-      .biz-ring{
-        border-radius:50%;border:1.5px solid rgba(180,83,9,0.25);
-        background:rgba(255,255,255,0.12);
+
+      /* Hallmark tag */
+      .hallmark-tag{
+        display:inline-flex;align-items:center;gap:6px;
+        margin-bottom:8px;
+        background:linear-gradient(135deg,#fbbf24,#f59e0b);
+        color:#78350f;font-size:9.5px;font-weight:800;
+        letter-spacing:0.12em;text-transform:uppercase;
+        padding:3px 12px 3px 8px;border-radius:99px;
+        border:1.5px solid rgba(255,255,255,0.4);
+        box-shadow:0 1px 4px rgba(0,0,0,0.2);
       }
+      .hallmark-tag .hall-num{
+        font-size:11px;font-weight:900;
+        background:#78350f;color:#fbbf24;
+        border-radius:99px;padding:1px 7px;letter-spacing:0.05em;
+      }
+
+      /* Divider line with diamond */
+      .biz-divider{
+        display:flex;align-items:center;gap:8px;margin:8px auto 6px;max-width:340px;
+      }
+      .biz-divider-line{flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(251,191,36,0.6),transparent);}
+      .biz-divider-diamond{
+        width:7px;height:7px;background:#fbbf24;
+        transform:rotate(45deg);flex-shrink:0;
+        box-shadow:0 0 4px rgba(251,191,36,0.6);
+      }
+
       .biz-name{
         font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:900;
-        color:#78350f;letter-spacing:0.02em;line-height:1.2;
-        text-shadow:0 1px 2px rgba(255,255,255,0.7);
+        color:#fef3c7;letter-spacing:0.04em;line-height:1.2;
+        text-shadow:0 2px 8px rgba(0,0,0,0.4),0 1px 0 rgba(251,191,36,0.3);
       }
-      .biz-sub{margin-top:5px;font-size:12.5px;color:#92400e;font-weight:600;letter-spacing:0.04em}
-      .biz-details{margin-top:6px;font-size:12px;color:#78350f;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
-      .biz-details span{display:inline-flex;align-items:center;gap:4px}
+      .biz-sub{margin-top:4px;font-size:12px;color:#fde68a;font-weight:600;letter-spacing:0.05em;opacity:0.9;}
+      .biz-details{margin-top:6px;font-size:11.5px;color:#fde68a;display:flex;flex-wrap:wrap;justify-content:center;gap:16px;opacity:0.9;}
+      .biz-details span{display:inline-flex;align-items:center;gap:4px;}
 
       /* ── Report title block ── */
       .report-title-block{margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #f59e0b}
@@ -1216,45 +1242,74 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
       <!-- Business Box -->
       <div class="biz-box">
-        <!-- Left decorative rings -->
-        <div class="biz-circles-left">
-          <svg width="90" height="90" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="45" cy="45" r="42" stroke="rgba(180,83,9,0.30)" stroke-width="1.5" fill="rgba(255,255,255,0.10)"/>
-            <circle cx="45" cy="45" r="32" stroke="rgba(180,83,9,0.22)" stroke-width="1.5" fill="rgba(245,158,11,0.08)"/>
-            <circle cx="45" cy="45" r="21" stroke="rgba(180,83,9,0.18)" stroke-width="1.5" fill="rgba(245,158,11,0.12)"/>
-            <circle cx="45" cy="45" r="10" fill="rgba(245,158,11,0.22)" stroke="rgba(180,83,9,0.25)" stroke-width="1"/>
-            <!-- Subtle sparkle dots on outer ring -->
-            <circle cx="45" cy="3"  r="2.5" fill="rgba(180,83,9,0.35)"/>
-            <circle cx="87" cy="45" r="2.5" fill="rgba(180,83,9,0.35)"/>
-            <circle cx="45" cy="87" r="2.5" fill="rgba(180,83,9,0.35)"/>
-            <circle cx="3"  cy="45" r="2.5" fill="rgba(180,83,9,0.35)"/>
-            <circle cx="76" cy="14" r="1.8" fill="rgba(180,83,9,0.25)"/>
-            <circle cx="76" cy="76" r="1.8" fill="rgba(180,83,9,0.25)"/>
-            <circle cx="14" cy="76" r="1.8" fill="rgba(180,83,9,0.25)"/>
-            <circle cx="14" cy="14" r="1.8" fill="rgba(180,83,9,0.25)"/>
+        <!-- Left ornament panel -->
+        <div class="biz-orn-left">
+          <svg width="110" height="110" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Outer ring -->
+            <circle cx="55" cy="55" r="50" stroke="rgba(251,191,36,0.35)" stroke-width="1" fill="none"/>
+            <circle cx="55" cy="55" r="42" stroke="rgba(251,191,36,0.25)" stroke-width="0.8" fill="none" stroke-dasharray="3,4"/>
+            <circle cx="55" cy="55" r="33" stroke="rgba(251,191,36,0.30)" stroke-width="1" fill="none"/>
+            <circle cx="55" cy="55" r="22" stroke="rgba(251,191,36,0.40)" stroke-width="1.2" fill="rgba(251,191,36,0.06)"/>
+            <circle cx="55" cy="55" r="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.6)" stroke-width="1.5"/>
+            <circle cx="55" cy="55" r="4"  fill="rgba(251,191,36,0.8)"/>
+            <!-- 8 petal lotus -->
+            <ellipse cx="55" cy="34" rx="4" ry="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+            <ellipse cx="55" cy="76" rx="4" ry="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+            <ellipse cx="34" cy="55" rx="10" ry="4" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+            <ellipse cx="76" cy="55" rx="10" ry="4" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+            <!-- Diagonal petals -->
+            <ellipse cx="42" cy="42" rx="4" ry="10" transform="rotate(-45 42 42)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+            <ellipse cx="68" cy="42" rx="4" ry="10" transform="rotate(45 68 42)"  fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+            <ellipse cx="42" cy="68" rx="4" ry="10" transform="rotate(45 42 68)"  fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+            <ellipse cx="68" cy="68" rx="4" ry="10" transform="rotate(-45 68 68)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+            <!-- 8 diamond dots on ring at 33px -->
+            <rect x="53" y="20" width="4" height="4" rx="0.5" transform="rotate(45 55 22)" fill="rgba(251,191,36,0.7)"/>
+            <rect x="53" y="84" width="4" height="4" rx="0.5" transform="rotate(45 55 86)" fill="rgba(251,191,36,0.7)"/>
+            <rect x="20" y="53" width="4" height="4" rx="0.5" transform="rotate(45 22 55)" fill="rgba(251,191,36,0.7)"/>
+            <rect x="84" y="53" width="4" height="4" rx="0.5" transform="rotate(45 86 55)" fill="rgba(251,191,36,0.7)"/>
+            <rect x="76" y="28" width="3" height="3" rx="0.5" transform="rotate(45 77 29)" fill="rgba(251,191,36,0.5)"/>
+            <rect x="28" y="28" width="3" height="3" rx="0.5" transform="rotate(45 29 29)" fill="rgba(251,191,36,0.5)"/>
+            <rect x="76" y="78" width="3" height="3" rx="0.5" transform="rotate(45 77 79)" fill="rgba(251,191,36,0.5)"/>
+            <rect x="28" y="78" width="3" height="3" rx="0.5" transform="rotate(45 29 79)" fill="rgba(251,191,36,0.5)"/>
           </svg>
         </div>
-        <!-- Right decorative rings -->
-        <div class="biz-circles-right">
-          <svg width="90" height="90" viewBox="0 0 90 90" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="45" cy="45" r="42" stroke="rgba(180,83,9,0.30)" stroke-width="1.5" fill="rgba(255,255,255,0.10)"/>
-            <circle cx="45" cy="45" r="32" stroke="rgba(180,83,9,0.22)" stroke-width="1.5" fill="rgba(245,158,11,0.08)"/>
-            <circle cx="45" cy="45" r="21" stroke="rgba(180,83,9,0.18)" stroke-width="1.5" fill="rgba(245,158,11,0.12)"/>
-            <circle cx="45" cy="45" r="10" fill="rgba(245,158,11,0.22)" stroke="rgba(180,83,9,0.25)" stroke-width="1"/>
-            <circle cx="45" cy="3"  r="2.5" fill="rgba(180,83,9,0.35)"/>
-            <circle cx="87" cy="45" r="2.5" fill="rgba(180,83,9,0.35)"/>
-            <circle cx="45" cy="87" r="2.5" fill="rgba(180,83,9,0.35)"/>
-            <circle cx="3"  cy="45" r="2.5" fill="rgba(180,83,9,0.35)"/>
-            <circle cx="76" cy="14" r="1.8" fill="rgba(180,83,9,0.25)"/>
-            <circle cx="76" cy="76" r="1.8" fill="rgba(180,83,9,0.25)"/>
-            <circle cx="14" cy="76" r="1.8" fill="rgba(180,83,9,0.25)"/>
-            <circle cx="14" cy="14" r="1.8" fill="rgba(180,83,9,0.25)"/>
+        <!-- Right ornament panel -->
+        <div class="biz-orn-right">
+          <svg width="110" height="110" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Outer ring -->
+            <circle cx="55" cy="55" r="50" stroke="rgba(251,191,36,0.35)" stroke-width="1" fill="none"/>
+            <circle cx="55" cy="55" r="42" stroke="rgba(251,191,36,0.25)" stroke-width="0.8" fill="none" stroke-dasharray="3,4"/>
+            <circle cx="55" cy="55" r="33" stroke="rgba(251,191,36,0.30)" stroke-width="1" fill="none"/>
+            <circle cx="55" cy="55" r="22" stroke="rgba(251,191,36,0.40)" stroke-width="1.2" fill="rgba(251,191,36,0.06)"/>
+            <circle cx="55" cy="55" r="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.6)" stroke-width="1.5"/>
+            <circle cx="55" cy="55" r="4"  fill="rgba(251,191,36,0.8)"/>
+            <!-- 8 petal lotus -->
+            <ellipse cx="55" cy="34" rx="4" ry="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+            <ellipse cx="55" cy="76" rx="4" ry="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+            <ellipse cx="34" cy="55" rx="10" ry="4" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+            <ellipse cx="76" cy="55" rx="10" ry="4" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+            <!-- Diagonal petals -->
+            <ellipse cx="42" cy="42" rx="4" ry="10" transform="rotate(-45 42 42)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+            <ellipse cx="68" cy="42" rx="4" ry="10" transform="rotate(45 68 42)"  fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+            <ellipse cx="42" cy="68" rx="4" ry="10" transform="rotate(45 42 68)"  fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+            <ellipse cx="68" cy="68" rx="4" ry="10" transform="rotate(-45 68 68)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+            <!-- 8 diamond dots on ring at 33px -->
+            <rect x="53" y="20" width="4" height="4" rx="0.5" transform="rotate(45 55 22)" fill="rgba(251,191,36,0.7)"/>
+            <rect x="53" y="84" width="4" height="4" rx="0.5" transform="rotate(45 55 86)" fill="rgba(251,191,36,0.7)"/>
+            <rect x="20" y="53" width="4" height="4" rx="0.5" transform="rotate(45 22 55)" fill="rgba(251,191,36,0.7)"/>
+            <rect x="84" y="53" width="4" height="4" rx="0.5" transform="rotate(45 86 55)" fill="rgba(251,191,36,0.7)"/>
+            <rect x="76" y="28" width="3" height="3" rx="0.5" transform="rotate(45 77 29)" fill="rgba(251,191,36,0.5)"/>
+            <rect x="28" y="28" width="3" height="3" rx="0.5" transform="rotate(45 29 29)" fill="rgba(251,191,36,0.5)"/>
+            <rect x="76" y="78" width="3" height="3" rx="0.5" transform="rotate(45 77 79)" fill="rgba(251,191,36,0.5)"/>
+            <rect x="28" y="78" width="3" height="3" rx="0.5" transform="rotate(45 29 79)" fill="rgba(251,191,36,0.5)"/>
           </svg>
         </div>
         <!-- Main content -->
         <div class="biz-inner">
+          <div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>
           <div class="biz-name">${bizName}</div>
           ${bizOwner ? `<div class="biz-sub">Proprietor: ${bizOwner}</div>` : ""}
+          <div class="biz-divider"><div class="biz-divider-line"></div><div class="biz-divider-diamond"></div><div class="biz-divider-line"></div></div>
           ${(bizAddress||bizPhone) ? `<div class="biz-details">
             ${bizAddress ? `<span>📍 ${bizAddress}</span>` : ""}
             ${bizPhone   ? `<span>📞 ${bizPhone}</span>`   : ""}
