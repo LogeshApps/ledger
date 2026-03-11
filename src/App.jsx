@@ -412,133 +412,167 @@ function Confirm({ msg, onOk, onCancel }) {
 
 // ─── Login + Register ────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
-  const [tab,  setTab]  = useState("login"); // login | register
-  const [u,    setU]    = useState("");
-  const [p,    setP]    = useState("");
-  const [biz,  setBiz]  = useState("");
-  const [show, setShow] = useState(false);
-  const [err,  setErr]  = useState("");
-  const [busy, setBusy] = useState(false);
+  const [tab,      setTab]    = useState("login");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [bizName,  setBizName]  = useState("");
+  const [showPw,   setShowPw]   = useState(false);
+  const [err,      setErr]      = useState("");
+  const [busy,     setBusy]     = useState(false);
+
+  const switchTab = (t) => { setTab(t); setErr(""); };
 
   const doLogin = async () => {
-    if (!u.trim() || !p.trim()) return setErr("Enter username and password.");
-    // Check admin credentials first (no GitHub read needed)
-    if (u.trim()===ADMIN_USERNAME && p===ADMIN_PASSWORD) {
+    if (!username.trim() || !password.trim()) return setErr("Enter username and password.");
+    if (username.trim() === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
       onLogin({ id:"admin", username:ADMIN_USERNAME, role:"admin" }, true);
       return;
     }
     setBusy(true); setErr("");
     try {
       const result = await ghGet(USERS_FILE);
-      const users = result?.data?.users || [];
-      const user = users.find(x => x.username.toLowerCase()===u.toLowerCase().trim() && x.password===p);
-      if (user) { onLogin(user, false); }
+      const users  = result?.data?.users || [];
+      const user   = users.find(x => x.username.toLowerCase() === username.toLowerCase().trim() && x.password === password);
+      if (user) onLogin(user, false);
       else setErr("Invalid username or password.");
     } catch(e) { setErr("Could not connect. Check GitHub config."); }
     setBusy(false);
   };
 
   const doRegister = async () => {
-    if (!u.trim()) return setErr("Enter a username.");
-    if (p.length < 6) return setErr("Password must be at least 6 characters.");
-    if (!biz.trim()) return setErr("Enter your business name.");
-    const username = u.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
-    if (!username) return setErr("Username can only have letters, numbers, underscore.");
+    const uname = username.trim().toLowerCase().replace(/[^a-z0-9_]/g, "");
+    if (!uname)              return setErr("Username can only have letters, numbers, underscore.");
+    if (password.length < 6) return setErr("Password must be at least 6 characters.");
+    if (!bizName.trim())     return setErr("Enter your business name.");
     setBusy(true); setErr("");
     try {
-      // Load existing users registry
       const result = await ghGet(USERS_FILE);
-      const users = result?.data?.users || [];
-      const sha = result?.sha || null;
-      if (users.find(x => x.username===username)) { setBusy(false); return setErr("Username already taken. Choose another."); }
-      // Add new user to registry
-      const newUser = { id: uid(), username, password: p, businessName: biz.trim(), createdAt: Date.now() };
-      const updatedUsers = [...users, newUser];
-      await ghPut(USERS_FILE, { users: updatedUsers }, sha, `New business registered: ${username}`);
-      // Create their own data file
-      const dataFile = userDataFile(username);
-      await ghPut(dataFile, { ...defaultBusinessData, companyName: biz.trim() }, null, `Init data for ${username}`);
-      onLogin(newUser);
+      const users  = result?.data?.users || [];
+      const sha    = result?.sha || null;
+      if (users.find(x => x.username === uname)) { setBusy(false); return setErr("Username already taken."); }
+      const newUser = { id: uid(), username: uname, password, businessName: bizName.trim(), createdAt: Date.now() };
+      await ghPut(USERS_FILE, { users: [...users, newUser] }, sha, `Registered: ${uname}`);
+      await ghPut(userDataFile(uname), { ...defaultBusinessData, companyName: bizName.trim() }, null, `Init: ${uname}`);
+      onLogin(newUser, false);
     } catch(e) { setErr("Registration failed. Check GitHub config."); }
     setBusy(false);
   };
 
-  const Logo = () => (
-    <div className="login-logo">
-      <div className="login-logo-icon"><Icon name="gold" size={32} color="#000"/></div>
-      <div>
-        <div className="login-title">GoldLedger</div>
-        <div className="login-sub">Gold & Money Ledger Management</div>
-      </div>
-    </div>
-  );
-
-  const PwField = ({label, value, onChange, onEnter}) => (
-    <div className="form-group" style={{marginBottom:14}}>
-      <label>{label}</label>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <input
-          type={show?"text":"password"}
-          value={value}
-          onChange={onChange}
-          placeholder="••••••••"
-          onKeyDown={e=>e.key==="Enter"&&onEnter()}
-          style={{flex:1}}
-        />
-        <button
-          type="button"
-          tabIndex={-1}
-          onMouseDown={e=>e.preventDefault()}
-          onClick={()=>setShow(s=>!s)}
-          style={{flexShrink:0,background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",cursor:"pointer",color:"var(--text3)",padding:"9px 10px",lineHeight:0,height:40}}
-        >
-          <Icon name={show?"eyeOff":"eye"} size={16}/>
-        </button>
-      </div>
-    </div>
-  );
+  const togglePw = (e) => { e.preventDefault(); setShowPw(s => !s); };
 
   return (
     <div className="login-page">
       <div className="login-card">
-        <Logo/>
-        <div className="tabs" style={{marginBottom:20}}>
-          <div className={`tab${tab==="login"?" active":""}`} style={{flex:1,textAlign:"center"}} onClick={()=>{setTab("login");setErr("")}}>Sign In</div>
-          <div className={`tab${tab==="register"?" active":""}`} style={{flex:1,textAlign:"center"}} onClick={()=>{setTab("register");setErr("")}}>Register Business</div>
+
+        {/* Logo */}
+        <div className="login-logo">
+          <div className="login-logo-icon"><Icon name="gold" size={32} color="#000"/></div>
+          <div>
+            <div className="login-title">GoldLedger</div>
+            <div className="login-sub">Gold &amp; Money Ledger Management</div>
+          </div>
         </div>
+
+        {/* Tabs */}
+        <div className="tabs" style={{marginBottom:20}}>
+          <div className={`tab${tab==="login"?" active":""}`} style={{flex:1,textAlign:"center"}} onClick={()=>switchTab("login")}>Sign In</div>
+          <div className={`tab${tab==="register"?" active":""}`} style={{flex:1,textAlign:"center"}} onClick={()=>switchTab("register")}>Register</div>
+        </div>
+
+        {/* Error */}
         {err && <div className="alert alert-error" style={{marginBottom:14}}>{err}</div>}
 
-        {tab==="login" && <>
-          <div className="form-group" style={{marginBottom:14}}>
-            <label>Username</label>
-            <input value={u} onChange={e=>setU(e.target.value)} placeholder="your username" onKeyDown={e=>e.key==="Enter"&&doLogin()} autoFocus/>
+        {/* ── SIGN IN ── */}
+        {tab==="login" && (
+          <div>
+            <div className="form-group" style={{marginBottom:14}}>
+              <label>Username</label>
+              <input
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                placeholder="your username"
+                onKeyDown={e => e.key==="Enter" && doLogin()}
+                autoFocus
+              />
+            </div>
+            <div className="form-group" style={{marginBottom:20}}>
+              <label>Password</label>
+              <div style={{position:"relative"}}>
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  onKeyDown={e => e.key==="Enter" && doLogin()}
+                  style={{paddingRight:42}}
+                />
+                <span
+                  onMouseDown={togglePw}
+                  style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",cursor:"pointer",color:"var(--text3)",userSelect:"none",lineHeight:0}}
+                >
+                  <Icon name={showPw?"eyeOff":"eye"} size={16}/>
+                </span>
+              </div>
+            </div>
+            <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem"}} onClick={doLogin} disabled={busy}>
+              {busy ? "Signing in..." : "Sign In"}
+            </button>
+            <div style={{marginTop:14,textAlign:"center",fontSize:"0.82rem",color:"var(--text3)"}}>
+              No account?{" "}
+              <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>switchTab("register")}>Register your business →</span>
+            </div>
           </div>
-          <PwField label="Password" value={p} onChange={e=>setP(e.target.value)} onEnter={doLogin}/>
-          <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem",marginTop:10}} onClick={doLogin} disabled={busy}>
-            {busy?"Signing in...":"Sign In"}
-          </button>
-          <div style={{marginTop:14,textAlign:"center",fontSize:"0.82rem",color:"var(--text3)"}}>
-            No account? <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>{setTab("register");setErr("")}}>Register your business →</span>
-          </div>
-        </>}
+        )}
 
-        {tab==="register" && <>
-          <div className="form-group" style={{marginBottom:14}}>
-            <label>Business Name</label>
-            <input value={biz} onChange={e=>setBiz(e.target.value)} placeholder="e.g. Sri Lakshmi Jewellers" autoFocus/>
+        {/* ── REGISTER ── */}
+        {tab==="register" && (
+          <div>
+            <div className="form-group" style={{marginBottom:14}}>
+              <label>Business Name</label>
+              <input
+                value={bizName}
+                onChange={e => setBizName(e.target.value)}
+                placeholder="e.g. Sri Lakshmi Jewellers"
+                autoFocus
+              />
+            </div>
+            <div className="form-group" style={{marginBottom:14}}>
+              <label>Username <span style={{color:"var(--text3)",fontSize:"0.75rem"}}>(letters, numbers, _ only)</span></label>
+              <input
+                value={username}
+                onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))}
+                placeholder="e.g. srilakshmi"
+              />
+            </div>
+            <div className="form-group" style={{marginBottom:20}}>
+              <label>Password <span style={{color:"var(--text3)",fontSize:"0.75rem"}}>(min 6 characters)</span></label>
+              <div style={{position:"relative"}}>
+                <input
+                  type={showPw ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  onKeyDown={e => e.key==="Enter" && doRegister()}
+                  style={{paddingRight:42}}
+                />
+                <span
+                  onMouseDown={togglePw}
+                  style={{position:"absolute",right:12,top:"50%",transform:"translateY(-50%)",cursor:"pointer",color:"var(--text3)",userSelect:"none",lineHeight:0}}
+                >
+                  <Icon name={showPw?"eyeOff":"eye"} size={16}/>
+                </span>
+              </div>
+            </div>
+            <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem"}} onClick={doRegister} disabled={busy}>
+              {busy ? "Creating account..." : "Create Business Account"}
+            </button>
+            <div style={{marginTop:14,textAlign:"center",fontSize:"0.82rem",color:"var(--text3)"}}>
+              Already have account?{" "}
+              <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>switchTab("login")}>Sign in →</span>
+            </div>
           </div>
-          <div className="form-group" style={{marginBottom:14}}>
-            <label>Username <span style={{color:"var(--text3)",fontSize:"0.75rem"}}>(letters, numbers, _ only)</span></label>
-            <input value={u} onChange={e=>setU(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))} placeholder="e.g. srilakshmi"/>
-          </div>
-          <PwField label="Password (min 6 characters)" value={p} onChange={e=>setP(e.target.value)} onEnter={doRegister}/>
-          <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem",marginTop:10}} onClick={doRegister} disabled={busy}>
-            {busy?"Creating account...":"Create Business Account"}
-          </button>
-          <div style={{marginTop:14,textAlign:"center",fontSize:"0.82rem",color:"var(--text3)"}}>
-            Already have account? <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>{setTab("login");setErr("")}}>Sign in →</span>
-          </div>
-        </>}
+        )}
+
       </div>
     </div>
   );
