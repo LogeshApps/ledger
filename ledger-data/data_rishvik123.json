@@ -81,8 +81,8 @@
     },
     {
       "date": "2026-03-11",
-      "personId": "v0rqdq29mmlnzmq0",
-      "personType": "customer",
+      "personId": "ybbb6a76mmlyeauf",
+      "personType": "worker",
       "description": "",
       "goldIn": 0,
       "goldOut": 56,
@@ -92,8 +92,24 @@
       "notes": "",
       "pureGoldIn": 0,
       "pureGoldOut": 56,
-      "createdAt": 1773229737101,
-      "id": "31geyf17mmlz79u5"
+      "createdAt": 1773229737102,
+      "id": "rooqe7yhmmlz79u6"
+    },
+    {
+      "date": "2026-03-11",
+      "personId": "ybbb6a76mmlyeauf",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 100,
+      "goldOut": 0,
+      "purity": "91.68",
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 91.68,
+      "pureGoldOut": 0,
+      "createdAt": 1773229894407,
+      "id": "7g2c19v0mmlzan7r"
     }
   ],
   "companyName": "Rishvik Jewellery",
