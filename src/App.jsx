@@ -828,7 +828,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
 }
 
 // ─── Ledger View ─────────────────────────────────────────────────────
-function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntry, onDeleteEntry }) {
+function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntry, onDeleteEntry, onDeleteManyEntries }) {
   const [monthFilter, setMonthFilter] = useState("");
   const [yearFilter,  setYearFilter]  = useState("");
   const [del,    setDel]    = useState(null);
@@ -1039,7 +1039,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
         </>
       )}
       {del&&<Confirm msg={`Delete entry "${del.description||fmtDate(del.date)}"?`} onOk={()=>{onDeleteEntry(del.id);setDel(null)}} onCancel={()=>setDel(null)}/>}
-      {bulkConfirm&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{[...selectedIds].forEach(id=>onDeleteEntry(id));setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
+      {bulkConfirm&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{(onDeleteManyEntries||((ids)=>ids.forEach(id=>onDeleteEntry(id))))([...selectedIds]);setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
     </div>
   );
 }
@@ -1211,7 +1211,7 @@ async function autoGenerateMonthEndReport(user, businessData) {
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────
-function Reports({ entries, customers, workers, companyName, companyData, onDeleteEntry, currentUser }) {
+function Reports({ entries, customers, workers, companyName, companyData, onDeleteEntry, onDeleteManyEntries, currentUser }) {
   const [tab,        setTab]       = useState("monthly");
   const [person,     setPerson]    = useState("");
   const [exportType, setExportType]= useState("all");
@@ -1757,7 +1757,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
             </tbody>
           </table>
         </div>
-        {bulkConfirm&&onDeleteEntry&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{[...selectedIds].forEach(id=>onDeleteEntry(id));setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
+        {bulkConfirm&&onDeleteEntry&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{(onDeleteManyEntries||((ids)=>ids.forEach(id=>onDeleteEntry(id))))([...selectedIds]);setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
       {saveModal&&<SaveReportModal defaultName={saveModal.defaultName} onSave={doSaveReport} onClose={()=>setSaveModal(null)} saving={saving}/>}
         {/* ── Balance Summary at BOTTOM ── */}
         <div style={{marginTop:16,background:"var(--surface)",border:"2px solid var(--border)",borderRadius:12,padding:16}}>
@@ -3103,6 +3103,26 @@ export default function App() {
     addToast("Entry deleted & archived.", "error");
   };
 
+  // ── Bulk delete: archives all selected entries in one shot, then removes them all at once ──
+  const deleteManyEntries = async (ids) => {
+    if (!ids || ids.length === 0) return;
+    const idSet = new Set(ids);
+    const toDelete = data.entries.filter(e => idSet.has(e.id));
+    if (toDelete.length === 0) return;
+    // Archive all entries in a single write
+    try {
+      const hFile = historyFile(currentUser.username);
+      const existing = await ghGet(hFile);
+      const archived = existing?.data?.deleted || [];
+      const newRecords = toDelete.map(e => ({ ...e, deletedAt: Date.now(), deletedBy: currentUser.username }));
+      await ghPut(hFile, { deleted: [...archived, ...newRecords] }, existing?.sha||null,
+        `Bulk archived ${toDelete.length} entries - ${currentUser.username}`);
+    } catch(e) { console.warn("Bulk archive failed, proceeding with delete:", e); }
+    // Remove all at once in a single state update
+    updateData({ entries: data.entries.filter(e => !idSet.has(e.id)) });
+    addToast(`${toDelete.length} ${toDelete.length === 1 ? "entry" : "entries"} deleted & archived.`, "error");
+  };
+
   // ── Nav ──
   const navItems = [
     {id:"dashboard",label:"Dashboard",icon:"dashboard"},
@@ -3246,9 +3266,10 @@ export default function App() {
                 onBack={()=>setPage(viewPerson.ptype==="customer"?"customers":"workers")}
                 onAddEntry={()=>setEntryForm({entry:null,personId:viewPerson.id,personType:viewPerson.ptype})}
                 onEditEntry={e=>setEntryForm({entry:e,personId:e.personId})}
-                onDeleteEntry={deleteEntry}/>
+                onDeleteEntry={deleteEntry}
+                onDeleteManyEntries={deleteManyEntries}/>
             )}
-            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data} onDeleteEntry={deleteEntry} currentUser={currentUser}/>}
+            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data} onDeleteEntry={deleteEntry} onDeleteManyEntries={deleteManyEntries} currentUser={currentUser}/>}
             {page==="history"&&<DeletedHistory currentUser={currentUser} allPeople={allPeople}/>}
             {page==="savedreports"&&<SavedReports currentUser={currentUser}/>}
             {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser}/>}
