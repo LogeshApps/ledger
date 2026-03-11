@@ -1,11 +1,26 @@
 {
-  "customers": [],
+  "customers": [
+    {
+      "name": "Logesh",
+      "phone": "+91 9894058144",
+      "address": "Old 23k-1, New 26, Nandhini Illam\nRaj nagar, Selvapuram",
+      "workType": "",
+      "notes": "Testing purpose",
+      "id": "uo6vrcoqmmllumd9",
+      "createdAt": 1773207311805
+    }
+  ],
   "workers": [],
   "entries": [],
   "companyName": "My Gold Shop",
   "companyAddress": "",
   "companyPhone": "",
   "users": [
-    { "id": "u1", "username": "admin", "password": "admin123", "role": "admin" }
+    {
+      "id": "u1",
+      "username": "admin",
+      "password": "admin123",
+      "role": "admin"
+    }
   ]
 }
