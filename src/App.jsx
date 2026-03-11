@@ -995,6 +995,172 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
   );
 }
 
+// ─── Standalone report HTML builder (no auto-print, used for saving) ──
+function buildReportHTML(ents, title, type, personName, companyData, sortDir="desc") {
+  const bizName    = companyData?.companyName || "Gold Shop";
+  const bizOwner   = companyData?.companyOwner || "";
+  const bizAddress = companyData?.companyAddress || "";
+  const bizPhone   = companyData?.companyPhone || "";
+  const genTime    = new Date().toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+  const showGold   = type==="all"||type==="gold";
+  const showMoney  = type==="all"||type==="money";
+
+  // Sort by date
+  const sorted = [...ents].sort((a,b)=> sortDir==="desc"
+    ? b.date.localeCompare(a.date)||((b.createdAt||0)-(a.createdAt||0))
+    : a.date.localeCompare(b.date)||((a.createdAt||0)-(b.createdAt||0)));
+
+  let s={goldIn:0,goldOut:0,pureIn:0,pureOut:0,moneyIn:0,moneyOut:0};
+  sorted.forEach(e=>{s.goldIn+=Number(e.goldIn||0);s.goldOut+=Number(e.goldOut||0);s.pureIn+=Number(e.pureGoldIn||0);s.pureOut+=Number(e.pureGoldOut||0);s.moneyIn+=Number(e.moneyIn||0);s.moneyOut+=Number(e.moneyOut||0);});
+
+  let rG=0,rM=0;
+  const tableRows = sorted.map(e=>{
+    rG+=Number(e.goldIn||0)-Number(e.goldOut||0);
+    rM+=Number(e.moneyIn||0)-Number(e.moneyOut||0);
+    let cols=`<td>${fmtDate(e.date)}</td><td><strong>${e._personName||"-"}</strong><br/><small style="color:${e.personType==="customer"?"#2563eb":"#7c3aed"};font-weight:600">${e.personType==="customer"?"Customer":"Worker"}</small></td><td>${e.description||"-"}</td>`;
+    if(showGold) cols+=`<td style="text-align:right;color:#16a34a">${e.goldIn?fmtGold(e.goldIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.goldOut?fmtGold(e.goldOut):"-"}</td><td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:600">${e.purity||"-"}</span></td><td style="text-align:right;color:#7c3aed;font-size:11px">${e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}${e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}${!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td><td style="text-align:right;font-weight:700;color:${rG>=0?"#d97706":"#dc2626"}">${fmtGold(rG)}</td>`;
+    if(showMoney) cols+=`<td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyFull(e.moneyIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyFull(e.moneyOut):"-"}</td><td style="text-align:right;font-weight:700;color:${rM>=0?"#16a34a":"#dc2626"}">${fmtMoneyFull(rM)}</td>`;
+    return `<tr>${cols}</tr>`;
+  }).join("");
+  let headCols=`<th>Date</th><th>Name</th><th>Description</th>`;
+  if(showGold)  headCols+=`<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold</th><th style="text-align:right">Gold Balance</th>`;
+  if(showMoney) headCols+=`<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
+
+  // Reuse same CSS/biz-box as the main buildHTML (inlined minimal version)
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.5}
+    .biz-box{position:relative;overflow:hidden;text-align:center;padding:20px 16px 16px;border-radius:16px;margin-bottom:18px;background:#7c3207!important;background-image:linear-gradient(135deg,#6b2a04 0%,#7c3207 25%,#9a3d0a 50%,#7c3207 75%,#6b2a04 100%)!important;border:3px solid #d97706;box-shadow:0 0 0 2px rgba(217,119,6,0.4),0 8px 32px rgba(0,0,0,0.35)}
+    .biz-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#fbbf24!important;background-image:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent)!important;z-index:3}
+    .biz-box::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:#fbbf24!important;background-image:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent)!important;z-index:3}
+    .biz-inner{position:relative;z-index:2;padding:0 8px}
+    .hallmark-tag{display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;background:#f59e0b!important;color:#78350f;font-size:9.5px;font-weight:800;letter-spacing:0.12em;text-transform:uppercase;padding:3px 12px 3px 8px;border-radius:99px;border:1.5px solid rgba(255,255,255,0.5)}
+    .hallmark-tag .hall-num{font-size:11px;font-weight:900;background:#78350f!important;color:#fbbf24;border-radius:99px;padding:1px 7px;display:inline-block}
+    .biz-name{font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:900;color:#fef3c7!important;letter-spacing:0.04em;line-height:1.2}
+    .biz-sub{margin-top:4px;font-size:12px;color:#fde68a!important;font-weight:600}
+    .biz-divider{display:flex;align-items:center;gap:8px;margin:8px auto 6px;max-width:340px}
+    .biz-divider-line{flex:1;height:1px;background:#fbbf24!important;opacity:0.5}
+    .biz-divider-diamond{width:7px;height:7px;background:#fbbf24!important;transform:rotate(45deg);flex-shrink:0}
+    .biz-details{margin-top:6px;font-size:11.5px;color:#fde68a!important;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+    .biz-details span{display:inline-flex;align-items:center;gap:4px}
+    .report-title-block{margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #f59e0b}
+    .report-title-text{font-family:Arial,Helvetica,sans-serif;font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:4px}
+    .report-meta-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+    .report-meta-row span{font-size:12px;color:#6b7280;display:inline-flex;align-items:center;gap:4px}
+    .badge{display:inline-block;background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #fcd34d;letter-spacing:0.04em}
+    .auto-badge{display:inline-block;background:#dbeafe;color:#1d4ed8;padding:3px 12px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #93c5fd;letter-spacing:0.04em;margin-left:6px}
+    table{width:100%;border-collapse:collapse;margin-top:4px}
+    th{background:#f9fafb;padding:9px 11px;text-align:left;font-size:10.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+    td{padding:9px 11px;border-bottom:1px solid #f3f4f6;font-size:12.5px;vertical-align:middle}
+    .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:13px}
+    .balances{margin-top:22px;padding:16px 18px;border:2px solid #e5e7eb;border-radius:12px;background:#f9fafb}
+    .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#374151;margin-bottom:12px}
+    .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+    .bal-item{text-align:center;padding:12px 10px;background:#fff;border-radius:9px;border:1px solid #e5e7eb}
+    .bal-label{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
+    .bal-value{font-size:17px;font-weight:800;line-height:1.2}
+    .gold-val{color:#d97706}.purple-val{color:#7c3aed}.green-val{color:#16a34a}.red-val{color:#dc2626}.blue-val{color:#2563eb}
+    .page-footer{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
+    @media print{body{padding:20px 24px}@page{margin:1cm;size:A4}}
+  </style></head><body>
+  <div class="biz-box">
+    <div class="biz-inner">
+      <div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>
+      <div class="biz-name">${bizName}</div>
+      ${bizOwner?`<div class="biz-sub">Proprietor: ${bizOwner}</div>`:""}
+      <div class="biz-divider"><div class="biz-divider-line"></div><div class="biz-divider-diamond"></div><div class="biz-divider-line"></div></div>
+      ${(bizAddress||bizPhone)?`<div class="biz-details">${bizAddress?`<span>📍 ${bizAddress}</span>`:""}${bizPhone?`<span>📞 ${bizPhone}</span>`:""}</div>`:""}
+    </div>
+  </div>
+  <div class="report-title-block">
+    <div class="report-title-text">${title}</div>
+    <div class="report-meta-row">
+      <span>🕐 Generated: ${genTime}</span>
+      <span class="badge">${type==="all"?"FULL REPORT":type==="gold"?"GOLD REPORT":"MONEY REPORT"}</span>
+      ${personName?`<span>${personName}</span>`:""}
+    </div>
+  </div>
+  <table><thead><tr>${headCols}</tr></thead>
+  <tbody>${tableRows}
+    <tr class="totals-row"><td colspan="3">TOTALS (${sorted.length} entries)</td>
+      ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
+      ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyFull(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyFull(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</td>`:""}
+    </tr>
+  </tbody></table>
+  <div class="balances">
+    <div class="balances-title">Final Balances</div>
+    <div class="bal-grid">
+      ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
+      <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div></div>`:""}
+      ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div></div>`:""}
+      <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${sorted.length}</div></div>
+    </div>
+  </div>
+  <div class="page-footer"><span>${bizName}</span><span>Auto-generated by Ledger</span></div>
+  </body></html>`;
+}
+
+// ─── Auto month-end report generator ────────────────────────────────
+async function autoGenerateMonthEndReport(user, businessData) {
+  try {
+    const now      = new Date();
+    const today    = now.getDate();
+    // Only run on last 3 days of month
+    const lastDay  = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    if (today < lastDay - 2) return;
+
+    const yr  = now.getFullYear();
+    const mo  = now.getMonth(); // 0-indexed
+    const monthName = now.toLocaleString("en-IN",{month:"long"});
+    const reportKey = `auto-${yr}-${String(mo+1).padStart(2,"0")}`;
+
+    // Check if already generated this month
+    const rFile   = reportsFile(user.username);
+    const existing = await ghGet(rFile);
+    const reports  = existing?.data?.reports || [];
+    if (reports.some(r => r.autoKey === reportKey)) return; // already done
+
+    // Filter entries for this month
+    const firstDay = `${yr}-${String(mo+1).padStart(2,"0")}-01`;
+    const lastDayStr = `${yr}-${String(mo+1).padStart(2,"0")}-${String(lastDay).padStart(2,"0")}`;
+    const allPeople = [
+      ...(businessData.customers||[]).map(c=>({...c,ptype:"customer"})),
+      ...(businessData.workers||[]).map(w=>({...w,ptype:"worker"})),
+    ];
+    const monthEntries = (businessData.entries||[])
+      .filter(e => e.date >= firstDay && e.date <= lastDayStr)
+      .map(e => ({...e, _personName: allPeople.find(p=>p.id===e.personId)?.name || "-"}));
+
+    if (!monthEntries.length) return; // no entries, skip
+
+    const title    = `Monthly Report — ${monthName} ${yr}`;
+    const now2     = new Date();
+    const stamp    = now2.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) + " " + now2.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
+    const saveName = `${title} — ${stamp}`;
+    const html     = buildReportHTML(monthEntries, title, "all", "", businessData, "desc");
+
+    const newRec = {
+      id:            uid(),
+      name:          saveName,
+      tags:          ["monthly", "auto", monthName.toLowerCase(), String(yr)],
+      notes:         `Auto-generated monthly report for ${monthName} ${yr}`,
+      html,
+      reportType:    "all",
+      rangeLabel:    `${monthName} ${yr}`,
+      entryCount:    monthEntries.length,
+      savedAt:       Date.now(),
+      updatedAt:     null,
+      autoGenerated: true,
+      autoKey:       reportKey,
+    };
+    await ghPut(rFile, {reports:[...reports, newRec]}, existing?.sha||null, `Auto monthly report: ${monthName} ${yr}`);
+    console.log(`✅ Auto-report saved for ${user.username}: ${monthName} ${yr}`);
+  } catch(e) {
+    console.warn("Auto-report generation failed:", e);
+  }
+}
+
 // ─── Reports ─────────────────────────────────────────────────────────
 function Reports({ entries, customers, workers, companyName, companyData, onDeleteEntry, currentUser }) {
   const [tab,        setTab]       = useState("monthly");
@@ -1087,7 +1253,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
   };
 
   // ── Build HTML for preview/export ──
-  const buildHTML = (ents, title, type, personName, sortByArg, sortDirArg) => {
+  const buildHTML = (ents, title, type, personName, sortByArg, sortDirArg, autoPrint=true) => {
     const s = summary(ents);
     const bizName = companyName || "My Business";
     const bizAddress = companyData?.companyAddress || "";
@@ -1361,13 +1527,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         </div>
       </div>
       <div class="page-footer"><span>${bizName}</span><span>Powered by Ledger</span></div>
-      <script>
-        // Auto-trigger print/save dialog as soon as the page finishes loading
-        window.onload = function() {
-          document.title = "${title.replace(/"/g,"'")}";
-          setTimeout(function(){ window.print(); }, 400);
-        };
-      </script>
+      ${autoPrint ? `<script>window.onload=function(){document.title="${title.replace(/"/g,"'")}";setTimeout(function(){window.print();},400);};</script>` : ""}
     </body></html>`;
   };
 
@@ -1404,7 +1564,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
   };
 
   const doSaveReport = async ({name, tags, notes}) => {
-    if (!preview || !currentUser) return;
+    if (!saveModal || !currentUser) return;
     setSaving(true);
     try {
       const rFile   = reportsFile(currentUser.username);
@@ -1415,17 +1575,18 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         name:        name,
         tags:        tags,
         notes:       notes,
-        html:        preview.html,
+        html:        saveModal.html,
         reportType:  exportType,
         rangeLabel:  rangeLabel,
-        entryCount:  preview.ents.length,
+        entryCount:  saveModal.ents.length,
         savedAt:     Date.now(),
         updatedAt:   null,
+        autoGenerated: false,
       };
       await ghPut(rFile, {reports:[...prev, rec]}, existing?.sha||null, `Save report: ${name}`);
-      setSaveModal(false);
-      alert(`✅ Report "${name}" saved! View it in the Saved Reports page.`);
-    } catch(e) { alert("Save failed: " + e.message); }
+      setSaveModal(null);
+      addToast(`Report "${name}" saved!`, "success");
+    } catch(e) { addToast("Save failed: " + e.message, "error"); }
     setSaving(false);
   };
 
@@ -1555,7 +1716,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
           </table>
         </div>
         {bulkConfirm&&onDeleteEntry&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{[...selectedIds].forEach(id=>onDeleteEntry(id));setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
-      {saveModal&&<SaveReportModal defaultName={preview?.title||reportTitle} onSave={doSaveReport} onClose={()=>setSaveModal(false)} saving={saving}/>}
+      {saveModal&&<SaveReportModal defaultName={saveModal.defaultName} onSave={doSaveReport} onClose={()=>setSaveModal(null)} saving={saving}/>}
         {/* ── Balance Summary at BOTTOM ── */}
         <div style={{marginTop:16,background:"var(--surface)",border:"2px solid var(--border)",borderRadius:12,padding:16}}>
           <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontWeight:700,fontSize:"0.9rem",marginBottom:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
@@ -1633,9 +1794,11 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
             <button onClick={()=>{
               const pName = tab==="person" ? allPeople.find(p=>p.id===person)?.name : "";
               const sorted = applySortToEnts(activeEnts, sortBy, sortDir);
-              const html = buildHTML(sorted, reportTitle, exportType, pName, sortBy, sortDir);
-              setPreview({html, title: reportTitle, ents: sorted});
-              setSaveModal(true);
+              const now = new Date();
+              const stamp = now.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) + " " + now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
+              const defaultName = `${reportTitle} — ${stamp}`;
+              const html = buildHTML(sorted, reportTitle, exportType, pName, sortBy, sortDir, false);
+              setSaveModal({html, ents: sorted, defaultName});
             }} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 16px",borderRadius:"var(--radius-sm)",fontSize:"0.875rem",fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",background:"rgba(34,211,160,0.15)",color:"var(--green)",border:"1px solid rgba(34,211,160,0.3)"}}><Icon name="download" size={16}/>💾 Save Report</button>
           </div>
         )}
@@ -2683,6 +2846,7 @@ function SavedReports({ currentUser }) {
                   <span style={{fontSize:"0.7rem",color:"var(--text3)",background:"var(--surface2)",padding:"2px 8px",borderRadius:99,border:"1px solid var(--border)",flexShrink:0}}>
                     {r.reportType==="gold"?"Gold Only":r.reportType==="money"?"Cash Only":"Full Report"}
                   </span>
+                  {r.autoGenerated&&<span style={{fontSize:"0.7rem",background:"rgba(99,102,241,0.12)",color:"#6366f1",padding:"2px 8px",borderRadius:99,border:"1px solid rgba(99,102,241,0.3)",flexShrink:0,fontWeight:700}}>🤖 Auto</span>}
                 </div>
                 {/* Tags */}
                 {r.tags?.length>0&&(
@@ -2757,6 +2921,8 @@ export default function App() {
       if (result) {
         setData({...defaultBusinessData, ...result.data});
         setFileSha(result.sha);
+        // Fire-and-forget: auto-generate month-end report if needed
+        autoGenerateMonthEndReport(user, {...defaultBusinessData, ...result.data});
       } else {
         // First time — create their file
         const init = {...defaultBusinessData, companyName: user.businessName||"My Gold Shop"};
