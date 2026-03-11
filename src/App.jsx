@@ -476,9 +476,21 @@ function LoginPage({ onLogin }) {
   const PwField = ({label, value, onChange, onEnter}) => (
     <div className="form-group" style={{marginBottom:14}}>
       <label>{label}</label>
-      <div style={{position:"relative"}}>
-        <input type={show?"text":"password"} value={value} onChange={onChange} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&onEnter()} style={{paddingRight:44, caretColor:"var(--text)", color:"var(--text)"}}/>
-        <button type="button" onClick={()=>setShow(!show)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--text3)",zIndex:2,padding:4,lineHeight:0}}>
+      <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+        <input
+          type={show?"text":"password"}
+          value={value}
+          onChange={onChange}
+          placeholder="••••••••"
+          onKeyDown={e=>e.key==="Enter"&&onEnter()}
+          style={{flex:1,paddingRight:42,width:"100%",position:"relative",zIndex:1}}
+        />
+        <button
+          type="button"
+          onMouseDown={e=>e.preventDefault()}
+          onClick={()=>setShow(s=>!s)}
+          style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"transparent",border:"none",cursor:"pointer",color:"var(--text3)",zIndex:3,padding:"4px",lineHeight:0,pointerEvents:"all"}}
+        >
           <Icon name={show?"eyeOff":"eye"} size={16}/>
         </button>
       </div>
@@ -1671,4 +1683,3 @@ export default function App() {
     </>
   );
 }
-
