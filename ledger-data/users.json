@@ -1,3 +1,11 @@
 {
-  "users": []
+  "users": [
+    {
+      "id": "0x8fg79fmmlny71u",
+      "username": "rishvik123",
+      "password": "9894058144",
+      "businessName": "Rishvik Jewellery",
+      "createdAt": 1773210837810
+    }
+  ]
 }
