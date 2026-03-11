@@ -81,6 +81,23 @@
       "pureGoldOut": 500,
       "id": "9c6ply6emmltph05",
       "createdAt": 1773220508501
+    },
+    {
+      "date": "2026-03-11",
+      "personId": "k6h5zledmmltgpoo",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 100,
+      "goldOut": 0,
+      "purity": "24K (999)",
+      "customPurity": "",
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 100,
+      "pureGoldOut": 0,
+      "id": "ms5uwak0mmltqrpt",
+      "createdAt": 1773220569041
     }
   ],
   "companyName": "SG ANTIQUES",
