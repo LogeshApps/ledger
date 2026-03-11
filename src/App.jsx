@@ -135,6 +135,7 @@ const Icon = ({ name, size=18, color="currentColor" }) => {
 
 // ─── Styles ─────────────────────────────────────────────────────────
 const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
     --bg:#0c0e14;--surface:#13161f;--surface2:#1a1e2a;--surface3:#222636;
@@ -146,7 +147,7 @@ const styles = `
     --blue:#38bdf8;--blue-dim:rgba(56,189,248,0.12);
     --gold:#fbbf24;--gold-dim:rgba(251,191,36,0.12);
     --radius:12px;--radius-sm:8px;--shadow:0 4px 24px rgba(0,0,0,0.4);
-    --font:Arial,Helvetica,sans-serif;--font-display:Arial,Helvetica,sans-serif;
+    --font:'DM Sans',sans-serif;--font-display:'Syne',sans-serif;
     --sidebar-w:240px;--tr:0.2s cubic-bezier(0.4,0,0.2,1);
   }
   html{font-size:15px}
@@ -625,7 +626,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
   const isEdit = !!initial;
   const [rows, setRows] = useState(
     isEdit
-      ? [{ ...initial, purity: initial.purity||"100" }]
+      ? [{ ...initial, purity: initial.purity||"22K" }]
       : [emptyRow(defaultPersonId||"", defaultPersonType||"customer")]
   );
   const [err, setErr] = useState("");
@@ -645,9 +646,9 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
       if (!r.goldIn && !r.goldOut && !r.moneyIn && !r.moneyOut) return setErr(`Row ${i+1}: Enter at least one value.`);
     }
     setErr("");
-    const prepared = filled.map(r => {
-      const pv = r.purity||"100";
-      return {
+    filled.forEach(r => {
+      const pv = r.purity||"22K";
+      onSave({
         ...r,
         goldIn:      Number(r.goldIn||0),
         goldOut:     Number(r.goldOut||0),
@@ -657,9 +658,8 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
         pureGoldIn:  pureGold(r.goldIn||0,  pv),
         pureGoldOut: pureGold(r.goldOut||0, pv),
         createdAt:   Date.now(),
-      };
+      });
     });
-    onSave(prepared);
   };
 
   const filledCount = rows.filter(r=>r.personId||r.goldIn||r.goldOut||r.moneyIn||r.moneyOut).length;
@@ -691,7 +691,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
               <th style={{...hdr,width:90,color:"var(--gold)"}}>Gold In (g)</th>
               <th style={{...hdr,width:90,color:"var(--red)"}}>Gold Out (g)</th>
               <th style={{...hdr,width:90}}>Purity %</th>
-              <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>Pure Gold 100%</th>
+              <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>24K</th>
               <th style={{...hdr,width:100,color:"var(--green)"}}>Money In ₹</th>
               <th style={{...hdr,width:100,color:"var(--red)"}}>Money Out ₹</th>
               <th style={{...hdr,width:80}}>Notes</th>
@@ -700,7 +700,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
           </thead>
           <tbody>
             {rows.map((f,i)=>{
-              const pv = f.purity||"100";
+              const pv = f.purity||"22K";
               const pureIn  = f.goldIn  ? pureGold(Number(f.goldIn),  pv).toFixed(3) : null;
               const pureOut = f.goldOut ? pureGold(Number(f.goldOut), pv).toFixed(3) : null;
               const isLast = i===rows.length-1;
@@ -713,7 +713,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
                     <input style={inp} type="date" value={f.date} onChange={e=>setRow(i,"date",e.target.value)}/>
                   </td>
                   <td style={{padding:"4px 6px"}}>
-                    <select style={inp} value={f.personType} onChange={e=>setRow(i,"personType",e.target.value)}>
+                    <select style={inp} value={f.personType} onChange={e=>setRows(prev=>prev.map((r,idx)=>idx===i?{...r,personType:e.target.value,personId:""}:r))}>
                       <option value="customer">Customer</option>
                       <option value="worker">Worker</option>
                     </select>
@@ -721,8 +721,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
                   <td style={{padding:"4px 6px"}}>
                     <select style={{...inp,color:f.personId?"var(--text)":"var(--text3)"}} value={f.personId} onChange={e=>setRow(i,"personId",e.target.value)}>
                       <option value="">-- Select --</option>
-                      <optgroup label="Customers">{people.filter(p=>p.ptype==="customer").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
-                      <optgroup label="Workers">{people.filter(p=>p.ptype==="worker").map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</optgroup>
+                      {people.filter(p=>p.ptype===f.personType).map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
                     </select>
                   </td>
                   <td style={{padding:"4px 6px"}}>
@@ -784,6 +783,8 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
   const [del,    setDel]    = useState(null);
   const [sortCol, setSortCol] = useState("date");
   const [sortDir, setSortDir] = useState("desc");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
 
   const personEntries = useMemo(() =>
     entries.filter(e=>e.personId===person.id)
@@ -868,7 +869,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
         </div>
         <div className="stat-card gold" style={{"--gold":"#a78bfa"}}>
           <div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div>
-          <div className="stat-label">Pure Gold Balance (100%)</div>
+          <div className="stat-label">Pure Gold Balance (24K)</div>
           <div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(totals.pureIn - totals.pureOut)}</div>
           <div className="stat-sub">In: {fmtGold(totals.pureIn)} · Out: {fmtGold(totals.pureOut)}</div>
         </div>
@@ -903,10 +904,23 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
       {rows.length===0 ? (
         <div className="empty"><div className="empty-icon"><Icon name="ledger" size={28}/></div><div className="empty-title">No entries found</div><div className="empty-sub">Add a ledger entry to get started</div></div>
       ) : (
+        <>
+        {selectedIds.size>0&&(
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",background:"rgba(244,63,94,0.1)",border:"1px solid rgba(244,63,94,0.3)",borderRadius:8,marginBottom:10}}>
+            <span style={{fontSize:"0.85rem",color:"var(--red)",fontWeight:600}}>{selectedIds.size} selected</span>
+            <button className="btn btn-danger btn-sm" onClick={()=>setBulkConfirm(true)}><Icon name="trash" size={13}/>Delete Selected</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>setSelectedIds(new Set())}>Clear</button>
+          </div>
+        )}
         <div className="table-wrap">
           <table className="ledger-table">
             <thead>
               <tr>
+                <th style={{width:36,textAlign:"center",padding:"6px 8px"}}>
+                  <input type="checkbox" style={{cursor:"pointer",accentColor:"var(--red)"}}
+                    checked={rows.length>0&&rows.every(r=>selectedIds.has(r.id))}
+                    onChange={e=>setSelectedIds(e.target.checked?new Set(rows.map(r=>r.id)):new Set())}/>
+                </th>
                 {[["date","Date"],["desc","Description"],["goldIn","Gold In (g)"],["goldOut","Gold Out (g)"],["purity","Purity"],["pureGold","Pure Gold (g)"],["goldBal","Gold Balance"]].map(([col,lbl])=>(
                   <th key={col} className={col==="goldIn"||col==="goldOut"||col==="pureGold"||col==="goldBal"?"th-right":col==="purity"?"th-center":""}
                     onClick={()=>{ if(["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)){ if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc"); else{setSortCol(col);setSortDir("desc");} } }}
@@ -926,7 +940,12 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
             </thead>
             <tbody>
               {rows.map(row=>(
-                <tr key={row.id}>
+                <tr key={row.id} style={{background:selectedIds.has(row.id)?"rgba(244,63,94,0.07)":""}}>
+                  <td style={{textAlign:"center",padding:"6px 8px"}}>
+                    <input type="checkbox" style={{cursor:"pointer",accentColor:"var(--red)"}}
+                      checked={selectedIds.has(row.id)}
+                      onChange={e=>{const s=new Set(selectedIds);e.target.checked?s.add(row.id):s.delete(row.id);setSelectedIds(s);}}/>
+                  </td>
                   <td style={{whiteSpace:"nowrap",color:"var(--text2)"}}>{fmtDate(row.date)}</td>
                   <td><div className="fw6">{row.description||"-"}</div>{row.notes&&<div className="fs-xs text3">{row.notes}</div>}</td>
                   <td className="right"><span className={row.goldIn?  "gold-in":"text3"}>{row.goldIn?  fmtGold(row.goldIn): "-"}</span></td>
@@ -951,6 +970,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
               ))}
               {/* Totals row */}
               <tr className="ledger-balance-row">
+                <td/>
                 <td colSpan={2}><span className="fw7">TOTALS</span></td>
                 <td className="right"><span className="text-green fw7">{fmtGold(totals.goldIn)}</span></td>
                 <td className="right"><span className="text-red fw7">{fmtGold(totals.goldOut)}</span></td>
@@ -965,14 +985,16 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
             </tbody>
           </table>
         </div>
+        </>
       )}
       {del&&<Confirm msg={`Delete entry "${del.description||fmtDate(del.date)}"?`} onOk={()=>{onDeleteEntry(del.id);setDel(null)}} onCancel={()=>setDel(null)}/>}
+      {bulkConfirm&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{[...selectedIds].forEach(id=>onDeleteEntry(id));setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
     </div>
   );
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────
-function Reports({ entries, customers, workers, companyName, companyData }) {
+function Reports({ entries, customers, workers, companyName, companyData, onDeleteEntry }) {
   const [tab,        setTab]       = useState("monthly");
   const [person,     setPerson]    = useState("");
   const [exportType, setExportType]= useState("all");
@@ -986,6 +1008,8 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
   // ── Sort state ──
   const [sortBy,  setSortBy]  = useState("date");   // date | name | goldIn | goldOut | moneyIn | moneyOut
   const [sortDir, setSortDir] = useState("desc");   // asc | desc
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
 
   // ── Compute dateFrom / dateTo from preset ──
   const { dateFrom, dateTo, rangeLabel } = useMemo(() => {
@@ -1199,7 +1223,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
         <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
           ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
+          <div class="bal-item"><div class="bal-label">Pure 24K</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
           ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyFull(s.moneyIn)} · Out: ${fmtMoneyFull(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
@@ -1240,7 +1264,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
   const SummaryCards = ({s}) => (
     <div className="stats-grid" style={{marginBottom:16}}>
       <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Net Gold Balance</div><div className="stat-value gold">{fmtGold(s.goldIn-s.goldOut)}</div><div className="stat-sub">In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div></div>
-      <div className="stat-card" style={{"--accent":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div><div className="stat-label">Pure Gold (100%)</div><div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div><div className="stat-sub">In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div></div>
+      <div className="stat-card" style={{"--accent":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="gold" size={18} color="#a78bfa"/></div><div className="stat-label">Pure Gold (24K)</div><div className="stat-value" style={{color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div><div className="stat-sub">In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div></div>
       <div className={`stat-card ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}><div className={`stat-icon ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}><Icon name="money" size={18} color={s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Money Balance</div><div className={`stat-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}`}>{fmtMoney(s.moneyIn-s.moneyOut)}</div><div className="stat-sub">In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div></div>
     </div>
   );
@@ -1297,9 +1321,22 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
           </button>
         </div>
 
+        {selectedIds.size>0&&onDeleteEntry&&(
+          <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 14px",background:"rgba(244,63,94,0.1)",border:"1px solid rgba(244,63,94,0.3)",borderRadius:8,marginBottom:10}}>
+            <span style={{fontSize:"0.85rem",color:"var(--red)",fontWeight:600}}>{selectedIds.size} selected</span>
+            <button className="btn btn-danger btn-sm" onClick={()=>setBulkConfirm(true)}><Icon name="trash" size={13}/>Delete Selected</button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>setSelectedIds(new Set())}>Clear</button>
+          </div>
+        )}
+
         <div className="table-wrap">
           <table>
             <thead><tr>
+              {onDeleteEntry&&<th style={{width:36,textAlign:"center",padding:"6px 8px"}}>
+                <input type="checkbox" style={{cursor:"pointer",accentColor:"var(--red)"}}
+                  checked={rows.length>0&&rows.every(r=>selectedIds.has(r.id))}
+                  onChange={e=>setSelectedIds(e.target.checked?new Set(rows.map(r=>r.id)):new Set())}/>
+              </th>}
               <Th col="date" label="Date & Time"/>
               <Th col="name" label="Name"/>
               <th>Description</th>
@@ -1322,7 +1359,12 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
                 const isC=e.personType==="customer";
                 const time=e.createdAt?new Date(e.createdAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}):"";
                 return (
-                  <tr key={e.id}>
+                  <tr key={e.id} style={{background:selectedIds.has(e.id)?"rgba(244,63,94,0.07)":""}}>
+                    {onDeleteEntry&&<td style={{textAlign:"center",padding:"6px 8px"}}>
+                      <input type="checkbox" style={{cursor:"pointer",accentColor:"var(--red)"}}
+                        checked={selectedIds.has(e.id)}
+                        onChange={ev=>{const s=new Set(selectedIds);ev.target.checked?s.add(e.id):s.delete(e.id);setSelectedIds(s);}}/>
+                    </td>}
                     <td><div style={{color:"var(--text2)"}}>{fmtDate(e.date)}</div>{time&&<div style={{fontSize:"0.7rem",color:"var(--text3)"}}>{time}</div>}</td>
                     <td><div className="fw6">{p?.name||"-"}</div><div className="fs-xs" style={{color:isC?"var(--blue)":"#a78bfa",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>{isC?"👤 Customer":"🔧 Worker"}</div></td>
                     <td style={{color:"var(--text2)"}}>{e.description||"-"}</td>
@@ -1344,6 +1386,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
             </tbody>
           </table>
         </div>
+        {bulkConfirm&&onDeleteEntry&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{[...selectedIds].forEach(id=>onDeleteEntry(id));setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
         {/* ── Balance Summary at BOTTOM ── */}
         <div style={{marginTop:16,background:"var(--surface)",border:"2px solid var(--border)",borderRadius:12,padding:16}}>
           <div style={{fontFamily:"var(--font-display)",fontWeight:700,fontSize:"0.9rem",marginBottom:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
@@ -1357,7 +1400,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div>
               </div>
               <div style={{background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure Gold 100%</div>
+                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure 24K</div>
                 <div style={{fontFamily:"var(--font-display)",fontSize:"1.3rem",fontWeight:800,color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div>
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div>
               </div>
@@ -1585,7 +1628,7 @@ function Dashboard({ data, setPage, setViewPerson, currentUser }) {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Total Gold Balance</div><div className="stat-value gold">{fmtGold(totalGoldBal)}</div><div className="stat-sub">Pure Gold 100%: {fmtGold(totalPureBal)}</div></div>
+        <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Total Gold Balance</div><div className="stat-value gold">{fmtGold(totalGoldBal)}</div><div className="stat-sub">Pure 24K: {fmtGold(totalPureBal)}</div></div>
         <div className={`stat-card ${totalMoneyBal>=0?"green":"red"}`}><div className={`stat-icon ${totalMoneyBal>=0?"green":"red"}`}><Icon name="money" size={18} color={totalMoneyBal>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Total Money Balance</div><div className={`stat-value ${totalMoneyBal>=0?"green":"red"}`}>{fmtMoney(totalMoneyBal)}</div><div className="stat-sub">{totalMoneyBal>=0?"Receivable":"Payable"}</div></div>
         <div className="stat-card blue"><div className="stat-icon blue"><Icon name="customers" size={18} color="var(--blue)"/></div><div className="stat-label">Customers</div><div className="stat-value blue">{customers.length}</div><div className="stat-sub">Active accounts</div></div>
         <div className="stat-card" style={{"--green":"#a78bfa"}}><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="workers" size={18} color="#a78bfa"/></div><div className="stat-label">Workers</div><div className="stat-value" style={{color:"#a78bfa"}}>{workers.length}</div><div className="stat-sub">Active workers</div></div>
@@ -2356,18 +2399,8 @@ export default function App() {
   const deleteWorker   = id=> { updateData({workers:data.workers.filter(w=>w.id!==id)}); addToast("Deleted.","error"); };
 
   const saveEntry = f => {
-    if (Array.isArray(f)) {
-      // Multi-row new entries: batch all at once in a single updateData call
-      const newEntries = f.map(entry => ({...entry, id: uid(), createdAt: Date.now()}));
-      updateData({entries: [...data.entries, ...newEntries]});
-      addToast(`${newEntries.length} ${newEntries.length===1?"entry":"entries"} saved!`);
-    } else if (f.id) {
-      updateData({entries: data.entries.map(e => e.id===f.id ? {...e,...f} : e)});
-      addToast("Entry updated!");
-    } else {
-      updateData({entries: [...data.entries, {...f, id: uid(), createdAt: Date.now()}]});
-      addToast("Entry saved!");
-    }
+    if(f.id) { updateData({entries:data.entries.map(e=>e.id===f.id?{...e,...f}:e)}); addToast("Entry updated!"); }
+    else { updateData({entries:[...data.entries,{...f,id:uid(),createdAt:Date.now()}]}); addToast("Entry saved!"); }
     setEntryForm(null);
   };
   const deleteEntry = async (id) => {
@@ -2530,7 +2563,7 @@ export default function App() {
                 onEditEntry={e=>setEntryForm({entry:e,personId:e.personId})}
                 onDeleteEntry={deleteEntry}/>
             )}
-            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data}/>}
+            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data} onDeleteEntry={deleteEntry}/>}
             {page==="history"&&<DeletedHistory currentUser={currentUser} allPeople={allPeople}/>}
             {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser}/>}
           </div>
