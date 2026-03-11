@@ -632,16 +632,8 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
   );
   const [err, setErr] = useState("");
 
-  const setRow = (i, k, v) => setRows(prev => {
-    const next = prev.map((r,idx) => idx===i ? {...r,[k]:v} : r);
-    // Auto-add new empty row when typing in last row
-    const last = next[next.length-1];
-    const lastHasData = last.personId || last.goldIn || last.goldOut || last.moneyIn || last.moneyOut || last.description;
-    if (!isEdit && lastHasData && next.length === prev.length) {
-      return [...next, emptyRow(next[0]?.personId||"", next[0]?.personType||"customer", next[0]?.date||today())];
-    }
-    return next;
-  });
+  const setRow = (i, k, v) => setRows(prev => prev.map((r,idx) => idx===i ? {...r,[k]:v} : r));
+  const addRow = () => setRows(prev => [...prev, emptyRow(prev[0]?.personId||"", prev[0]?.personType||"customer", prev[0]?.date||today())]);
 
   const removeRow = (i) => setRows(prev => prev.length===1 ? prev : prev.filter((_,idx)=>idx!==i));
 
@@ -680,6 +672,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
   return (
     <Modal title={isEdit?"Edit Entry":"New Entries"} onClose={onClose} wide fullwide footer={<>
       <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+      {!isEdit && <button className="btn btn-secondary" onClick={addRow} style={{background:"var(--surface2)",border:"1px solid var(--border)"}}><Icon name="plus" size={14}/>Add Row</button>}
       <button className="btn btn-gold" onClick={handleSave}>
         {isEdit ? "Save Changes" : `Save ${filledCount>0?filledCount+" ":""}${filledCount===1?"Entry":"Entries"}`}
       </button>
@@ -776,9 +769,9 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
         </table>
       </div>
 
-      {!isEdit && (
-        <div style={{marginTop:10,fontSize:"0.78rem",color:"var(--text3)",textAlign:"center"}}>
-          💡 A new row appears automatically as you fill in entries. {filledCount>0&&<span style={{color:"var(--gold)",fontWeight:600}}>{filledCount} {filledCount===1?"entry":"entries"} ready to save.</span>}
+      {!isEdit && filledCount > 0 && (
+        <div style={{marginTop:8,fontSize:"0.78rem",color:"var(--gold)",textAlign:"center",fontWeight:600}}>
+          {filledCount} {filledCount===1?"entry":"entries"} ready to save.
         </div>
       )}
     </Modal>
@@ -1032,8 +1025,8 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
     <style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Syne:wght@700;800;900&display=swap');
       *{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;color:#111;padding:32px;font-size:13px;background:#fff}
-      .biz-box{position:relative;text-align:center;padding:22px 28px;border-radius:16px;margin-bottom:20px;background:linear-gradient(135deg,#fffbeb,#fef3c7,#fde68a);border:2px solid #f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,0.1),0 0 30px rgba(245,158,11,0.25),0 4px 12px rgba(0,0,0,0.08)}
-      .biz-name{font-family:'Syne',sans-serif;font-size:32px;font-weight:900;color:#78350f;letter-spacing:-0.5px;line-height:1.1;text-shadow:0 1px 0 rgba(255,255,255,0.6)}
+      .biz-box{position:relative;text-align:center;padding:14px 20px;border-radius:12px;margin-bottom:12px;background:linear-gradient(135deg,#fffbeb,#fef3c7,#fde68a);border:2px solid #f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,0.1),0 0 20px rgba(245,158,11,0.2),0 3px 8px rgba(0,0,0,0.06)}
+      .biz-name{font-family:'Syne',sans-serif;font-size:22px;font-weight:900;color:#78350f;letter-spacing:-0.3px;line-height:1.1;text-shadow:0 1px 0 rgba(255,255,255,0.6)}
       .biz-tagline{margin-top:6px;font-size:12px;color:#92400e;font-weight:600;letter-spacing:0.08em;text-transform:uppercase}
       .biz-details{margin-top:8px;font-size:12px;color:#78350f;display:flex;flex-wrap:wrap;justify-content:center;gap:14px}
       .biz-details span{display:flex;align-items:center;gap:4px}
@@ -1082,12 +1075,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
         <span>🕐 Generated: ${genTime}</span>
         <span class="badge">${type==="all"?"FULL REPORT":type==="gold"?"GOLD REPORT":"MONEY REPORT"}</span>
       </div>
-      <div class="summary">
-        ${showGold?`<div class="sum-card gold"><div class="sum-label">Gold Balance</div><div class="sum-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="sum-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
-        <div class="sum-card purple"><div class="sum-label">Pure Gold (24K)</div><div class="sum-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="sum-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
-        ${showMoney?`<div class="sum-card ${s.moneyIn-s.moneyOut>=0?"green":"red"}"><div class="sum-label">Money Balance</div><div class="sum-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div><div class="sum-sub">In: ${fmtMoneyFull(s.moneyIn)} · Out: ${fmtMoneyFull(s.moneyOut)}</div></div>`:""}
-        <div class="sum-card blue"><div class="sum-label">Entries</div><div class="sum-value blue-val">${ents.length}</div></div>
-      </div>
+
       <table><thead><tr>${headCols}</tr></thead>
       <tbody>${tableRows}
         <tr class="totals-row"><td colspan="3">TOTALS (${ents.length} entries)</td>
