@@ -160,22 +160,6 @@
     },
     {
       "date": "2026-03-11",
-      "personId": "xgl1fyyummlugs8h",
-      "personType": "customer",
-      "description": "",
-      "goldIn": 1000,
-      "goldOut": 0,
-      "purity": "100",
-      "moneyIn": 0,
-      "moneyOut": 0,
-      "notes": "",
-      "pureGoldIn": 1000,
-      "pureGoldOut": 0,
-      "createdAt": 1773245619363,
-      "id": "kwc3toi2mmm8noo3"
-    },
-    {
-      "date": "2026-03-11",
       "personId": "k6h5zledmmltgpoo",
       "personType": "customer",
       "description": "Debit",
