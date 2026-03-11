@@ -21,7 +21,8 @@ const UPI_ID        = "logeshunique@oksbi";
 const UPI_NAME      = "Ledger";
 const PRICE_MONTHLY = 99;
 const PRICE_YEARLY  = 999;
-const PAYMENTS_FILE = "ledger-data/payments.json";
+const PAYMENTS_FILE  = "ledger-data/payments.json";
+const historyFile = (username) => `ledger-history/history_${username.toLowerCase().replace(/[^a-z0-9]/g,"_")}.json`;
 // ───────────────────────────────────────────────────────────────────
 
 // ─── GitHub API ─────────────────────────────────────────────────────
@@ -954,23 +955,65 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
 // ─── Reports ─────────────────────────────────────────────────────────
 function Reports({ entries, customers, workers, companyName, companyData }) {
   const [tab,        setTab]       = useState("monthly");
-  const [month,      setMonth]     = useState(new Date().toISOString().slice(0,7));
   const [person,     setPerson]    = useState("");
-  const [exportType, setExportType]= useState("all"); // all | gold | money
-  const [preview,    setPreview]   = useState(null);  // null | {html, title}
-  const [dateFrom,   setDateFrom]  = useState("");
-  const [dateTo,     setDateTo]    = useState("");
+  const [exportType, setExportType]= useState("all");
+  const [preview,    setPreview]   = useState(null);
+
+  // ── Date range state ──
+  const [rangePreset, setRangePreset] = useState("thisMonth");
+  const [customFrom,  setCustomFrom]  = useState("");
+  const [customTo,    setCustomTo]    = useState("");
+
+  // ── Sort state ──
+  const [sortBy,  setSortBy]  = useState("date");   // date | name | goldIn | goldOut | moneyIn | moneyOut
+  const [sortDir, setSortDir] = useState("desc");   // asc | desc
+
+  // ── Compute dateFrom / dateTo from preset ──
+  const { dateFrom, dateTo, rangeLabel } = useMemo(() => {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth()+1).padStart(2,"0");
+    const d = String(now.getDate()).padStart(2,"0");
+
+    if (rangePreset === "thisMonth") {
+      const from = `${y}-${m}-01`;
+      const lastDay = new Date(y, now.getMonth()+1, 0).getDate();
+      const to = `${y}-${m}-${String(lastDay).padStart(2,"0")}`;
+      return { dateFrom:from, dateTo:to, rangeLabel: now.toLocaleString("default",{month:"long",year:"numeric"}) };
+    }
+    if (rangePreset === "last3") {
+      const from3 = new Date(y, now.getMonth()-2, 1);
+      const from = from3.toISOString().split("T")[0];
+      const to = `${y}-${m}-${d}`;
+      return { dateFrom:from, dateTo:to, rangeLabel:"Last 3 Months" };
+    }
+    if (rangePreset === "thisYear") {
+      return { dateFrom:`${y}-01-01`, dateTo:`${y}-12-31`, rangeLabel:`Year ${y}` };
+    }
+    if (rangePreset === "fiscalYear") {
+      // Indian FY: April 1 – March 31
+      const fyStart = now.getMonth() >= 3 ? y : y-1;
+      return { dateFrom:`${fyStart}-04-01`, dateTo:`${fyStart+1}-03-31`, rangeLabel:`FY ${fyStart}-${String(fyStart+1).slice(-2)}` };
+    }
+    if (rangePreset === "custom") {
+      const label = customFrom && customTo
+        ? `${fmtDate(customFrom)} – ${fmtDate(customTo)}`
+        : customFrom ? `From ${fmtDate(customFrom)}` : customTo ? `Until ${fmtDate(customTo)}` : "Custom Range";
+      return { dateFrom:customFrom, dateTo:customTo, rangeLabel:label };
+    }
+    return { dateFrom:"", dateTo:"", rangeLabel:"All Time" };
+  }, [rangePreset, customFrom, customTo]);
 
   const allPeople = useMemo(()=>[...customers.map(c=>({...c,ptype:"customer"})),...workers.map(w=>({...w,ptype:"worker"}))],[customers,workers]);
 
-  const applyDateRange = (ents) => ents.filter(e=>{
+  const applyRange = (ents) => ents.filter(e=>{
     if (dateFrom && e.date < dateFrom) return false;
     if (dateTo   && e.date > dateTo)   return false;
     return true;
   });
 
-  const monthEntries  = useMemo(()=>applyDateRange(entries.filter(e=>e.date.startsWith(month))),[entries,month,dateFrom,dateTo]);
-  const personEntries = useMemo(()=>person?applyDateRange(entries.filter(e=>e.personId===person)):[],[entries,person,dateFrom,dateTo]);
+  const activeEntries  = useMemo(()=>applyRange(entries),      [entries,dateFrom,dateTo]);
+  const personEntries  = useMemo(()=>person?applyRange(entries.filter(e=>e.personId===person)):[],[entries,person,dateFrom,dateTo]);
 
   const summary = (ents) => ({
     goldIn:   ents.reduce((s,e)=>s+Number(e.goldIn||0),0),
@@ -981,15 +1024,33 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
     moneyOut: ents.reduce((s,e)=>s+Number(e.moneyOut||0),0),
   });
 
+  // ── Sort helper ──
+  const applySortToEnts = (ents, by, dir) => {
+    const sorted = [...ents].sort((a,b) => {
+      let va, vb;
+      if (by==="date")     { va=a.date+(a.createdAt||0); vb=b.date+(b.createdAt||0); return dir==="asc"?va.localeCompare(vb):vb.localeCompare(va); }
+      if (by==="name")     { const pA=allPeople.find(x=>x.id===a.personId)?.name||""; const pB=allPeople.find(x=>x.id===b.personId)?.name||""; return dir==="asc"?pA.localeCompare(pB):pB.localeCompare(pA); }
+      if (by==="goldIn")   { va=Number(a.goldIn||0);   vb=Number(b.goldIn||0); }
+      if (by==="goldOut")  { va=Number(a.goldOut||0);  vb=Number(b.goldOut||0); }
+      if (by==="moneyIn")  { va=Number(a.moneyIn||0);  vb=Number(b.moneyIn||0); }
+      if (by==="moneyOut") { va=Number(a.moneyOut||0); vb=Number(b.moneyOut||0); }
+      return dir==="asc" ? va-vb : vb-va;
+    });
+    return sorted;
+  };
+
   // ── Build HTML for preview/export ──
-  const buildHTML = (ents, title, type, personName) => {
+  const buildHTML = (ents, title, type, personName, sortByArg, sortDirArg) => {
     const s = summary(ents);
     const bizName = companyName || "My Business";
     const bizAddress = companyData?.companyAddress || "";
     const bizPhone = companyData?.companyPhone || "";
     const bizOwner = companyData?.companyOwner || "";
     const genTime = new Date().toLocaleString("en-IN",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
-    const sortedEnts = [...ents].sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
+    const sortLabels = {date:"Date",name:"Name",goldIn:"Gold In",goldOut:"Gold Out",moneyIn:"Money In",moneyOut:"Money Out"};
+    const sortLabel = `Sorted by ${sortLabels[sortByArg]||"Date"} (${sortDirArg==="asc"?"↑ Ascending":"↓ Descending"})`;
+    // entries are already sorted by caller
+    const sortedEnts = ents;
     let runGold=0, runMoney=0;
     const rowsWithBal = sortedEnts.map(e=>{
       runGold  += Number(e.goldIn||0) - Number(e.goldOut||0);
@@ -1023,58 +1084,90 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
     if (showGold)  headCols += `<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold</th><th style="text-align:right">Gold Balance</th>`;
     if (showMoney) headCols += `<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
-    <style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Syne:wght@700;800;900&display=swap');
-      *{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;color:#111;padding:32px;font-size:13px;background:#fff}
-      .biz-box{position:relative;text-align:center;padding:14px 20px;border-radius:12px;margin-bottom:12px;background:linear-gradient(135deg,#fffbeb,#fef3c7,#fde68a);border:2px solid #f59e0b;box-shadow:0 0 0 3px rgba(245,158,11,0.1),0 0 20px rgba(245,158,11,0.2),0 3px 8px rgba(0,0,0,0.06)}
-      .biz-name{font-family:'Syne',sans-serif;font-size:22px;font-weight:900;color:#78350f;letter-spacing:-0.3px;line-height:1.1;text-shadow:0 1px 0 rgba(255,255,255,0.6)}
-      .biz-tagline{margin-top:6px;font-size:12px;color:#92400e;font-weight:600;letter-spacing:0.08em;text-transform:uppercase}
-      .biz-details{margin-top:8px;font-size:12px;color:#78350f;display:flex;flex-wrap:wrap;justify-content:center;gap:14px}
-      .biz-details span{display:flex;align-items:center;gap:4px}
-      .person-banner{margin-bottom:16px;padding:12px 20px;background:linear-gradient(90deg,#eff6ff,#dbeafe);border-left:4px solid #2563eb;border-radius:0 10px 10px 0;display:flex;align-items:center;justify-content:space-between}
-      .person-name{font-size:20px;font-weight:800;color:#1e40af;font-family:'Syne',sans-serif}
-      .person-type{font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:0.08em;background:#bfdbfe;padding:3px 10px;border-radius:99px}
-      .report-meta-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding:8px 14px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;font-size:11px;color:#6b7280}
-      .report-meta-bar strong{color:#374151}
-      .badge{display:inline-block;background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:99px;font-weight:700;font-size:10px;border:1px solid #fcd34d}
-      .sum-card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;position:relative;overflow:hidden}
-      .sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
-      .sum-card.gold::before{background:#f59e0b}.sum-card.purple::before{background:#7c3aed}.sum-card.green::before{background:#16a34a}.sum-card.red::before{background:#dc2626}.sum-card.blue::before{background:#2563eb}
-      .sum-label{font-size:10px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-weight:600}
-      .sum-value{font-size:17px;font-weight:800;margin-bottom:3px}.sum-sub{font-size:10px;color:#9ca3af}
-      .gold-val{color:#d97706}.purple-val{color:#7c3aed}.green-val{color:#16a34a}.red-val{color:#dc2626}.blue-val{color:#2563eb}
-      table{width:100%;border-collapse:collapse}th{background:#f9fafb;padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
-      td{padding:8px 10px;border-bottom:1px solid #f3f4f6;font-size:12px;vertical-align:middle}
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Syne:wght@700;800;900&display=swap');
+      *{box-sizing:border-box;margin:0;padding:0}
+      body{font-family:'DM Sans',sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.5}
+
+      /* ── Business Header ── */
+      .biz-box{
+        text-align:center;padding:18px 32px 14px;border-radius:14px;margin-bottom:18px;
+        background:linear-gradient(160deg,#fffde7,#fef3c7 50%,#fde68a);
+        border:2px solid #f59e0b;
+        box-shadow:0 0 0 4px rgba(245,158,11,0.08),0 0 28px rgba(245,158,11,0.18),0 4px 16px rgba(0,0,0,0.07);
+      }
+      .biz-name{
+        font-family:'Syne',sans-serif;font-size:26px;font-weight:900;
+        color:#78350f;letter-spacing:0.02em;line-height:1.2;
+        text-shadow:0 1px 2px rgba(255,255,255,0.7);
+      }
+      .biz-sub{margin-top:5px;font-size:12.5px;color:#92400e;font-weight:600;letter-spacing:0.04em}
+      .biz-details{margin-top:6px;font-size:12px;color:#78350f;display:flex;flex-wrap:wrap;justify-content:center;gap:16px}
+      .biz-details span{display:inline-flex;align-items:center;gap:4px}
+
+      /* ── Report title block ── */
+      .report-title-block{margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid #f59e0b}
+      .report-title-text{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;color:#1a1a1a;margin-bottom:4px}
+      .report-meta-row{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+      .report-meta-row span{font-size:12px;color:#6b7280;display:inline-flex;align-items:center;gap:4px}
+      .badge{display:inline-block;background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #fcd34d;letter-spacing:0.04em}
+
+      /* ── Person banner ── */
+      .person-banner{margin-bottom:14px;padding:11px 18px;background:linear-gradient(90deg,#eff6ff,#dbeafe);border-left:4px solid #2563eb;border-radius:0 10px 10px 0;display:flex;align-items:center;justify-content:space-between}
+      .person-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:#1e40af}
+      .person-label{font-size:10px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px}
+      .person-type{font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:0.06em;background:#bfdbfe;padding:3px 10px;border-radius:99px}
+
+      /* ── Table ── */
+      table{width:100%;border-collapse:collapse;margin-top:4px}
+      th{background:#f9fafb;padding:9px 11px;text-align:left;font-size:10.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+      td{padding:9px 11px;border-bottom:1px solid #f3f4f6;font-size:12.5px;vertical-align:middle}
+      tr:hover td{background:#fafafa}
       .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:13px}
-      .balances{margin-top:24px;padding:16px;border:2px solid #e5e7eb;border-radius:10px;background:#f9fafb}
-      .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:10px}
-      .bal-item{text-align:center;padding:12px;background:#fff;border-radius:8px;border:1px solid #e5e7eb}
-      .bal-label{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:600;margin-bottom:4px}
-      .bal-value{font-size:18px;font-weight:800}
-      .footer{margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
-      @media print{body{padding:16px}@page{margin:1cm}}</style></head><body>
-      <!-- Business golden box -->
+
+      /* ── Balances footer ── */
+      .balances{margin-top:22px;padding:16px 18px;border:2px solid #e5e7eb;border-radius:12px;background:#f9fafb}
+      .balances-title{font-family:'Syne',sans-serif;font-size:13px;font-weight:800;color:#374151;margin-bottom:12px}
+      .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+      .bal-item{text-align:center;padding:12px 10px;background:#fff;border-radius:9px;border:1px solid #e5e7eb}
+      .bal-label{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
+      .bal-value{font-size:17px;font-weight:800;line-height:1.2}
+      .bal-sub{font-size:10px;color:#9ca3af;margin-top:3px}
+      .gold-val{color:#d97706}.purple-val{color:#7c3aed}.green-val{color:#16a34a}.red-val{color:#dc2626}.blue-val{color:#2563eb}
+
+      /* ── Footer ── */
+      .page-footer{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
+      @media print{body{padding:20px 24px}@page{margin:1cm}}
+    </style></head><body>
+
+      <!-- Business Box -->
       <div class="biz-box">
         <div class="biz-name">${bizName}</div>
-        ${bizOwner?`<div class="biz-tagline">Prop: ${bizOwner}</div>`:""}
-        ${(bizAddress||bizPhone)?`<div class="biz-details">
-          ${bizAddress?`<span>📍 ${bizAddress}</span>`:""}
-          ${bizPhone?`<span>📞 ${bizPhone}</span>`:""}
-        </div>`:""}
+        ${bizOwner ? `<div class="biz-sub">Proprietor: ${bizOwner}</div>` : ""}
+        ${(bizAddress||bizPhone) ? `<div class="biz-details">
+          ${bizAddress ? `<span>📍 ${bizAddress}</span>` : ""}
+          ${bizPhone   ? `<span>📞 ${bizPhone}</span>`   : ""}
+        </div>` : ""}
       </div>
-      <!-- Person highlighted banner -->
-      ${personName?`<div class="person-banner">
+
+      <!-- Report Title Block -->
+      <div class="report-title-block">
+        <div class="report-title-text">${title}</div>
+        <div class="report-meta-row">
+          <span>🕐 Generated: ${genTime}</span>
+          <span>⇅ ${sortLabel}</span>
+          <span class="badge">${type==="all"?"FULL REPORT":type==="gold"?"GOLD REPORT":"MONEY REPORT"}</span>
+        </div>
+      </div>
+
+      <!-- Person banner (By Person reports only) -->
+      ${personName ? `<div class="person-banner">
         <div>
-          <div style="font-size:10px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">Account Holder</div>
+          <div class="person-label">Account Holder</div>
           <div class="person-name">${personName}</div>
         </div>
         <span class="person-type">${ents[0]?.personType==="worker"?"Worker":"Customer"}</span>
-      </div>`:""}
-      <!-- Report meta bar -->
-      <div class="report-meta-bar">
-        <span><strong>${title}</strong></span>
-        <span>🕐 Generated: ${genTime}</span>
-        <span class="badge">${type==="all"?"FULL REPORT":type==="gold"?"GOLD REPORT":"MONEY REPORT"}</span>
-      </div>
+      </div>` : ""}
 
       <table><thead><tr>${headCols}</tr></thead>
       <tbody>${tableRows}
@@ -1084,19 +1177,22 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
         </tr>
       </tbody></table>
       <div class="balances">
-        <div style="font-weight:700;font-size:13px;margin-bottom:4px">Final Balances</div>
+        <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
-          ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure 24K</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div></div>`:""}
-          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Money</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div></div>`:""}
+          ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} · Out: ${fmtGold(s.goldOut)}</div></div>
+          <div class="bal-item"><div class="bal-label">Pure 24K</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} · Out: ${fmtGold(s.pureOut)}</div></div>`:""}
+          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyFull(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyFull(s.moneyIn)} · Out: ${fmtMoneyFull(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
       </div>
-      <div class="footer"><span>${bizName}</span><span>Ledger System</span></div>
+      <div class="page-footer"><span>${bizName}</span><span>Powered by Ledger</span></div>
     </body></html>`;
   };
 
-  const openPreview = (ents, title, personName) => setPreview({html: buildHTML(ents, title, exportType, personName), title, ents});
+  const openPreview = (ents, title, personName) => {
+    const sorted = applySortToEnts(ents, sortBy, sortDir);
+    setPreview({html: buildHTML(sorted, title, exportType, personName, sortBy, sortDir), title, ents: sorted});
+  };
 
   const doPrint = () => {
     if (!preview) return;
@@ -1109,7 +1205,7 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
   const exportCSV = (ents, name) => {
     const headers = ["Date","Time","Person","Type","Description","GoldIn(g)","GoldOut(g)","Purity","PureGoldIn(g)","PureGoldOut(g)","GoldBalance","MoneyIn","MoneyOut","MoneyBalance","Notes"];
     let rG=0, rM=0;
-    const csvRows = [...ents].sort((a,b)=>a.date.localeCompare(b.date)).map(e=>{
+    const csvRows = applySortToEnts(ents, sortBy, sortDir).map(e=>{
       rG += Number(e.goldIn||0)-Number(e.goldOut||0);
       rM += Number(e.moneyIn||0)-Number(e.moneyOut||0);
       const p = allPeople.find(x=>x.id===e.personId);
@@ -1132,23 +1228,74 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
 
   const RenderTable = ({ents, sumData}) => {
     if (!ents.length) return <div className="empty"><div className="empty-icon"><Icon name="reports" size={28}/></div><div className="empty-title">No entries found</div></div>;
+
+    const sorted = applySortToEnts(ents, sortBy, sortDir);
+    // Running balances computed on sorted order
     let rG=0, rM=0;
-    const rows = [...ents].sort((a,b)=>b.date.localeCompare(a.date)||(b.createdAt||0)-(a.createdAt||0)).map(e=>{
+    const rows = sorted.map(e=>{
       rG += Number(e.goldIn||0)-Number(e.goldOut||0);
       rM += Number(e.moneyIn||0)-Number(e.moneyOut||0);
       return {...e, rG, rM};
     });
+
     const showG = exportType==="all"||exportType==="gold";
     const showM = exportType==="all"||exportType==="money";
     const s = sumData || {goldIn:0,goldOut:0,pureIn:0,pureOut:0,moneyIn:0,moneyOut:0};
+
+    const toggleSort = (col) => {
+      if (sortBy===col) setSortDir(d=>d==="asc"?"desc":"asc");
+      else { setSortBy(col); setSortDir("desc"); }
+    };
+    const SortIcon = ({col}) => {
+      if (sortBy!==col) return <span style={{opacity:0.25,fontSize:"0.7rem",marginLeft:3}}>⇅</span>;
+      return <span style={{color:"var(--gold)",fontSize:"0.7rem",marginLeft:3}}>{sortDir==="asc"?"↑":"↓"}</span>;
+    };
+    const Th = ({col, label, className=""}) => (
+      <th className={className} onClick={()=>toggleSort(col)}
+        style={{cursor:"pointer",userSelect:"none",whiteSpace:"nowrap"}}
+        title={`Sort by ${label}`}>
+        {label}<SortIcon col={col}/>
+      </th>
+    );
+
     return (
       <div>
+        {/* Sort controls bar */}
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+          <span style={{fontSize:"0.75rem",color:"var(--text3)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em"}}>Sort by:</span>
+          {[["date","Date"],["name","Name"],["goldIn","Gold In"],["goldOut","Gold Out"],["moneyIn","Money In"],["moneyOut","Money Out"]].map(([col,lbl])=>(
+            <button key={col} onClick={()=>toggleSort(col)}
+              style={{padding:"4px 11px",borderRadius:99,border:"1px solid",fontSize:"0.78rem",fontWeight:600,cursor:"pointer",
+                background:sortBy===col?"var(--gold)":"var(--surface2)",
+                color:sortBy===col?"#000":"var(--text2)",
+                borderColor:sortBy===col?"var(--gold)":"var(--border)"}}>
+              {lbl}{sortBy===col&&<span style={{marginLeft:4}}>{sortDir==="asc"?"↑":"↓"}</span>}
+            </button>
+          ))}
+          <button onClick={()=>setSortDir(d=>d==="asc"?"desc":"asc")}
+            style={{padding:"4px 10px",borderRadius:99,border:"1px solid var(--border)",fontSize:"0.78rem",background:"var(--surface2)",color:"var(--text2)",cursor:"pointer"}}>
+            {sortDir==="asc"?"↑ Asc":"↓ Desc"}
+          </button>
+        </div>
+
         <div className="table-wrap">
           <table>
             <thead><tr>
-              <th>Date &amp; Time</th><th>Name</th><th>Description</th>
-              {showG&&<><th className="th-right">Gold In</th><th className="th-right">Gold Out</th><th className="th-center">Purity</th><th className="th-right">Pure Gold</th><th className="th-right">Gold Bal</th></>}
-              {showM&&<><th className="th-right">Money In</th><th className="th-right">Money Out</th><th className="th-right">Money Bal</th></>}
+              <Th col="date" label="Date & Time"/>
+              <Th col="name" label="Name"/>
+              <th>Description</th>
+              {showG&&<>
+                <Th col="goldIn"  label="Gold In"  className="th-right"/>
+                <Th col="goldOut" label="Gold Out" className="th-right"/>
+                <th className="th-center">Purity</th>
+                <th className="th-right">Pure Gold</th>
+                <th className="th-right">Gold Bal</th>
+              </>}
+              {showM&&<>
+                <Th col="moneyIn"  label="Money In"  className="th-right"/>
+                <Th col="moneyOut" label="Money Out" className="th-right"/>
+                <th className="th-right">Money Bal</th>
+              </>}
             </tr></thead>
             <tbody>
               {rows.map(e=>{
@@ -1209,10 +1356,18 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
     );
   };
 
-  const activeEnts = tab==="monthly" ? monthEntries : personEntries;
+  const activeEnts = tab==="monthly" ? activeEntries : personEntries;
   const reportTitle = tab==="monthly"
-    ? `Monthly Report — ${new Date(month+"-01").toLocaleString("default",{month:"long",year:"numeric"})}`
-    : (allPeople.find(p=>p.id===person)?.name||"Person")+" — Ledger Report";
+    ? `Report — ${rangeLabel}`
+    : `${allPeople.find(p=>p.id===person)?.name||"Person"} — ${rangeLabel}`;
+
+  const presets = [
+    {v:"thisMonth", l:"This Month"},
+    {v:"last3",     l:"Last 3 Months"},
+    {v:"thisYear",  l:"This Year"},
+    {v:"fiscalYear",l:"Fiscal Year"},
+    {v:"custom",    l:"Custom"},
+  ];
 
   return (
     <div>
@@ -1229,12 +1384,13 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
           <iframe srcDoc={preview.html} style={{flex:1,border:"none",background:"#fff"}}/>
         </div>
       )}
+
       <div className="section-header">
         <div><div className="section-title">Reports</div></div>
         {activeEnts.length>0&&(
           <div className="flex gap2" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
-<div style={{display:"flex",gap:6,alignItems:"center",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",padding:"5px 10px"}}>
-              {[{v:"all",l:"Both"},  {v:"gold",l:"Gold Only"}, {v:"money",l:"Cash Only"}].map(opt=>(
+            <div style={{display:"flex",gap:6,alignItems:"center",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",padding:"5px 10px"}}>
+              {[{v:"all",l:"Both"},{v:"gold",l:"Gold Only"},{v:"money",l:"Cash Only"}].map(opt=>(
                 <label key={opt.v} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:"0.82rem",fontWeight:exportType===opt.v?700:400,color:exportType===opt.v?"var(--gold)":"var(--text2)",whiteSpace:"nowrap"}}>
                   <input type="radio" name="exportType" value={opt.v} checked={exportType===opt.v} onChange={()=>setExportType(opt.v)} style={{accentColor:"var(--gold)",cursor:"pointer"}}/>
                   {opt.l}
@@ -1246,19 +1402,53 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
           </div>
         )}
       </div>
+
+      {/* ── Date Range Preset Bar ── */}
+      <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:"14px 16px",marginBottom:16}}>
+        <div style={{fontSize:"0.75rem",fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.06em",marginBottom:10}}>Date Range</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom: rangePreset==="custom" ? 12 : 0}}>
+          {presets.map(p=>(
+            <button key={p.v} onClick={()=>setRangePreset(p.v)}
+              style={{padding:"6px 14px",borderRadius:99,border:"1px solid",fontSize:"0.82rem",fontWeight:600,cursor:"pointer",transition:"all 0.15s",
+                background:rangePreset===p.v?"var(--gold)":"var(--surface2)",
+                color:rangePreset===p.v?"#000":"var(--text2)",
+                borderColor:rangePreset===p.v?"var(--gold)":"var(--border)"}}>
+              {p.l}
+            </button>
+          ))}
+        </div>
+        {rangePreset==="custom" && (
+          <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",marginTop:4}}>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:"0.8rem",color:"var(--text3)",fontWeight:600,minWidth:28}}>From</span>
+              <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
+                style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",padding:"6px 10px",fontSize:"0.85rem"}}/>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:"0.8rem",color:"var(--text3)",fontWeight:600,minWidth:16}}>To</span>
+              <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
+                style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",padding:"6px 10px",fontSize:"0.85rem"}}/>
+            </div>
+            {(customFrom||customTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setCustomFrom("");setCustomTo("")}}>Clear</button>}
+          </div>
+        )}
+        {rangePreset!=="custom" && (
+          <div style={{marginTop:8,fontSize:"0.78rem",color:"var(--text3)"}}>
+            Showing: <span style={{color:"var(--gold)",fontWeight:600}}>{rangeLabel}</span>
+            {dateFrom&&<span> · {fmtDate(dateFrom)} → {fmtDate(dateTo)}</span>}
+            <span style={{marginLeft:8,color:"var(--text3)"}}>{activeEntries.length} entries</span>
+          </div>
+        )}
+      </div>
+
       <div className="tabs">
-        <div className={`tab ${tab==="monthly"?"active":""}`} onClick={()=>setTab("monthly")}>Monthly</div>
+        <div className={`tab ${tab==="monthly"?"active":""}`} onClick={()=>setTab("monthly")}>All Entries</div>
         <div className={`tab ${tab==="person"?"active":""}`} onClick={()=>setTab("person")}>By Person</div>
       </div>
+
       {tab==="monthly"&&(
         <div>
-          <div className="toolbar" style={{flexWrap:"wrap",gap:8}}>
-            <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{minWidth:160}}/>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{minWidth:140}}/>
-            <input type="date" value={dateTo}   onChange={e=>setDateTo(e.target.value)}   style={{minWidth:140}}/>
-            {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
-          </div>
-          <RenderTable ents={monthEntries} sumData={summary(monthEntries)}/>
+          <RenderTable ents={activeEntries} sumData={summary(activeEntries)}/>
         </div>
       )}
       {tab==="person"&&(
@@ -1269,11 +1459,8 @@ function Reports({ entries, customers, workers, companyName, companyData }) {
               <optgroup label="Customers">{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
               <optgroup label="Workers">{workers.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</optgroup>
             </select>
-            <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{minWidth:140}}/>
-            <input type="date" value={dateTo}   onChange={e=>setDateTo(e.target.value)}   style={{minWidth:140}}/>
-            {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
           </div>
-          {person&&<><RenderTable ents={personEntries} sumData={summary(personEntries)}/></>}
+          {person&&<RenderTable ents={personEntries} sumData={summary(personEntries)}/>}
           {!person&&<div className="empty"><div className="empty-icon"><Icon name="customers" size={28}/></div><div className="empty-title">Select a person to view their report</div></div>}
         </div>
       )}
@@ -1425,7 +1612,12 @@ function Dashboard({ data, setPage, setViewPerson, currentUser }) {
       <div className="card mt4">
         <div className="flex justify-between items-center" style={{marginBottom:16}}>
           <div className="fw7 fs-sm">Recent Entries</div>
-          <button className="btn btn-secondary btn-sm" onClick={()=>setPage("reports")}>View Reports</button>
+          <div className="flex gap2">
+            <button className="btn btn-secondary btn-sm" onClick={()=>setPage("history")} style={{color:"var(--red)",borderColor:"rgba(244,63,94,0.3)"}}>
+              <Icon name="trash" size={13}/>Deleted History
+            </button>
+            <button className="btn btn-secondary btn-sm" onClick={()=>setPage("reports")}>View Reports</button>
+          </div>
         </div>
         {recent.length===0 ? (
           <div className="empty" style={{padding:24}}><div className="empty-sub">No entries yet. Add your first ledger entry.</div></div>
@@ -1959,6 +2151,115 @@ function AdminPanel({ onLogout }) {
   );
 }
 
+// ─── Deleted History ─────────────────────────────────────────────────
+function DeletedHistory({ currentUser, allPeople }) {
+  const [records, setRecords] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [search,  setSearch]  = useState("");
+
+  useEffect(() => {
+    if (!currentUser) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const result = await ghGet(historyFile(currentUser.username));
+        setRecords(result?.data?.deleted || []);
+      } catch(e) { setRecords([]); }
+      setLoading(false);
+    })();
+  }, [currentUser]);
+
+  const filtered = useMemo(() => {
+    if (!records) return [];
+    const q = search.toLowerCase();
+    return [...records]
+      .sort((a,b) => b.deletedAt - a.deletedAt)
+      .filter(e => {
+        const p = allPeople.find(x => x.id === e.personId);
+        return !q || (p?.name||"").toLowerCase().includes(q) || (e.description||"").toLowerCase().includes(q) || (e.date||"").includes(q);
+      });
+  }, [records, search, allPeople]);
+
+  return (
+    <div>
+      <div className="section-header">
+        <div>
+          <div className="section-title" style={{display:"flex",alignItems:"center",gap:8}}>
+            <Icon name="trash" size={18} color="var(--red)"/>Deleted Transactions History
+          </div>
+          <div className="section-sub">All deleted entries are archived here. Nothing is permanently lost.</div>
+        </div>
+        <div style={{fontSize:"0.8rem",color:"var(--text3)",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"6px 12px"}}>
+          📁 ledger-history/history_{currentUser?.username}.json
+        </div>
+      </div>
+
+      <div className="toolbar">
+        <div className="search-wrap" style={{flex:1,minWidth:200}}>
+          <span className="search-icon"><Icon name="search" size={15}/></span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, description, date..."/>
+        </div>
+        {records && <div style={{fontSize:"0.82rem",color:"var(--text3)"}}>{filtered.length} of {records.length} entries</div>}
+      </div>
+
+      {loading ? (
+        <div className="empty"><div className="empty-icon"><Icon name="sync" size={28}/></div><div className="empty-title">Loading history...</div></div>
+      ) : !records || records.length === 0 ? (
+        <div className="empty">
+          <div className="empty-icon"><Icon name="trash" size={28}/></div>
+          <div className="empty-title">No deleted entries yet</div>
+          <div className="empty-sub">When you delete transactions, they'll be archived here for reference.</div>
+        </div>
+      ) : (
+        <div className="table-wrap">
+          <table className="ledger-table">
+            <thead>
+              <tr>
+                <th>Deleted On</th>
+                <th>Original Date</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th className="th-right">Gold In</th>
+                <th className="th-right">Gold Out</th>
+                <th className="th-center">Purity</th>
+                <th className="th-right">Money In</th>
+                <th className="th-right">Money Out</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((e, i) => {
+                const p = allPeople.find(x => x.id === e.personId);
+                const isC = e.personType === "customer";
+                return (
+                  <tr key={e.id || i} style={{opacity:0.85}}>
+                    <td style={{whiteSpace:"nowrap"}}>
+                      <div style={{color:"var(--red)",fontSize:"0.78rem",fontWeight:600}}>{fmtDate(new Date(e.deletedAt).toISOString().split("T")[0])}</div>
+                      <div style={{fontSize:"0.68rem",color:"var(--text3)"}}>{new Date(e.deletedAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</div>
+                    </td>
+                    <td style={{whiteSpace:"nowrap",color:"var(--text2)"}}>{fmtDate(e.date)}</td>
+                    <td>
+                      <div className="fw6">{p?.name || <span style={{color:"var(--text3)"}}>Unknown</span>}</div>
+                      <div className="fs-xs" style={{color:isC?"var(--blue)":"#a78bfa",fontWeight:600}}>{isC?"👤 Customer":"🔧 Worker"}</div>
+                    </td>
+                    <td style={{color:"var(--text2)"}}>{e.description||"-"}</td>
+                    <td className="right"><span className={e.goldIn?"gold-in":"text3"}>{e.goldIn?fmtGold(e.goldIn):"-"}</span></td>
+                    <td className="right"><span className={e.goldOut?"gold-out":"text3"}>{e.goldOut?fmtGold(e.goldOut):"-"}</span></td>
+                    <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
+                    <td className="right"><span className={e.moneyIn?"money-in":"text3"}>{e.moneyIn?fmtMoney(e.moneyIn):"-"}</span></td>
+                    <td className="right"><span className={e.moneyOut?"money-out":"text3"}>{e.moneyOut?fmtMoney(e.moneyOut):"-"}</span></td>
+                    <td style={{fontSize:"0.78rem",color:"var(--text3)"}}>{e.notes||"-"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main App ────────────────────────────────────────────────────────
 export default function App() {
   const [data,        setData]    = useState({...defaultBusinessData});
@@ -2040,7 +2341,21 @@ export default function App() {
     else { updateData({entries:[...data.entries,{...f,id:uid(),createdAt:Date.now()}]}); addToast("Entry saved!"); }
     setEntryForm(null);
   };
-  const deleteEntry = id => { updateData({entries:data.entries.filter(e=>e.id!==id)}); addToast("Entry deleted.","error"); };
+  const deleteEntry = async (id) => {
+    const entry = data.entries.find(e => e.id === id);
+    if (!entry) return;
+    // Archive to history file first
+    try {
+      const hFile = historyFile(currentUser.username);
+      const existing = await ghGet(hFile);
+      const archived = existing?.data?.deleted || [];
+      const newRecord = { ...entry, deletedAt: Date.now(), deletedBy: currentUser.username };
+      await ghPut(hFile, { deleted: [...archived, newRecord] }, existing?.sha||null,
+        `Archived entry: ${entry.description||entry.date} - ${currentUser.username}`);
+    } catch(e) { console.warn("Archive failed, proceeding with delete:", e); }
+    updateData({entries: data.entries.filter(e => e.id !== id)});
+    addToast("Entry deleted & archived.", "error");
+  };
 
   // ── Nav ──
   const navItems = [
@@ -2049,9 +2364,10 @@ export default function App() {
     {id:"workers",  label:"Workers",  icon:"workers"},
     {id:"entry",    label:"New Entry", icon:"plus"},
     {id:"reports",  label:"Reports",  icon:"reports"},
+    {id:"history",  label:"Deleted History", icon:"trash"},
     {id:"settings", label:"Settings", icon:"settings"},
   ];
-  const pageTitles = {dashboard:"Dashboard",customers:"Customers",workers:"Workers",reports:"Reports",settings:"Settings",ledger:"Ledger View"};
+  const pageTitles = {dashboard:"Dashboard",customers:"Customers",workers:"Workers",reports:"Reports",settings:"Settings",ledger:"Ledger View",history:"Deleted History"};
 
   const handleNav = id => {
     if(id==="entry"){ setEntryForm({entry:null,personId:""}); return; }
@@ -2186,6 +2502,7 @@ export default function App() {
                 onDeleteEntry={deleteEntry}/>
             )}
             {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data}/>}
+            {page==="history"&&<DeletedHistory currentUser={currentUser} allPeople={allPeople}/>}
             {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser}/>}
           </div>
         </div>
