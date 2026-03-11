@@ -22,7 +22,8 @@ const UPI_NAME      = "Ledger";
 const PRICE_MONTHLY = 99;
 const PRICE_YEARLY  = 999;
 const PAYMENTS_FILE  = "ledger-data/payments.json";
-const historyFile = (username) => `ledger-history/history_${username.toLowerCase().replace(/[^a-z0-9]/g,"_")}.json`;
+const historyFile   = (username) => `ledger-history/history_${username.toLowerCase().replace(/[^a-z0-9]/g,"_")}.json`;
+const reportsFile   = (username) => `ledger-reports/reports_${username.toLowerCase().replace(/[^a-z0-9]/g,"_")}.json`;
 // ───────────────────────────────────────────────────────────────────
 
 // ─── GitHub API ─────────────────────────────────────────────────────
@@ -995,11 +996,13 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────
-function Reports({ entries, customers, workers, companyName, companyData, onDeleteEntry }) {
+function Reports({ entries, customers, workers, companyName, companyData, onDeleteEntry, currentUser }) {
   const [tab,        setTab]       = useState("monthly");
   const [person,     setPerson]    = useState("");
   const [exportType, setExportType]= useState("all");
   const [preview,    setPreview]   = useState(null);
+  const [saveModal,  setSaveModal] = useState(false);
+  const [saving,     setSaving]   = useState(false);
 
   // ── Date range state ──
   const [rangePreset, setRangePreset] = useState("thisMonth");
@@ -1134,22 +1137,30 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.5}
 
       /* ── Business Header ── */
+      /* Force backgrounds to print in PDF */
+      * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
+
       .biz-box{
         position:relative;overflow:hidden;
         text-align:center;padding:20px 16px 16px;border-radius:16px;margin-bottom:18px;
-        background:linear-gradient(135deg,#78350f 0%,#92400e 30%,#b45309 60%,#78350f 100%);
-        border:3px solid #f59e0b;
-        box-shadow:0 0 0 1px rgba(245,158,11,0.5),0 8px 32px rgba(120,53,15,0.4),0 2px 8px rgba(0,0,0,0.3);
+        background:#7c3207 !important;
+        background-image:linear-gradient(135deg,#6b2a04 0%,#7c3207 25%,#9a3d0a 50%,#7c3207 75%,#6b2a04 100%) !important;
+        border:3px solid #d97706;
+        box-shadow:0 0 0 2px rgba(217,119,6,0.4),0 8px 32px rgba(0,0,0,0.35);
       }
       /* Top gold shimmer line */
       .biz-box::before{
         content:'';position:absolute;top:0;left:0;right:0;height:3px;
-        background:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent);
+        background:#fbbf24 !important;
+        background-image:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent) !important;
+        z-index:3;
       }
       /* Bottom gold shimmer line */
       .biz-box::after{
         content:'';position:absolute;bottom:0;left:0;right:0;height:3px;
-        background:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent);
+        background:#fbbf24 !important;
+        background-image:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent) !important;
+        z-index:3;
       }
       .biz-inner{position:relative;z-index:2;padding:0 8px;}
 
@@ -1157,52 +1168,49 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       .biz-orn-left{
         position:absolute;left:0;top:0;bottom:0;width:130px;
         display:flex;align-items:center;justify-content:center;pointer-events:none;
-        border-right:1px solid rgba(251,191,36,0.25);
-        background:linear-gradient(135deg,rgba(0,0,0,0.15),rgba(0,0,0,0.05));
+        border-right:1px solid rgba(251,191,36,0.3);
       }
       /* Right ornament panel */
       .biz-orn-right{
         position:absolute;right:0;top:0;bottom:0;width:130px;
         display:flex;align-items:center;justify-content:center;pointer-events:none;
-        border-left:1px solid rgba(251,191,36,0.25);
-        background:linear-gradient(135deg,rgba(0,0,0,0.05),rgba(0,0,0,0.15));
+        border-left:1px solid rgba(251,191,36,0.3);
       }
 
       /* Hallmark tag */
       .hallmark-tag{
         display:inline-flex;align-items:center;gap:6px;
         margin-bottom:8px;
-        background:linear-gradient(135deg,#fbbf24,#f59e0b);
+        background:#f59e0b !important;
+        background-image:linear-gradient(135deg,#fbbf24,#f59e0b) !important;
         color:#78350f;font-size:9.5px;font-weight:800;
         letter-spacing:0.12em;text-transform:uppercase;
         padding:3px 12px 3px 8px;border-radius:99px;
-        border:1.5px solid rgba(255,255,255,0.4);
-        box-shadow:0 1px 4px rgba(0,0,0,0.2);
+        border:1.5px solid rgba(255,255,255,0.5);
       }
       .hallmark-tag .hall-num{
         font-size:11px;font-weight:900;
-        background:#78350f;color:#fbbf24;
+        background:#78350f !important;color:#fbbf24;
         border-radius:99px;padding:1px 7px;letter-spacing:0.05em;
+        display:inline-block;
       }
 
       /* Divider line with diamond */
       .biz-divider{
         display:flex;align-items:center;gap:8px;margin:8px auto 6px;max-width:340px;
       }
-      .biz-divider-line{flex:1;height:1px;background:linear-gradient(90deg,transparent,rgba(251,191,36,0.6),transparent);}
+      .biz-divider-line{flex:1;height:1px;background:#fbbf24 !important;opacity:0.5;}
       .biz-divider-diamond{
-        width:7px;height:7px;background:#fbbf24;
+        width:7px;height:7px;background:#fbbf24 !important;
         transform:rotate(45deg);flex-shrink:0;
-        box-shadow:0 0 4px rgba(251,191,36,0.6);
       }
 
       .biz-name{
         font-family:Arial,Helvetica,sans-serif;font-size:26px;font-weight:900;
-        color:#fef3c7;letter-spacing:0.04em;line-height:1.2;
-        text-shadow:0 2px 8px rgba(0,0,0,0.4),0 1px 0 rgba(251,191,36,0.3);
+        color:#fef3c7 !important;letter-spacing:0.04em;line-height:1.2;
       }
-      .biz-sub{margin-top:4px;font-size:12px;color:#fde68a;font-weight:600;letter-spacing:0.05em;opacity:0.9;}
-      .biz-details{margin-top:6px;font-size:11.5px;color:#fde68a;display:flex;flex-wrap:wrap;justify-content:center;gap:16px;opacity:0.9;}
+      .biz-sub{margin-top:4px;font-size:12px;color:#fde68a !important;font-weight:600;letter-spacing:0.05em;}
+      .biz-details{margin-top:6px;font-size:11.5px;color:#fde68a !important;display:flex;flex-wrap:wrap;justify-content:center;gap:16px;}
       .biz-details span{display:inline-flex;align-items:center;gap:4px;}
 
       /* ── Report title block ── */
@@ -1237,7 +1245,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
       /* ── Footer ── */
       .page-footer{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
-      @media print{body{padding:20px 24px}@page{margin:1cm}}
+      @media print{body{padding:20px 24px}@page{margin:1cm;size:A4}}
     </style></head><body>
 
       <!-- Business Box -->
@@ -1395,6 +1403,32 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
     const a = document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download=`${name}.csv`; a.click();
   };
 
+  const doSaveReport = async ({name, tags, notes}) => {
+    if (!preview || !currentUser) return;
+    setSaving(true);
+    try {
+      const rFile   = reportsFile(currentUser.username);
+      const existing = await ghGet(rFile);
+      const prev     = existing?.data?.reports || [];
+      const rec = {
+        id:          uid(),
+        name:        name,
+        tags:        tags,
+        notes:       notes,
+        html:        preview.html,
+        reportType:  exportType,
+        rangeLabel:  rangeLabel,
+        entryCount:  preview.ents.length,
+        savedAt:     Date.now(),
+        updatedAt:   null,
+      };
+      await ghPut(rFile, {reports:[...prev, rec]}, existing?.sha||null, `Save report: ${name}`);
+      setSaveModal(false);
+      alert(`✅ Report "${name}" saved! View it in the Saved Reports page.`);
+    } catch(e) { alert("Save failed: " + e.message); }
+    setSaving(false);
+  };
+
   const SummaryCards = ({s}) => (
     <div className="stats-grid" style={{marginBottom:16}}>
       <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Net Gold Balance</div><div className="stat-value gold">{fmtGold(s.goldIn-s.goldOut)}</div><div className="stat-sub">In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div></div>
@@ -1521,6 +1555,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
           </table>
         </div>
         {bulkConfirm&&onDeleteEntry&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{[...selectedIds].forEach(id=>onDeleteEntry(id));setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
+      {saveModal&&<SaveReportModal defaultName={preview?.title||reportTitle} onSave={doSaveReport} onClose={()=>setSaveModal(false)} saving={saving}/>}
         {/* ── Balance Summary at BOTTOM ── */}
         <div style={{marginTop:16,background:"var(--surface)",border:"2px solid var(--border)",borderRadius:12,padding:16}}>
           <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontWeight:700,fontSize:"0.9rem",marginBottom:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
@@ -1574,6 +1609,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
             <div className="flex gap2" style={{flexWrap:"wrap"}}>
               <button className="btn btn-secondary btn-sm" onClick={()=>exportCSV(preview.ents,preview.title)}><Icon name="download" size={14}/>CSV</button>
               <button className="btn btn-gold btn-sm" onClick={doPrint}><Icon name="pdf" size={14}/>Print / Save PDF</button>
+              <button className="btn btn-success btn-sm" onClick={()=>setSaveModal(true)} style={{background:"rgba(34,211,160,0.15)",color:"var(--green)",border:"1px solid rgba(34,211,160,0.3)"}}><Icon name="download" size={14}/>💾 Save Report</button>
               <button className="btn btn-secondary btn-sm" onClick={()=>setPreview(null)}>✕ Close</button>
             </div>
           </div>
@@ -2456,6 +2492,239 @@ function DeletedHistory({ currentUser, allPeople }) {
   );
 }
 
+
+// ─── Save Report Modal ───────────────────────────────────────────────
+function SaveReportModal({ defaultName, onSave, onClose, saving }) {
+  const [name, setName]   = useState(defaultName || "");
+  const [tagInput, setTagInput] = useState("");
+  const [tags, setTags]   = useState([]);
+  const [notes, setNotes] = useState("");
+
+  const addTag = (raw) => {
+    const t = raw.trim().replace(/,+$/,"");
+    if (t && !tags.includes(t)) setTags(p=>[...p, t]);
+    setTagInput("");
+  };
+  const removeTag = (t) => setTags(p=>p.filter(x=>x!==t));
+
+  const TAG_COLORS = ["#6366f1","#22d3a0","#f59e0b","#f43f5e","#38bdf8","#a78bfa","#fb923c"];
+  const tagColor  = (t) => TAG_COLORS[Math.abs([...t].reduce((a,c)=>a+c.charCodeAt(0),0)) % TAG_COLORS.length];
+
+  return (
+    <Modal title="Save Report" onClose={onClose} footer={<>
+      <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+      <button className="btn btn-gold" onClick={()=>onSave({name:name.trim()||defaultName,tags,notes})} disabled={saving||!name.trim()}>
+        {saving?"Saving...":"💾 Save Report"}
+      </button>
+    </>}>
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        <div className="form-group">
+          <label>Report Name *</label>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. March 2026 Monthly Report"/>
+        </div>
+        <div className="form-group">
+          <label>Tags <span style={{color:"var(--text3)",textTransform:"none",fontWeight:400}}>(press Enter or comma to add)</span></label>
+          <input value={tagInput}
+            onChange={e=>setTagInput(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter"||e.key===","){e.preventDefault();addTag(tagInput);}}}
+            onBlur={()=>tagInput.trim()&&addTag(tagInput)}
+            placeholder="e.g. monthly, gold, 2026, loki..."/>
+          {tags.length>0&&(
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:8}}>
+              {tags.map(t=>(
+                <span key={t} style={{display:"inline-flex",alignItems:"center",gap:5,background:tagColor(t)+"22",border:`1px solid ${tagColor(t)}55`,color:tagColor(t),borderRadius:99,padding:"3px 10px",fontSize:"0.78rem",fontWeight:600}}>
+                  #{t}
+                  <span onClick={()=>removeTag(t)} style={{cursor:"pointer",opacity:0.7,fontWeight:700,lineHeight:1}}>×</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="form-group">
+          <label>Notes <span style={{color:"var(--text3)",textTransform:"none",fontWeight:400}}>(optional)</span></label>
+          <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Any remarks about this report..." rows={2}/>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Saved Reports Page ──────────────────────────────────────────────
+function SavedReports({ currentUser }) {
+  const [records,  setRecords]  = useState(null);
+  const [loading,  setLoading]  = useState(true);
+  const [search,   setSearch]   = useState("");
+  const [tagFilter,setTagFilter]= useState("");
+  const [del,      setDel]      = useState(null);
+  const [editRec,  setEditRec]  = useState(null);
+  const [saving,   setSaving]   = useState(false);
+  const [preview,  setPreview]  = useState(null);
+
+  const loadReports = async () => {
+    setLoading(true);
+    try {
+      const result = await ghGet(reportsFile(currentUser.username));
+      setRecords(result?.data?.reports || []);
+    } catch(e) { setRecords([]); }
+    setLoading(false);
+  };
+
+  useEffect(()=>{ if(currentUser) loadReports(); },[currentUser]);
+
+  const allTags = useMemo(()=>{
+    if(!records) return [];
+    const t = new Set();
+    records.forEach(r=>(r.tags||[]).forEach(tag=>t.add(tag)));
+    return [...t].sort();
+  },[records]);
+
+  const filtered = useMemo(()=>{
+    if(!records) return [];
+    const q = search.toLowerCase();
+    return [...records]
+      .sort((a,b)=>b.savedAt-a.savedAt)
+      .filter(r=>{
+        const nameMatch = !q || r.name.toLowerCase().includes(q) || (r.notes||"").toLowerCase().includes(q) || (r.tags||[]).some(t=>t.toLowerCase().includes(q));
+        const tagMatch  = !tagFilter || (r.tags||[]).includes(tagFilter);
+        return nameMatch && tagMatch;
+      });
+  },[records, search, tagFilter]);
+
+  const deleteReport = async (id) => {
+    try {
+      const existing = await ghGet(reportsFile(currentUser.username));
+      const updated  = (existing?.data?.reports||[]).filter(r=>r.id!==id);
+      await ghPut(reportsFile(currentUser.username),{reports:updated},existing?.sha||null,"Delete saved report");
+      setRecords(updated);
+    } catch(e) { alert("Delete failed"); }
+    setDel(null);
+  };
+
+  const saveEdit = async ({name,tags,notes}) => {
+    setSaving(true);
+    try {
+      const existing = await ghGet(reportsFile(currentUser.username));
+      const updated  = (existing?.data?.reports||[]).map(r=>r.id===editRec.id?{...r,name,tags,notes,updatedAt:Date.now()}:r);
+      await ghPut(reportsFile(currentUser.username),{reports:updated},existing?.sha||null,"Update saved report");
+      setRecords(updated);
+      setEditRec(null);
+    } catch(e) { alert("Save failed"); }
+    setSaving(false);
+  };
+
+  const TAG_COLORS = ["#6366f1","#22d3a0","#f59e0b","#f43f5e","#38bdf8","#a78bfa","#fb923c"];
+  const tagColor  = (t) => TAG_COLORS[Math.abs([...t].reduce((a,c)=>a+c.charCodeAt(0),0)) % TAG_COLORS.length];
+
+  return (
+    <div>
+      <div className="section-header">
+        <div>
+          <div className="section-title" style={{display:"flex",alignItems:"center",gap:8}}>
+            <Icon name="pdf" size={18} color="var(--gold)"/>Saved Reports
+          </div>
+          <div className="section-sub">All your saved report snapshots — searchable by name, tag or notes.</div>
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={loadReports}><Icon name="sync" size={14}/>Refresh</button>
+      </div>
+
+      {/* Filters */}
+      <div className="toolbar" style={{flexWrap:"wrap",gap:8,marginBottom:12}}>
+        <div className="search-wrap" style={{flex:1,minWidth:200}}>
+          <span className="search-icon"><Icon name="search" size={15}/></span>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, tag or notes..."/>
+        </div>
+        {allTags.length>0&&(
+          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+            <span style={{fontSize:"0.75rem",color:"var(--text3)",fontWeight:600}}>Tag:</span>
+            <button onClick={()=>setTagFilter("")} style={{padding:"3px 10px",borderRadius:99,border:"1px solid",fontSize:"0.75rem",fontWeight:600,cursor:"pointer",background:!tagFilter?"var(--accent)":"var(--surface2)",color:!tagFilter?"#fff":"var(--text2)",borderColor:!tagFilter?"var(--accent)":"var(--border)"}}>All</button>
+            {allTags.map(t=>(
+              <button key={t} onClick={()=>setTagFilter(t===tagFilter?"":t)}
+                style={{padding:"3px 10px",borderRadius:99,border:`1px solid ${tagColor(t)}55`,fontSize:"0.75rem",fontWeight:600,cursor:"pointer",
+                  background:tagFilter===t?tagColor(t)+"33":"var(--surface2)",
+                  color:tagFilter===t?tagColor(t):"var(--text2)"}}>
+                #{t}
+              </button>
+            ))}
+          </div>
+        )}
+        {records&&<div style={{fontSize:"0.82rem",color:"var(--text3)"}}>{filtered.length} of {records.length} reports</div>}
+      </div>
+
+      {loading ? (
+        <div className="empty"><div className="empty-icon"><Icon name="sync" size={28}/></div><div className="empty-title">Loading saved reports...</div></div>
+      ) : !records || records.length===0 ? (
+        <div className="empty">
+          <div className="empty-icon"><Icon name="pdf" size={28}/></div>
+          <div className="empty-title">No saved reports yet</div>
+          <div className="empty-sub">Go to Reports, generate a report, and click "Save Report" to archive it here.</div>
+        </div>
+      ) : filtered.length===0 ? (
+        <div className="empty"><div className="empty-title">No results found</div><div className="empty-sub">Try a different search or tag filter.</div></div>
+      ) : (
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {filtered.map(r=>(
+            <div key={r.id} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:"14px 18px",display:"flex",gap:14,alignItems:"flex-start",transition:"border-color 0.15s"}}
+              onMouseEnter={e=>e.currentTarget.style.borderColor="var(--border2)"}
+              onMouseLeave={e=>e.currentTarget.style.borderColor="var(--border)"}>
+              {/* Icon */}
+              <div style={{width:40,height:40,background:"var(--gold-dim)",border:"1px solid rgba(251,191,36,0.3)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                <Icon name="pdf" size={18} color="var(--gold)"/>
+              </div>
+              {/* Content */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",marginBottom:4}}>
+                  <div style={{fontWeight:700,fontSize:"0.95rem"}}>{r.name}</div>
+                  <span style={{fontSize:"0.7rem",color:"var(--text3)",background:"var(--surface2)",padding:"2px 8px",borderRadius:99,border:"1px solid var(--border)",flexShrink:0}}>
+                    {r.reportType==="gold"?"Gold Only":r.reportType==="money"?"Cash Only":"Full Report"}
+                  </span>
+                </div>
+                {/* Tags */}
+                {r.tags?.length>0&&(
+                  <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:5}}>
+                    {r.tags.map(t=>(
+                      <span key={t} onClick={()=>setTagFilter(t===tagFilter?"":t)}
+                        style={{display:"inline-flex",alignItems:"center",gap:3,background:tagColor(t)+"22",border:`1px solid ${tagColor(t)}55`,color:tagColor(t),borderRadius:99,padding:"2px 8px",fontSize:"0.72rem",fontWeight:600,cursor:"pointer"}}>
+                        #{t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {r.notes&&<div style={{fontSize:"0.78rem",color:"var(--text2)",marginBottom:4}}>{r.notes}</div>}
+                <div style={{fontSize:"0.72rem",color:"var(--text3)",display:"flex",gap:12,flexWrap:"wrap"}}>
+                  <span>📅 Saved: {fmtDate(new Date(r.savedAt).toISOString().split("T")[0])} {new Date(r.savedAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</span>
+                  <span>📊 {r.entryCount} entries</span>
+                  <span>📆 Range: {r.rangeLabel}</span>
+                  {r.updatedAt&&<span style={{color:"var(--amber)"}}>✏️ Edited {fmtDate(new Date(r.updatedAt).toISOString().split("T")[0])}</span>}
+                </div>
+              </div>
+              {/* Actions */}
+              <div style={{display:"flex",gap:6,flexShrink:0}}>
+                <button className="btn btn-gold btn-sm" onClick={()=>setPreview(r.html)} title="View Report"><Icon name="eye" size={13}/>View</button>
+                <button className="btn btn-secondary btn-sm" onClick={()=>setEditRec(r)} title="Edit name/tags"><Icon name="edit" size={13}/></button>
+                <button className="btn btn-danger btn-sm" onClick={()=>setDel(r)} title="Delete"><Icon name="trash" size={13}/></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Preview overlay */}
+      {preview&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",zIndex:1000,display:"flex",flexDirection:"column"}}>
+          <div style={{background:"var(--surface)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid var(--border)",flexShrink:0}}>
+            <div style={{fontWeight:700,fontSize:"0.95rem"}}>Report Preview</div>
+            <button className="btn btn-secondary btn-sm" onClick={()=>setPreview(null)}>✕ Close</button>
+          </div>
+          <iframe srcDoc={preview} style={{flex:1,border:"none",background:"#fff"}}/>
+        </div>
+      )}
+
+      {del&&<Confirm msg={`Delete report "${del.name}"? This cannot be undone.`} onOk={()=>deleteReport(del.id)} onCancel={()=>setDel(null)}/>}
+      {editRec&&<SaveReportModal defaultName={editRec.name} onSave={saveEdit} onClose={()=>setEditRec(null)} saving={saving}/>}
+    </div>
+  );
+}
+
 // ─── Main App ────────────────────────────────────────────────────────
 export default function App() {
   const [data,        setData]    = useState({...defaultBusinessData});
@@ -2569,10 +2838,11 @@ export default function App() {
     {id:"workers",  label:"Workers",  icon:"workers"},
     {id:"entry",    label:"New Entry", icon:"plus"},
     {id:"reports",  label:"Reports",  icon:"reports"},
-    {id:"history",  label:"Deleted History", icon:"trash"},
-    {id:"settings", label:"Settings", icon:"settings"},
+    {id:"history",      label:"Deleted History", icon:"trash"},
+    {id:"savedreports", label:"Saved Reports",   icon:"pdf"},
+    {id:"settings",     label:"Settings",        icon:"settings"},
   ];
-  const pageTitles = {dashboard:"Dashboard",customers:"Customers",workers:"Workers",reports:"Reports",settings:"Settings",ledger:"Ledger View",history:"Deleted History"};
+  const pageTitles = {dashboard:"Dashboard",customers:"Customers",workers:"Workers",reports:"Reports",settings:"Settings",ledger:"Ledger View",history:"Deleted History",savedreports:"Saved Reports"};
 
   const handleNav = id => {
     if(id==="entry"){ setEntryForm({entry:null,personId:""}); return; }
@@ -2706,8 +2976,9 @@ export default function App() {
                 onEditEntry={e=>setEntryForm({entry:e,personId:e.personId})}
                 onDeleteEntry={deleteEntry}/>
             )}
-            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data} onDeleteEntry={deleteEntry}/>}
+            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data} onDeleteEntry={deleteEntry} currentUser={currentUser}/>}
             {page==="history"&&<DeletedHistory currentUser={currentUser} allPeople={allPeople}/>}
+            {page==="savedreports"&&<SavedReports currentUser={currentUser}/>}
             {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser}/>}
           </div>
         </div>
