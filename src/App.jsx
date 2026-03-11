@@ -86,9 +86,12 @@ const parsePurity = (str) => {
   if (!str) return 1;
   const s = String(str).trim();
   if (s.toUpperCase().includes("K")) return parseFloat(s) / 24;
+  if (s.includes("%")) return parseFloat(s) / 100;
   const n = parseFloat(s);
-  if (n > 1) return n / 1000;
-  return n;
+  if (isNaN(n)) return 1;
+  if (n > 100) return n / 1000;   // millesimal e.g. 916, 750
+  if (n > 1)   return n / 100;    // percentage e.g. 91.6, 75, 100
+  return n;                        // ratio e.g. 0.916
 };
 
 const PURITY_OPTIONS = ["24K (999)", "22K (916)", "18K (750)", "14K (585)", "916", "750", "585", "999", "Custom"];
@@ -256,10 +259,12 @@ const styles = `
   /* Modal */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
   .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:620px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow)}
-  .modal.wide{max-width:860px}
+  .modal.wide{max-width:1100px}
+  .modal.fullwide{max-width:96vw!important;width:96vw}
+  .modal.fullwide{max-width:98vw;width:98vw}
   .modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
   .modal-title{font-family:var(--font-display);font-weight:700;font-size:1.1rem}
-  .modal-body{padding:20px 24px}
+  .modal-body{padding:16px 20px}
   .modal-footer{padding:16px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px}
 
   /* Section header */
@@ -385,7 +390,7 @@ function Toasts({ toasts, remove }) {
 }
 
 // ─── Modal ───────────────────────────────────────────────────────────
-function Modal({ title, onClose, children, footer, wide }) {
+function Modal({ title, onClose, children, footer, wide, fullwide }) {
   useEffect(() => {
     const h = (e) => e.key==="Escape" && onClose?.();
     window.addEventListener("keydown", h);
@@ -393,7 +398,7 @@ function Modal({ title, onClose, children, footer, wide }) {
   }, [onClose]);
   return (
     <div className="modal-overlay" onClick={e => e.target===e.currentTarget && onClose?.()}>
-      <div className={`modal${wide?" wide":""}`}>
+      <div className={`modal${wide?" wide":""}${fullwide?" fullwide":""}`}>
         <div className="modal-header">
           <span className="modal-title">{title}</span>
           <button className="btn btn-icon btn-secondary" onClick={onClose}><Icon name="close" size={16}/></button>
@@ -615,7 +620,7 @@ function PeopleList({ type, data, entries, onAdd, onEdit, onDelete, onViewLedger
 const emptyRow = (personId="", personType="customer", date=today()) => ({
   date, personId, personType,
   description:"", goldIn:"", goldOut:"",
-  purity:"22K", moneyIn:"", moneyOut:"", notes:""
+  purity:"100", moneyIn:"", moneyOut:"", notes:""
 });
 
 function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave, onClose }) {
@@ -673,7 +678,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
   const hdr = {fontSize:"0.7rem",fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.05em",padding:"6px 8px",background:"var(--surface2)",whiteSpace:"nowrap"};
 
   return (
-    <Modal title={isEdit?"Edit Entry":"New Entries"} onClose={onClose} wide footer={<>
+    <Modal title={isEdit?"Edit Entry":"New Entries"} onClose={onClose} wide fullwide footer={<>
       <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
       <button className="btn btn-gold" onClick={handleSave}>
         {isEdit ? "Save Changes" : `Save ${filledCount>0?filledCount+" ":""}${filledCount===1?"Entry":"Entries"}`}
@@ -693,7 +698,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
               <th style={{...hdr,width:160}}>Description</th>
               <th style={{...hdr,width:90,color:"var(--gold)"}}>Gold In (g)</th>
               <th style={{...hdr,width:90,color:"var(--red)"}}>Gold Out (g)</th>
-              <th style={{...hdr,width:100}}>Purity</th>
+              <th style={{...hdr,width:90}}>Purity %</th>
               <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>24K</th>
               <th style={{...hdr,width:100,color:"var(--green)"}}>Money In ₹</th>
               <th style={{...hdr,width:100,color:"var(--red)"}}>Money Out ₹</th>
@@ -738,7 +743,10 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
                     <input style={{...inp,color:"var(--red)"}} type="number" value={f.goldOut} onChange={e=>setRow(i,"goldOut",e.target.value)} placeholder="0.000" min="0" step="0.001"/>
                   </td>
                   <td style={{padding:"4px 6px"}}>
-                    <input style={inp} value={f.purity} onChange={e=>setRow(i,"purity",e.target.value)} placeholder="22K / 916"/>
+                    <div style={{position:"relative",display:"flex",alignItems:"center"}}>
+                      <input style={{...inp,paddingRight:20}} value={f.purity} onChange={e=>setRow(i,"purity",e.target.value)} placeholder="100"/>
+                      <span style={{position:"absolute",right:7,fontSize:"0.75rem",color:"var(--text3)",pointerEvents:"none"}}>%</span>
+                    </div>
                   </td>
                   <td style={{padding:"4px 8px",textAlign:"center",fontSize:"0.72rem",color:"#a78bfa",whiteSpace:"nowrap"}}>
                     {pureIn&&<div className="text-green">+{pureIn}g</div>}
@@ -951,7 +959,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────
-function Reports({ entries, customers, workers, companyName }) {
+function Reports({ entries, customers, workers, companyName, companyData }) {
   const [tab,        setTab]       = useState("monthly");
   const [month,      setMonth]     = useState(new Date().toISOString().slice(0,7));
   const [person,     setPerson]    = useState("");
@@ -981,9 +989,13 @@ function Reports({ entries, customers, workers, companyName }) {
   });
 
   // ── Build HTML for preview/export ──
-  const buildHTML = (ents, title, type) => {
+  const buildHTML = (ents, title, type, personName) => {
     const s = summary(ents);
     const bizName = companyName || "My Business";
+    const bizAddress = companyData?.companyAddress || "";
+    const bizPhone = companyData?.companyPhone || "";
+    const bizOwner = companyData?.companyOwner || "";
+    const genTime = new Date().toLocaleString("en-IN",{day:"2-digit",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"});
     const sortedEnts = [...ents].sort((a,b)=>a.date.localeCompare(b.date)||(a.createdAt||0)-(b.createdAt||0));
     let runGold=0, runMoney=0;
     const rowsWithBal = sortedEnts.map(e=>{
@@ -1018,12 +1030,19 @@ function Reports({ entries, customers, workers, companyName }) {
     if (showGold)  headCols += `<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold</th><th style="text-align:right">Gold Balance</th>`;
     if (showMoney) headCols += `<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
-    <style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&display=swap');
+    <style>@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Syne:wght@700;800;900&display=swap');
       *{box-sizing:border-box;margin:0;padding:0}body{font-family:'DM Sans',sans-serif;color:#111;padding:32px;font-size:13px;background:#fff}
-      .header{margin-bottom:24px;padding-bottom:20px;border-bottom:3px solid #f59e0b}
-      .biz-name{font-size:30px;font-weight:900;color:#92400e;letter-spacing:-0.5px;text-align:center;background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid #f59e0b;border-radius:12px;padding:14px 24px;display:inline-block;margin-bottom:4px;width:100%;box-shadow:0 2px 8px rgba(245,158,11,0.2)}.report-title{font-size:14px;font-weight:600;color:#6b7280;margin-top:6px}.report-meta{font-size:11px;color:#9ca3af;margin-top:3px}
-      .badge{display:inline-block;margin-top:8px;background:#fef3c7;color:#92400e;padding:4px 14px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #fcd34d}
-      .summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:20px 0}
+      .biz-box{position:relative;text-align:center;padding:22px 28px;border-radius:16px;margin-bottom:20px;background:linear-gradient(135deg,#fffbeb,#fef3c7,#fde68a);border:2px solid #f59e0b;box-shadow:0 0 0 4px rgba(245,158,11,0.1),0 0 30px rgba(245,158,11,0.25),0 4px 12px rgba(0,0,0,0.08)}
+      .biz-name{font-family:'Syne',sans-serif;font-size:32px;font-weight:900;color:#78350f;letter-spacing:-0.5px;line-height:1.1;text-shadow:0 1px 0 rgba(255,255,255,0.6)}
+      .biz-tagline{margin-top:6px;font-size:12px;color:#92400e;font-weight:600;letter-spacing:0.08em;text-transform:uppercase}
+      .biz-details{margin-top:8px;font-size:12px;color:#78350f;display:flex;flex-wrap:wrap;justify-content:center;gap:14px}
+      .biz-details span{display:flex;align-items:center;gap:4px}
+      .person-banner{margin-bottom:16px;padding:12px 20px;background:linear-gradient(90deg,#eff6ff,#dbeafe);border-left:4px solid #2563eb;border-radius:0 10px 10px 0;display:flex;align-items:center;justify-content:space-between}
+      .person-name{font-size:20px;font-weight:800;color:#1e40af;font-family:'Syne',sans-serif}
+      .person-type{font-size:11px;font-weight:700;color:#3b82f6;text-transform:uppercase;letter-spacing:0.08em;background:#bfdbfe;padding:3px 10px;border-radius:99px}
+      .report-meta-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding:8px 14px;background:#f9fafb;border-radius:8px;border:1px solid #e5e7eb;font-size:11px;color:#6b7280}
+      .report-meta-bar strong{color:#374151}
+      .badge{display:inline-block;background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:99px;font-weight:700;font-size:10px;border:1px solid #fcd34d}
       .sum-card{border:1px solid #e5e7eb;border-radius:10px;padding:14px;position:relative;overflow:hidden}
       .sum-card::before{content:'';position:absolute;top:0;left:0;right:0;height:4px}
       .sum-card.gold::before{background:#f59e0b}.sum-card.purple::before{background:#7c3aed}.sum-card.green::before{background:#16a34a}.sum-card.red::before{background:#dc2626}.sum-card.blue::before{background:#2563eb}
@@ -1040,10 +1059,27 @@ function Reports({ entries, customers, workers, companyName }) {
       .bal-value{font-size:18px;font-weight:800}
       .footer{margin-top:20px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
       @media print{body{padding:16px}@page{margin:1cm}}</style></head><body>
-      <div class="header">
+      <!-- Business golden box -->
+      <div class="biz-box">
         <div class="biz-name">${bizName}</div>
-        <div class="report-title">${title}</div>
-        <div class="report-meta">Generated: ${new Date().toLocaleDateString("en-IN",{day:"2-digit",month:"long",year:"numeric"})}</div>
+        ${bizOwner?`<div class="biz-tagline">Prop: ${bizOwner}</div>`:""}
+        ${(bizAddress||bizPhone)?`<div class="biz-details">
+          ${bizAddress?`<span>📍 ${bizAddress}</span>`:""}
+          ${bizPhone?`<span>📞 ${bizPhone}</span>`:""}
+        </div>`:""}
+      </div>
+      <!-- Person highlighted banner -->
+      ${personName?`<div class="person-banner">
+        <div>
+          <div style="font-size:10px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px">Account Holder</div>
+          <div class="person-name">${personName}</div>
+        </div>
+        <span class="person-type">${ents[0]?.personType==="worker"?"Worker":"Customer"}</span>
+      </div>`:""}
+      <!-- Report meta bar -->
+      <div class="report-meta-bar">
+        <span><strong>${title}</strong></span>
+        <span>🕐 Generated: ${genTime}</span>
         <span class="badge">${type==="all"?"FULL REPORT":type==="gold"?"GOLD REPORT":"MONEY REPORT"}</span>
       </div>
       <div class="summary">
@@ -1072,7 +1108,7 @@ function Reports({ entries, customers, workers, companyName }) {
     </body></html>`;
   };
 
-  const openPreview = (ents, title) => setPreview({html: buildHTML(ents, title, exportType), title, ents});
+  const openPreview = (ents, title, personName) => setPreview({html: buildHTML(ents, title, exportType, personName), title, ents});
 
   const doPrint = () => {
     if (!preview) return;
@@ -1218,7 +1254,7 @@ function Reports({ entries, customers, workers, companyName }) {
               ))}
             </div>
             <button className="btn btn-secondary" onClick={()=>exportCSV(activeEnts,reportTitle)}><Icon name="download" size={16}/>CSV</button>
-            <button className="btn btn-gold" onClick={()=>openPreview(activeEnts,reportTitle)}><Icon name="pdf" size={16}/>Preview &amp; Export</button>
+            <button className="btn btn-gold" onClick={()=>openPreview(activeEnts, reportTitle, tab==="person" ? allPeople.find(p=>p.id===person)?.name : "")}><Icon name="pdf" size={16}/>Preview &amp; Export</button>
           </div>
         )}
       </div>
@@ -2161,7 +2197,7 @@ export default function App() {
                 onEditEntry={e=>setEntryForm({entry:e,personId:e.personId})}
                 onDeleteEntry={deleteEntry}/>
             )}
-            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName}/>}
+            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data}/>}
             {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser}/>}
           </div>
         </div>
