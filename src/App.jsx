@@ -2,13 +2,16 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 
 // ─── GITHUB CONFIG ─────────────────────────────────────────────────
 // Replace with your own values:
-const GITHUB_USERNAME = "LogeshApps";
-const GITHUB_REPO     = "ledger";
+const GITHUB_USERNAME = "YOUR_GITHUB_USERNAME";
+const GITHUB_REPO     = "YOUR_REPO_NAME";
 // Split your PAT token into 2 halves to avoid GitHub scanner revoking it
-const PAT_PART1  = "ghp_F4oz8Z9OiPZx8bHi";
-const PAT_PART2  = "VpD0uKHAopeDJs2a6PJk";
+const PAT_PART1  = "YOUR_TOKEN_FIRST_HALF";
+const PAT_PART2  = "YOUR_TOKEN_SECOND_HALF";
 const GITHUB_PAT = PAT_PART1 + PAT_PART2;
-const DATA_FILE  = "ledger-data/data.json";
+// Data file is per-business: ledger-data/data_<username>.json
+const userDataFile = (username) => `ledger-data/data_${username.toLowerCase().replace(/[^a-z0-9]/g,"_")}.json`;
+// Master users registry file (stores all registered usernames/passwords)
+const USERS_FILE = "ledger-data/users.json";
 // ───────────────────────────────────────────────────────────────────
 
 // ─── GitHub API ─────────────────────────────────────────────────────
@@ -37,21 +40,29 @@ async function ghPut(path, data, sha, message) {
 }
 
 // ─── Defaults ───────────────────────────────────────────────────────
-const defaultData = {
+const defaultBusinessData = {
   customers: [],
   workers: [],
   entries: [],
   companyName: "My Gold Shop",
   companyAddress: "",
   companyPhone: "",
-  users: [{ id: "u1", username: "admin", password: "admin123", role: "admin" }],
 };
 
 // ─── Utils ──────────────────────────────────────────────────────────
 const uid  = () => Math.random().toString(36).slice(2,10) + Date.now().toString(36);
 const today = () => new Date().toISOString().split("T")[0];
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) : "-";
-const fmtMoney = (n) => new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 }).format(n||0);
+const fmtMoney = (n) => {
+  const num = Number(n) || 0;
+  const abs = Math.abs(num);
+  let label = "";
+  if (abs >= 1_00_00_000) label = `₹${(num/1_00_00_000).toFixed(2)} Cr`;
+  else if (abs >= 1_00_000) label = `₹${(num/1_00_000).toFixed(2)} L`;
+  else label = new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 }).format(num);
+  return label;
+};
+const fmtMoneyFull = (n) => new Intl.NumberFormat("en-IN", { style:"currency", currency:"INR", maximumFractionDigits:2 }).format(Number(n)||0);
 const fmtGold  = (n) => `${(Number(n)||0).toFixed(3)}g`;
 const pureGold = (weight, purity) => {
   const p = parseFloat(purity);
@@ -395,45 +406,117 @@ function Confirm({ msg, onOk, onCancel }) {
   );
 }
 
-// ─── Login ───────────────────────────────────────────────────────────
-function LoginPage({ users, onLogin }) {
-  const [u, setU] = useState("");
-  const [p, setP] = useState("");
+// ─── Login + Register ────────────────────────────────────────────────
+function LoginPage({ onLogin, onRegister }) {
+  const [tab,  setTab]  = useState("login"); // login | register
+  const [u,    setU]    = useState("");
+  const [p,    setP]    = useState("");
+  const [biz,  setBiz]  = useState("");
   const [show, setShow] = useState(false);
-  const [err, setErr] = useState("");
-  const go = () => {
-    const user = users.find(x => x.username===u && x.password===p);
-    if (user) { onLogin(user); setErr(""); }
-    else setErr("Invalid username or password.");
+  const [err,  setErr]  = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const doLogin = async () => {
+    if (!u.trim() || !p.trim()) return setErr("Enter username and password.");
+    setBusy(true); setErr("");
+    try {
+      const result = await ghGet(USERS_FILE);
+      const users = result?.data?.users || [];
+      const user = users.find(x => x.username.toLowerCase()===u.toLowerCase().trim() && x.password===p);
+      if (user) { onLogin(user); }
+      else setErr("Invalid username or password.");
+    } catch(e) { setErr("Could not connect. Check GitHub config."); }
+    setBusy(false);
   };
+
+  const doRegister = async () => {
+    if (!u.trim()) return setErr("Enter a username.");
+    if (p.length < 6) return setErr("Password must be at least 6 characters.");
+    if (!biz.trim()) return setErr("Enter your business name.");
+    const username = u.trim().toLowerCase().replace(/[^a-z0-9_]/g,"");
+    if (!username) return setErr("Username can only have letters, numbers, underscore.");
+    setBusy(true); setErr("");
+    try {
+      // Load existing users registry
+      const result = await ghGet(USERS_FILE);
+      const users = result?.data?.users || [];
+      const sha = result?.sha || null;
+      if (users.find(x => x.username===username)) { setBusy(false); return setErr("Username already taken. Choose another."); }
+      // Add new user to registry
+      const newUser = { id: uid(), username, password: p, businessName: biz.trim(), createdAt: Date.now() };
+      const updatedUsers = [...users, newUser];
+      await ghPut(USERS_FILE, { users: updatedUsers }, sha, `New business registered: ${username}`);
+      // Create their own data file
+      const dataFile = userDataFile(username);
+      await ghPut(dataFile, { ...defaultBusinessData, companyName: biz.trim() }, null, `Init data for ${username}`);
+      onLogin(newUser);
+    } catch(e) { setErr("Registration failed. Check GitHub config."); }
+    setBusy(false);
+  };
+
+  const Logo = () => (
+    <div className="login-logo">
+      <div className="login-logo-icon"><Icon name="gold" size={32} color="#000"/></div>
+      <div>
+        <div className="login-title">GoldLedger</div>
+        <div className="login-sub">Gold & Money Ledger Management</div>
+      </div>
+    </div>
+  );
+
+  const PwField = ({label, value, onChange, onEnter}) => (
+    <div className="form-group" style={{marginBottom:14}}>
+      <label>{label}</label>
+      <div style={{position:"relative"}}>
+        <input type={show?"text":"password"} value={value} onChange={onChange} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&onEnter()} style={{paddingRight:40}}/>
+        <button onClick={()=>setShow(!show)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--text3)"}}>
+          <Icon name={show?"eyeOff":"eye"} size={16}/>
+        </button>
+      </div>
+    </div>
+  );
+
   return (
     <div className="login-page">
       <div className="login-card">
-        <div className="login-logo">
-          <div className="login-logo-icon"><Icon name="gold" size={32} color="#000"/></div>
-          <div>
-            <div className="login-title">GoldLedger</div>
-            <div className="login-sub">Gold & Money Ledger Management</div>
+        <Logo/>
+        <div className="tabs" style={{marginBottom:20}}>
+          <div className={`tab${tab==="login"?" active":""}`} style={{flex:1,textAlign:"center"}} onClick={()=>{setTab("login");setErr("")}}>Sign In</div>
+          <div className={`tab${tab==="register"?" active":""}`} style={{flex:1,textAlign:"center"}} onClick={()=>{setTab("register");setErr("")}}>Register Business</div>
+        </div>
+        {err && <div className="alert alert-error" style={{marginBottom:14}}>{err}</div>}
+
+        {tab==="login" && <>
+          <div className="form-group" style={{marginBottom:14}}>
+            <label>Username</label>
+            <input value={u} onChange={e=>setU(e.target.value)} placeholder="your username" onKeyDown={e=>e.key==="Enter"&&doLogin()} autoFocus/>
           </div>
-        </div>
-        {err && <div className="alert alert-error">{err}</div>}
-        <div className="form-group" style={{marginBottom:14}}>
-          <label>Username</label>
-          <input value={u} onChange={e=>setU(e.target.value)} placeholder="admin" onKeyDown={e=>e.key==="Enter"&&go()} autoFocus/>
-        </div>
-        <div className="form-group" style={{marginBottom:24}}>
-          <label>Password</label>
-          <div style={{position:"relative"}}>
-            <input type={show?"text":"password"} value={p} onChange={e=>setP(e.target.value)} placeholder="••••••••" onKeyDown={e=>e.key==="Enter"&&go()} style={{paddingRight:40}}/>
-            <button onClick={()=>setShow(!show)} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:"var(--text3)"}}>
-              <Icon name={show?"eyeOff":"eye"} size={16}/>
-            </button>
+          <PwField label="Password" value={p} onChange={e=>setP(e.target.value)} onEnter={doLogin}/>
+          <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem",marginTop:10}} onClick={doLogin} disabled={busy}>
+            {busy?"Signing in...":"Sign In"}
+          </button>
+          <div style={{marginTop:14,textAlign:"center",fontSize:"0.82rem",color:"var(--text3)"}}>
+            No account? <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>{setTab("register");setErr("")}}>Register your business →</span>
           </div>
-        </div>
-        <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem"}} onClick={go}>Sign In</button>
-        <div style={{marginTop:20,padding:12,background:"var(--surface2)",borderRadius:8,fontSize:"0.8rem",color:"var(--text3)"}}>
-          Default: <strong style={{color:"var(--text2)"}}>admin</strong> / <strong style={{color:"var(--text2)"}}>admin123</strong>
-        </div>
+        </>}
+
+        {tab==="register" && <>
+          <div className="form-group" style={{marginBottom:14}}>
+            <label>Business Name</label>
+            <input value={biz} onChange={e=>setBiz(e.target.value)} placeholder="e.g. Sri Lakshmi Jewellers" autoFocus/>
+          </div>
+          <div className="form-group" style={{marginBottom:14}}>
+            <label>Username <span style={{color:"var(--text3)",fontSize:"0.75rem"}}>(letters, numbers, _ only)</span></label>
+            <input value={u} onChange={e=>setU(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g,""))} placeholder="e.g. srilakshmi"/>
+          </div>
+          <PwField label="Password (min 6 characters)" value={p} onChange={e=>setP(e.target.value)} onEnter={doRegister}/>
+          <button className="btn btn-gold" style={{width:"100%",justifyContent:"center",padding:"11px",fontSize:"1rem",marginTop:10}} onClick={doRegister} disabled={busy}>
+            {busy?"Creating account...":"Create Business Account"}
+          </button>
+          <div style={{marginTop:14,textAlign:"center",fontSize:"0.82rem",color:"var(--text3)"}}>
+            Already have account? <span style={{color:"var(--accent2)",cursor:"pointer"}} onClick={()=>{setTab("login");setErr("")}}>Sign in →</span>
+          </div>
+        </>}
       </div>
     </div>
   );
@@ -796,19 +879,11 @@ function Reports({ entries, customers, workers }) {
   const [tab, setTab]       = useState("monthly");
   const [month, setMonth]   = useState(new Date().toISOString().slice(0,7));
   const [person, setPerson] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo,   setDateTo]   = useState("");
 
   const allPeople = useMemo(()=>[...customers.map(c=>({...c,ptype:"customer"})),...workers.map(w=>({...w,ptype:"worker"}))],[customers,workers]);
 
-  const applyDateRange = (ents) => ents.filter(e => {
-    if (dateFrom && e.date < dateFrom) return false;
-    if (dateTo   && e.date > dateTo)   return false;
-      return true;
-  });
-
-  const monthEntries  = useMemo(()=>applyDateRange(entries.filter(e=>e.date.startsWith(month))),[entries,month,dateFrom,dateTo]);
-  const personEntries = useMemo(()=>person?applyDateRange(entries.filter(e=>e.personId===person)):[],[entries,person,dateFrom,dateTo]);
+  const monthEntries = useMemo(()=>entries.filter(e=>e.date.startsWith(month)),[entries,month]);
+  const personEntries= useMemo(()=>person?entries.filter(e=>e.personId===person):[]  ,[entries,person]);
 
   const summary = (ents) => ({
     goldIn:   ents.reduce((s,e)=>s+Number(e.goldIn||0),0),
@@ -973,16 +1048,7 @@ function Reports({ entries, customers, workers }) {
       </div>
       {tab==="monthly"&&(
         <div>
-          <div className="toolbar">
-  <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{minWidth:160}}/>
-  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-    <span style={{fontSize:"0.8rem",color:"var(--text2)",fontWeight:600}}>Date Range:</span>
-    <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{minWidth:140}} title="From"/>
-    <span style={{color:"var(--text3)"}}>→</span>
-    <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{minWidth:140}} title="To"/>
-    {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
-  </div>
-</div>
+          <div className="toolbar"><input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{minWidth:160}}/></div>
           <SummaryCards s={summary(monthEntries)}/>
           <RenderTable ents={monthEntries}/>
         </div>
@@ -990,19 +1056,12 @@ function Reports({ entries, customers, workers }) {
       {tab==="person"&&(
         <div>
           <div className="toolbar">
-  <select value={person} onChange={e=>setPerson(e.target.value)} style={{minWidth:220}}>
-    <option value="">-- Select Person --</option>
-    <optgroup label="Customers">{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
-    <optgroup label="Workers">{workers.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</optgroup>
-  </select>
-  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
-    <span style={{fontSize:"0.8rem",color:"var(--text2)",fontWeight:600}}>Date Range:</span>
-    <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{minWidth:140}} title="From"/>
-    <span style={{color:"var(--text3)"}}>→</span>
-    <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{minWidth:140}} title="To"/>
-    {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
-  </div>
-</div>
+            <select value={person} onChange={e=>setPerson(e.target.value)} style={{minWidth:220}}>
+              <option value="">-- Select Person --</option>
+              <optgroup label="Customers">{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
+              <optgroup label="Workers">{workers.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</optgroup>
+            </select>
+          </div>
           {person&&<><SummaryCards s={summary(personEntries)}/><RenderTable ents={personEntries}/></>}
           {!person&&<div className="empty"><div className="empty-icon"><Icon name="customers" size={28}/></div><div className="empty-title">Select a person to view their report</div></div>}
         </div>
@@ -1012,25 +1071,34 @@ function Reports({ entries, customers, workers }) {
 }
 
 // ─── Settings ────────────────────────────────────────────────────────
-function SettingsPage({ data, onChange, addToast }) {
-  const [co, setCo] = useState({ name:data.companyName, address:data.companyAddress, phone:data.companyPhone });
+function SettingsPage({ data, onChange, addToast, currentUser }) {
+  const [co, setCo] = useState({ name:data.companyName||"", address:data.companyAddress||"", phone:data.companyPhone||"" });
   const [pw, setPw] = useState({ old:"", nw:"", cf:"" });
   const [pwErr, setPwErr] = useState("");
+  const [pwBusy, setPwBusy] = useState(false);
 
-  const saveCompany = () => { onChange({ companyName:co.name, companyAddress:co.address, companyPhone:co.phone }); addToast("Company settings saved!"); };
-  const changePw = () => {
-    const user = data.users.find(u=>u.id===data.currentUser.id);
-    if (user.password!==pw.old) return setPwErr("Current password incorrect.");
+  const saveCompany = () => { onChange({ companyName:co.name, companyAddress:co.address, companyPhone:co.phone }); addToast("Business info saved!"); };
+
+  const changePw = async () => {
+    if (currentUser.password!==pw.old) return setPwErr("Current password incorrect.");
     if (pw.nw.length<6) return setPwErr("New password must be 6+ characters.");
     if (pw.nw!==pw.cf) return setPwErr("Passwords don't match.");
-    onChange({ users: data.users.map(u=>u.id===user.id?{...u,password:pw.nw}:u) });
-    setPwErr(""); setPw({old:"",nw:"",cf:""}); addToast("Password changed!");
+    setPwBusy(true);
+    try {
+      const result = await ghGet(USERS_FILE);
+      const users = result?.data?.users || [];
+      const sha = result?.sha || null;
+      const updated = users.map(u=>u.id===currentUser.id?{...u,password:pw.nw}:u);
+      await ghPut(USERS_FILE, { users: updated }, sha, `Password update for ${currentUser.username}`);
+      setPwErr(""); setPw({old:"",nw:"",cf:""}); addToast("Password changed!");
+    } catch(e) { setPwErr("Failed to update password."); }
+    setPwBusy(false);
   };
+
   const exportBackup = () => {
-    const {currentUser,...save} = data;
     const a=document.createElement("a");
-    a.href="data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(save,null,2));
-    a.download=`goldledger_backup_${today()}.json`; a.click(); addToast("Backup exported!");
+    a.href="data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(data,null,2));
+    a.download=`goldledger_${currentUser.username}_backup_${today()}.json`; a.click(); addToast("Backup exported!");
   };
 
   return (
@@ -1065,7 +1133,7 @@ function SettingsPage({ data, onChange, addToast }) {
 }
 
 // ─── Dashboard ───────────────────────────────────────────────────────
-function Dashboard({ data, setPage, setViewPerson }) {
+function Dashboard({ data, setPage, setViewPerson, currentUser }) {
   const { entries, customers, workers } = data;
 
   const totalGoldBal  = entries.reduce((s,e)=>s+Number(e.goldIn||0)-Number(e.goldOut||0),0);
@@ -1095,7 +1163,7 @@ function Dashboard({ data, setPage, setViewPerson }) {
     <div>
       <div style={{marginBottom:24}}>
         <div style={{fontFamily:"var(--font-display)",fontSize:"1.4rem",fontWeight:800,marginBottom:4}}>Dashboard</div>
-        <div className="text2 fs-sm">Welcome to {data.companyName} — Gold & Money Ledger</div>
+        <div className="text2 fs-sm">Welcome, <strong>{currentUser?.businessName||currentUser?.username}</strong> — Gold &amp; Money Ledger</div>
       </div>
 
       <div className="stats-grid">
@@ -1177,44 +1245,58 @@ function Dashboard({ data, setPage, setViewPerson }) {
 
 // ─── Main App ────────────────────────────────────────────────────────
 export default function App() {
-  const [data,     setData]     = useState({...defaultData});
-  const [fileSha,  setFileSha]  = useState(null);
-  const [page,     setPage]     = useState("dashboard");
-  const [loading,  setLoading]  = useState(true);
-  const [syncStatus, setSync]   = useState(""); // saving | saved | error
+  const [data,        setData]    = useState({...defaultBusinessData});
+  const [fileSha,     setFileSha] = useState(null);
+  const [page,        setPage]    = useState("dashboard");
+  const [loading,     setLoading] = useState(false); // false until user logs in
+  const [currentUser, setCurrentUser] = useState(null);
+  const [syncStatus,  setSync]    = useState("");
   const [sidebarOpen, setSidebar] = useState(false);
   const [viewPerson,  setViewPerson] = useState(null);
   const { toasts, add: addToast, remove: removeToast } = useToast();
 
   // Modals
-  const [personForm, setPersonForm] = useState(null); // {type, person}
-  const [entryForm,  setEntryForm]  = useState(null); // {entry, personId}
+  const [personForm, setPersonForm] = useState(null);
+  const [entryForm,  setEntryForm]  = useState(null);
 
-  // ── Load ──
-  useEffect(()=>{
-    (async()=>{
-      setLoading(true);
-      try {
-        const result = await ghGet(DATA_FILE);
-        if (result) { setData(p=>({...defaultData,...result.data,currentUser:p.currentUser})); setFileSha(result.sha); }
-      } catch(e) { console.error(e); }
-      setLoading(false);
-    })();
-  },[]);
+  // ── Load business data after login ──
+  const loadUserData = useCallback(async(user) => {
+    setLoading(true);
+    try {
+      const file = userDataFile(user.username);
+      const result = await ghGet(file);
+      if (result) {
+        setData({...defaultBusinessData, ...result.data});
+        setFileSha(result.sha);
+      } else {
+        // First time — create their file
+        const init = {...defaultBusinessData, companyName: user.businessName||"My Gold Shop"};
+        const sha = await ghPut(file, init, null, `Init data for ${user.username}`);
+        setData(init); setFileSha(sha);
+      }
+    } catch(e) { console.error(e); addToast("Could not load data","error"); }
+    setLoading(false);
+  }, [addToast]);
+
+  const handleLogin = useCallback((user) => {
+    setCurrentUser(user);
+    loadUserData(user);
+  }, [loadUserData]);
 
   // ── Persist ──
   const shaRef = useRef(fileSha);
   useEffect(()=>{ shaRef.current=fileSha; },[fileSha]);
 
   const persist = useCallback(async(newData) => {
+    if (!currentUser) return;
     setSync("saving");
     try {
-      const {currentUser,...save} = newData;
-      const newSha = await ghPut(DATA_FILE, save, shaRef.current, `Ledger update - ${new Date().toLocaleDateString("en-IN")}`);
+      const file = userDataFile(currentUser.username);
+      const newSha = await ghPut(file, newData, shaRef.current, `Ledger update - ${new Date().toLocaleDateString("en-IN")}`);
       setFileSha(newSha); shaRef.current=newSha;
       setSync("saved"); setTimeout(()=>setSync(""),2500);
     } catch(e) { setSync("error"); addToast("Save failed — check your PAT token","error"); setTimeout(()=>setSync(""),3000); }
-  },[addToast]);
+  },[currentUser, addToast]);
 
   const updateData = useCallback((patch)=>{
     setData(prev=>{
@@ -1257,26 +1339,26 @@ export default function App() {
     setPage(id); setSidebar(false);
   };
 
-  // ── Loading ──
+  // ── Login screen ──
+  if(!currentUser) return (
+    <>
+      <style>{styles}</style>
+      <LoginPage onLogin={handleLogin} onRegister={handleLogin}/>
+    </>
+  );
+
+  // ── Loading screen (after login, while fetching business data) ──
   if(loading) return (
     <>
       <style>{styles}</style>
       <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"var(--bg)",gap:16}}>
         <div style={{width:56,height:56,background:"linear-gradient(135deg,var(--gold),var(--amber))",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="gold" size={28} color="#000"/></div>
         <div style={{fontFamily:"var(--font-display)",fontSize:"1.4rem",fontWeight:800}}>GoldLedger</div>
-        <div className="text3 fs-sm">Loading data from GitHub...</div>
+        <div className="text3 fs-sm">Loading {currentUser.businessName||currentUser.username}'s data...</div>
         <div style={{width:200,height:3,background:"var(--surface2)",borderRadius:99,overflow:"hidden"}}>
           <div style={{width:"60%",height:"100%",background:"linear-gradient(90deg,var(--gold),var(--amber))",borderRadius:99,animation:"toastIn 1s ease infinite alternate"}}/>
         </div>
       </div>
-    </>
-  );
-
-  // ── Login ──
-  if(!data.currentUser) return (
-    <>
-      <style>{styles}</style>
-      <LoginPage users={data.users} onLogin={user=>setData(d=>({...d,currentUser:user}))}/>
     </>
   );
 
@@ -1298,7 +1380,7 @@ export default function App() {
             ))}
           </nav>
           <div className="sidebar-footer">
-            <div className="nav-item" onClick={()=>setData(d=>({...d,currentUser:null}))}><Icon name="logout" size={17}/>Sign Out</div>
+            <div className="nav-item" onClick={()=>{setCurrentUser(null);setData({...defaultBusinessData});setFileSha(null);}}><Icon name="logout" size={17}/>Sign Out</div>
           </div>
         </aside>
 
@@ -1317,12 +1399,15 @@ export default function App() {
               {syncStatus==="saved" &&<span className="sync-indicator text-green"><Icon name="check" size={13} color="var(--green)"/>Saved</span>}
               {syncStatus==="error" &&<span className="sync-indicator text-red">Save failed</span>}
               <button className="btn btn-gold btn-sm" onClick={()=>setEntryForm({entry:null,personId:viewPerson?.id||""})}><Icon name="plus" size={14}/>New Entry</button>
-              <div className="user-badge"><div className="user-avatar">{data.currentUser.username[0].toUpperCase()}</div></div>
+              <div className="user-badge">
+                <div className="user-avatar">{currentUser.username[0].toUpperCase()}</div>
+                <span style={{fontSize:"0.8rem",color:"var(--text2)",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{currentUser.businessName||currentUser.username}</span>
+              </div>
             </div>
           </header>
 
           <div className="page">
-            {page==="dashboard"&&<Dashboard data={data} setPage={setPage} setViewPerson={setViewPerson}/>}
+            {page==="dashboard"&&<Dashboard data={data} setPage={setPage} setViewPerson={setViewPerson} currentUser={currentUser}/>}
             {page==="customers"&&(
               <PeopleList type="customer" data={data.customers} entries={data.entries}
                 onAdd={()=>setPersonForm({type:"Customer",person:null})}
@@ -1345,7 +1430,7 @@ export default function App() {
                 onDeleteEntry={deleteEntry}/>
             )}
             {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers}/>}
-            {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast}/>}
+            {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser}/>}
           </div>
         </div>
       </div>
