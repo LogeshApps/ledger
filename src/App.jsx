@@ -796,11 +796,19 @@ function Reports({ entries, customers, workers }) {
   const [tab, setTab]       = useState("monthly");
   const [month, setMonth]   = useState(new Date().toISOString().slice(0,7));
   const [person, setPerson] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo,   setDateTo]   = useState("");
 
   const allPeople = useMemo(()=>[...customers.map(c=>({...c,ptype:"customer"})),...workers.map(w=>({...w,ptype:"worker"}))],[customers,workers]);
 
-  const monthEntries = useMemo(()=>entries.filter(e=>e.date.startsWith(month)),[entries,month]);
-  const personEntries= useMemo(()=>person?entries.filter(e=>e.personId===person):[]  ,[entries,person]);
+  const applyDateRange = (ents) => ents.filter(e => {
+    if (dateFrom && e.date < dateFrom) return false;
+    if (dateTo   && e.date > dateTo)   return false;
+      return true;
+  });
+
+  const monthEntries  = useMemo(()=>applyDateRange(entries.filter(e=>e.date.startsWith(month))),[entries,month,dateFrom,dateTo]);
+  const personEntries = useMemo(()=>person?applyDateRange(entries.filter(e=>e.personId===person)):[],[entries,person,dateFrom,dateTo]);
 
   const summary = (ents) => ({
     goldIn:   ents.reduce((s,e)=>s+Number(e.goldIn||0),0),
@@ -965,7 +973,16 @@ function Reports({ entries, customers, workers }) {
       </div>
       {tab==="monthly"&&(
         <div>
-          <div className="toolbar"><input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{minWidth:160}}/></div>
+          <div className="toolbar">
+  <input type="month" value={month} onChange={e=>setMonth(e.target.value)} style={{minWidth:160}}/>
+  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+    <span style={{fontSize:"0.8rem",color:"var(--text2)",fontWeight:600}}>Date Range:</span>
+    <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{minWidth:140}} title="From"/>
+    <span style={{color:"var(--text3)"}}>→</span>
+    <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{minWidth:140}} title="To"/>
+    {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
+  </div>
+</div>
           <SummaryCards s={summary(monthEntries)}/>
           <RenderTable ents={monthEntries}/>
         </div>
@@ -973,12 +990,19 @@ function Reports({ entries, customers, workers }) {
       {tab==="person"&&(
         <div>
           <div className="toolbar">
-            <select value={person} onChange={e=>setPerson(e.target.value)} style={{minWidth:220}}>
-              <option value="">-- Select Person --</option>
-              <optgroup label="Customers">{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
-              <optgroup label="Workers">{workers.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</optgroup>
-            </select>
-          </div>
+  <select value={person} onChange={e=>setPerson(e.target.value)} style={{minWidth:220}}>
+    <option value="">-- Select Person --</option>
+    <optgroup label="Customers">{customers.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</optgroup>
+    <optgroup label="Workers">{workers.map(w=><option key={w.id} value={w.id}>{w.name}</option>)}</optgroup>
+  </select>
+  <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+    <span style={{fontSize:"0.8rem",color:"var(--text2)",fontWeight:600}}>Date Range:</span>
+    <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} style={{minWidth:140}} title="From"/>
+    <span style={{color:"var(--text3)"}}>→</span>
+    <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)} style={{minWidth:140}} title="To"/>
+    {(dateFrom||dateTo)&&<button className="btn btn-secondary btn-sm" onClick={()=>{setDateFrom("");setDateTo("")}}>Clear</button>}
+  </div>
+</div>
           {person&&<><SummaryCards s={summary(personEntries)}/><RenderTable ents={personEntries}/></>}
           {!person&&<div className="empty"><div className="empty-icon"><Icon name="customers" size={28}/></div><div className="empty-title">Select a person to view their report</div></div>}
         </div>
