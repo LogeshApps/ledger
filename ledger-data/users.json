@@ -15,6 +15,13 @@
       "password": "9894058144",
       "businessName": "Rishvik Jewellery",
       "createdAt": 1773212574042
+    },
+    {
+      "id": "ncjlivgqmmlrd8hl",
+      "username": "pavi1996",
+      "password": "12345678",
+      "businessName": "Pavithra",
+      "createdAt": 1773216578361
     }
   ]
 }
