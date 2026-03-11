@@ -16,6 +16,12 @@ const USERS_FILE = "ledger-data/users.json";
 // ─── ADMIN credentials (hardcoded — only you know this) ─────────────
 const ADMIN_USERNAME = "goldadmin";
 const ADMIN_PASSWORD = "Admin@gold2024";
+// ─── UPI + Subscription config ──────────────────────────────────────
+const UPI_ID        = "logeshunique@oksbi";
+const UPI_NAME      = "GoldLedger";
+const PRICE_MONTHLY = 99;
+const PRICE_YEARLY  = 999;
+const PAYMENTS_FILE = "ledger-data/payments.json";
 // ───────────────────────────────────────────────────────────────────
 
 // ─── GitHub API ─────────────────────────────────────────────────────
@@ -1244,58 +1250,300 @@ function Dashboard({ data, setPage, setViewPerson, currentUser }) {
 }
 
 
+
+// ─── Subscription helpers ─────────────────────────────────────────────
+const isExpired = (user) => {
+  if (!user?.expiryDate) return true;
+  return new Date(user.expiryDate) < new Date();
+};
+const daysLeft = (user) => {
+  if (!user?.expiryDate) return 0;
+  const diff = new Date(user.expiryDate) - new Date();
+  return Math.max(0, Math.ceil(diff / (1000*60*60*24)));
+};
+
+// ─── Payment Page ─────────────────────────────────────────────────────
+function PaymentPage({ currentUser, onRefresh, onLogout }) {
+  const [plan,   setPlan]   = useState("yearly");
+  const [utr,    setUtr]    = useState("");
+  const [step,   setStep]   = useState("plan"); // plan | pay | submitted
+  const [busy,   setBusy]   = useState(false);
+  const [err,    setErr]    = useState("");
+
+  const amount = plan === "monthly" ? PRICE_MONTHLY : PRICE_YEARLY;
+  const months = plan === "monthly" ? 1 : 12;
+
+  const upiLink = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent("GoldLedger "+plan+" plan - "+currentUser.username)}`;
+
+  const submitUTR = async () => {
+    const trimmed = utr.trim();
+    if (trimmed.length < 6) return setErr("Enter a valid UTR / Transaction ID.");
+    setBusy(true); setErr("");
+    try {
+      // Load existing payments
+      const result = await ghGet(PAYMENTS_FILE);
+      const payments = result?.data?.payments || [];
+      const sha = result?.sha || null;
+      // Check duplicate UTR
+      if (payments.find(p => p.utr === trimmed)) {
+        setBusy(false); return setErr("This UTR is already submitted. Contact admin if not approved.");
+      }
+      const newPayment = {
+        id: uid(),
+        username: currentUser.username,
+        businessName: currentUser.businessName || currentUser.username,
+        plan,
+        amount,
+        months,
+        utr: trimmed,
+        status: "pending", // pending | approved | rejected
+        submittedAt: Date.now(),
+        approvedAt: null,
+      };
+      await ghPut(PAYMENTS_FILE, { payments: [...payments, newPayment] }, sha, `Payment UTR submitted: ${currentUser.username}`);
+      setStep("submitted");
+    } catch(e) { setErr("Failed to submit. Please try again."); }
+    setBusy(false);
+  };
+
+  const expired = isExpired(currentUser);
+  const left    = daysLeft(currentUser);
+
+  const inp = {background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",color:"var(--text)",fontFamily:"var(--font)",fontSize:"0.95rem",padding:"11px 14px",width:"100%",outline:"none",boxSizing:"border-box",marginTop:6};
+
+  return (
+    <div style={{minHeight:"100vh",background:"var(--bg)",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"100%",maxWidth:440}}>
+
+        {/* Header */}
+        <div style={{textAlign:"center",marginBottom:28}}>
+          <div style={{width:56,height:56,background:"linear-gradient(135deg,var(--gold),var(--amber))",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 12px"}}>
+            <Icon name="gold" size={28} color="#000"/>
+          </div>
+          <div style={{fontFamily:"var(--font-display)",fontSize:"1.5rem",fontWeight:800}}>GoldLedger</div>
+          {expired
+            ? <div style={{marginTop:6,color:"var(--red)",fontWeight:600}}>⚠️ Your subscription has expired</div>
+            : <div style={{marginTop:6,color:"var(--gold)",fontWeight:600}}>⚡ {left} days remaining — Renew now</div>
+          }
+          <div style={{fontSize:"0.82rem",color:"var(--text3)",marginTop:4}}>Logged in as <strong>{currentUser.businessName||currentUser.username}</strong></div>
+        </div>
+
+        <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,padding:28,boxShadow:"var(--shadow)"}}>
+
+          {/* ── Step 1: Choose Plan ── */}
+          {step==="plan" && <>
+            <div style={{fontFamily:"var(--font-display)",fontSize:"1.1rem",fontWeight:700,marginBottom:18,textAlign:"center"}}>Choose Your Plan</div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:22}}>
+              {[{id:"monthly",label:"Monthly",price:PRICE_MONTHLY,sub:"Billed every month"},{id:"yearly",label:"Yearly",price:PRICE_YEARLY,sub:"Save ₹"+(PRICE_MONTHLY*12-PRICE_YEARLY)+"!",badge:"BEST VALUE"}].map(pl=>(
+                <div key={pl.id} onClick={()=>setPlan(pl.id)} style={{border:`2px solid ${plan===pl.id?"var(--gold)":"var(--border)"}`,borderRadius:12,padding:"16px 12px",cursor:"pointer",textAlign:"center",position:"relative",background:plan===pl.id?"rgba(234,179,8,0.06)":"var(--surface2)",transition:"all 0.2s"}}>
+                  {pl.badge&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",background:"var(--gold)",color:"#000",fontSize:"0.65rem",fontWeight:700,padding:"2px 8px",borderRadius:20,whiteSpace:"nowrap"}}>{pl.badge}</div>}
+                  <div style={{fontWeight:700,fontSize:"0.95rem",marginBottom:4}}>{pl.label}</div>
+                  <div style={{fontFamily:"var(--font-display)",fontSize:"1.6rem",fontWeight:800,color:"var(--gold)"}}>₹{pl.price}</div>
+                  <div style={{fontSize:"0.75rem",color:"var(--text3)",marginTop:3}}>{pl.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={()=>setStep("pay")} style={{width:"100%",padding:"12px",fontSize:"1rem",fontWeight:700,background:"linear-gradient(135deg,var(--gold),var(--amber))",color:"#000",border:"none",borderRadius:10,cursor:"pointer"}}>
+              Continue → Pay ₹{amount}
+            </button>
+            <div style={{marginTop:14,textAlign:"center"}}>
+              <span style={{fontSize:"0.8rem",color:"var(--text3)",cursor:"pointer"}} onClick={onLogout}>← Sign out</span>
+            </div>
+          </>}
+
+          {/* ── Step 2: Pay via UPI ── */}
+          {step==="pay" && <>
+            <div style={{fontFamily:"var(--font-display)",fontSize:"1.1rem",fontWeight:700,marginBottom:4,textAlign:"center"}}>Pay ₹{amount} via UPI</div>
+            <div style={{textAlign:"center",fontSize:"0.82rem",color:"var(--text3)",marginBottom:18}}>{plan==="monthly"?"1 Month Access":"1 Year Access"} · {currentUser.businessName||currentUser.username}</div>
+
+            {/* UPI Details box */}
+            <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:12,padding:18,marginBottom:18,textAlign:"center"}}>
+              <div style={{fontSize:"0.78rem",color:"var(--text3)",marginBottom:6,textTransform:"uppercase",letterSpacing:"0.05em"}}>Pay to UPI ID</div>
+              <div style={{fontFamily:"var(--font-display)",fontSize:"1.2rem",fontWeight:800,color:"var(--gold)",letterSpacing:1}}>{UPI_ID}</div>
+              <div style={{fontSize:"0.82rem",color:"var(--text2)",marginTop:4}}>{UPI_NAME}</div>
+              <div style={{margin:"14px 0",height:1,background:"var(--border)"}}/>
+              <div style={{fontSize:"0.78rem",color:"var(--text3)",marginBottom:4}}>Amount to pay</div>
+              <div style={{fontFamily:"var(--font-display)",fontSize:"2rem",fontWeight:900,color:"var(--text)"}}>₹{amount}</div>
+
+              {/* Open in UPI app button */}
+              <a href={upiLink} style={{display:"inline-block",marginTop:14,padding:"10px 22px",background:"linear-gradient(135deg,#22c55e,#16a34a)",color:"#fff",borderRadius:8,fontWeight:700,fontSize:"0.9rem",textDecoration:"none"}}>
+                📱 Open UPI App
+              </a>
+              <div style={{fontSize:"0.75rem",color:"var(--text3)",marginTop:8}}>Works with PhonePe, GPay, Paytm, BHIM</div>
+            </div>
+
+            {/* UTR input */}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:"0.82rem",fontWeight:600,color:"var(--text2)"}}>After paying, enter your UTR / Transaction ID:</div>
+              <input style={inp} value={utr} onChange={e=>setUtr(e.target.value)} placeholder="e.g. 426112345678 or T2506XXXXXX"/>
+              <div style={{fontSize:"0.75rem",color:"var(--text3)",marginTop:5}}>Find UTR in your UPI app → Transaction History → 12-digit number</div>
+            </div>
+
+            {err && <div className="alert alert-error" style={{marginBottom:12}}>{err}</div>}
+
+            <button onClick={submitUTR} disabled={busy} style={{width:"100%",padding:"12px",fontSize:"1rem",fontWeight:700,background:"linear-gradient(135deg,var(--gold),var(--amber))",color:"#000",border:"none",borderRadius:10,cursor:"pointer",marginBottom:10}}>
+              {busy ? "Submitting..." : "✅ Submit Payment for Approval"}
+            </button>
+            <div style={{textAlign:"center"}}>
+              <span style={{fontSize:"0.8rem",color:"var(--text3)",cursor:"pointer"}} onClick={()=>setStep("plan")}>← Back to plans</span>
+            </div>
+          </>}
+
+          {/* ── Step 3: Submitted ── */}
+          {step==="submitted" && <>
+            <div style={{textAlign:"center",padding:"10px 0"}}>
+              <div style={{fontSize:"3rem",marginBottom:12}}>🎉</div>
+              <div style={{fontFamily:"var(--font-display)",fontSize:"1.2rem",fontWeight:800,marginBottom:8}}>Payment Submitted!</div>
+              <div style={{color:"var(--text2)",fontSize:"0.9rem",lineHeight:1.6,marginBottom:20}}>
+                Your UTR has been sent for approval.<br/>
+                Admin will verify and activate your account<br/>
+                <strong>usually within a few minutes.</strong>
+              </div>
+              <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:20,fontSize:"0.85rem",color:"var(--text2)"}}>
+                📞 For faster approval, WhatsApp your UTR to admin.
+              </div>
+              <button onClick={onRefresh} style={{width:"100%",padding:"11px",fontWeight:700,background:"linear-gradient(135deg,var(--gold),var(--amber))",color:"#000",border:"none",borderRadius:10,cursor:"pointer",marginBottom:10}}>
+                🔄 Check Activation Status
+              </button>
+              <div style={{textAlign:"center"}}>
+                <span style={{fontSize:"0.8rem",color:"var(--text3)",cursor:"pointer"}} onClick={onLogout}>Sign out</span>
+              </div>
+            </div>
+          </>}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Admin Panel ─────────────────────────────────────────────────────
 function AdminPanel({ onLogout }) {
-  const [users,   setUsers]   = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selUser, setSelUser] = useState(null); // selected user to view
-  const [userData, setUserData] = useState(null);
-  const [userLoading, setUserLoading] = useState(false);
-  const [tab, setTab] = useState("users"); // users | view
+  const [users,       setUsers]      = useState([]);
+  const [payments,    setPayments]   = useState([]);
+  const [loading,     setLoading]    = useState(true);
+  const [selUser,     setSelUser]    = useState(null);
+  const [userData,    setUserData]   = useState(null);
+  const [userLoading, setUserLoading]= useState(false);
+  const [tab,         setTab]        = useState("payments"); // payments | users | view
   const { toasts, add: addToast, remove: removeToast } = useToast();
 
-  // Load all registered users
-  useEffect(()=>{
-    (async()=>{
-      setLoading(true);
-      try {
-        const result = await ghGet(USERS_FILE);
-        setUsers(result?.data?.users || []);
-      } catch(e) { addToast("Failed to load users","error"); }
-      setLoading(false);
-    })();
-  },[]);
-
-  const viewUser = async (user) => {
-    setSelUser(user);
-    setTab("view");
-    setUserLoading(true);
+  const loadAll = async () => {
+    setLoading(true);
     try {
-      const file = userDataFile(user.username);
-      const result = await ghGet(file);
+      const [ur, pr] = await Promise.all([ghGet(USERS_FILE), ghGet(PAYMENTS_FILE)]);
+      setUsers(ur?.data?.users || []);
+      setPayments(pr?.data?.payments || []);
+    } catch(e) { addToast("Failed to load","error"); }
+    setLoading(false);
+  };
+
+  useEffect(()=>{ loadAll(); },[]);
+
+  // ── Approve payment ──
+  const approvePayment = async (pmt) => {
+    try {
+      // 1. Calculate new expiry date
+      const usersResult = await ghGet(USERS_FILE);
+      const allUsers = usersResult?.data?.users || [];
+      const userIdx  = allUsers.findIndex(u => u.username === pmt.username);
+      if (userIdx === -1) return addToast("User not found","error");
+
+      const existing = allUsers[userIdx];
+      const base = (existing.expiryDate && new Date(existing.expiryDate) > new Date())
+        ? new Date(existing.expiryDate)   // extend from current expiry
+        : new Date();                      // extend from today
+      base.setMonth(base.getMonth() + pmt.months);
+      const newExpiry = base.toISOString().split("T")[0];
+
+      // 2. Update user expiry
+      allUsers[userIdx] = { ...existing, expiryDate: newExpiry, plan: pmt.plan };
+      await ghPut(USERS_FILE, { users: allUsers }, usersResult.sha, `Approved payment for ${pmt.username}`);
+
+      // 3. Update payment status
+      const pmtResult  = await ghGet(PAYMENTS_FILE);
+      const allPayments = pmtResult?.data?.payments || [];
+      const updated = allPayments.map(p => p.id===pmt.id ? {...p, status:"approved", approvedAt:Date.now(), expiryDate:newExpiry} : p);
+      await ghPut(PAYMENTS_FILE, { payments: updated }, pmtResult.sha, `Payment approved: ${pmt.username}`);
+
+      setUsers(allUsers);
+      setPayments(updated);
+      addToast(`✅ Approved! ${pmt.username} active till ${newExpiry}`);
+    } catch(e) { addToast("Approval failed","error"); console.error(e); }
+  };
+
+  // ── Reject payment ──
+  const rejectPayment = async (pmt) => {
+    if (!window.confirm(`Reject UTR ${pmt.utr} from ${pmt.username}?`)) return;
+    try {
+      const pmtResult   = await ghGet(PAYMENTS_FILE);
+      const allPayments = pmtResult?.data?.payments || [];
+      const updated = allPayments.map(p => p.id===pmt.id ? {...p, status:"rejected", approvedAt:Date.now()} : p);
+      await ghPut(PAYMENTS_FILE, { payments: updated }, pmtResult.sha, `Payment rejected: ${pmt.username}`);
+      setPayments(updated);
+      addToast("Payment rejected.");
+    } catch(e) { addToast("Failed","error"); }
+  };
+
+  // ── View user ledger ──
+  const viewUser = async (user) => {
+    setSelUser(user); setTab("view"); setUserLoading(true);
+    try {
+      const result = await ghGet(userDataFile(user.username));
       setUserData(result?.data || null);
-    } catch(e) { addToast("Failed to load user data","error"); setUserData(null); }
+    } catch(e) { addToast("Failed to load","error"); setUserData(null); }
     setUserLoading(false);
   };
 
+  // ── Delete user ──
   const deleteUser = async (user) => {
-    if (!window.confirm(`Delete business "${user.businessName}" (${user.username})? This cannot be undone.`)) return;
+    if (!window.confirm(`Delete "${user.businessName}" (${user.username})?`)) return;
     try {
-      const result = await ghGet(USERS_FILE);
+      const result  = await ghGet(USERS_FILE);
       const updated = (result?.data?.users||[]).filter(u=>u.id!==user.id);
-      await ghPut(USERS_FILE, { users: updated }, result?.sha, `Admin deleted user: ${user.username}`);
+      await ghPut(USERS_FILE, { users: updated }, result?.sha, `Admin deleted: ${user.username}`);
       setUsers(updated);
-      addToast("User deleted.");
-      if (selUser?.id===user.id) { setSelUser(null); setTab("users"); }
+      addToast("Deleted.");
+      if (selUser?.id===user.id) { setSelUser(null); setTab("payments"); }
     } catch(e) { addToast("Delete failed","error"); }
   };
 
-  const allEntries  = userData?.entries   || [];
-  const allCustomers= userData?.customers || [];
-  const allWorkers  = userData?.workers   || [];
-  const goldBal   = allEntries.reduce((s,e)=>s+Number(e.goldIn||0)-Number(e.goldOut||0),0);
-  const moneyBal  = allEntries.reduce((s,e)=>s+Number(e.moneyIn||0)-Number(e.moneyOut||0),0);
-  const pureBal   = allEntries.reduce((s,e)=>s+Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0),0);
+  // ── Extend subscription manually ──
+  const extendSub = async (user, months) => {
+    try {
+      const result   = await ghGet(USERS_FILE);
+      const allUsers = result?.data?.users || [];
+      const idx      = allUsers.findIndex(u=>u.id===user.id);
+      if (idx===-1) return;
+      const base = (allUsers[idx].expiryDate && new Date(allUsers[idx].expiryDate) > new Date())
+        ? new Date(allUsers[idx].expiryDate) : new Date();
+      base.setMonth(base.getMonth()+months);
+      const newExpiry = base.toISOString().split("T")[0];
+      allUsers[idx] = {...allUsers[idx], expiryDate: newExpiry};
+      await ghPut(USERS_FILE, {users:allUsers}, result.sha, `Admin extended sub for ${user.username}`);
+      setUsers(allUsers);
+      addToast(`Extended till ${newExpiry}`);
+    } catch(e) { addToast("Failed","error"); }
+  };
+
+  const pending  = payments.filter(p=>p.status==="pending");
+  const approved = payments.filter(p=>p.status==="approved");
+  const rejected = payments.filter(p=>p.status==="rejected");
+
+  const allEntries   = userData?.entries   || [];
+  const allCustomers = userData?.customers || [];
+  const allWorkers   = userData?.workers   || [];
+  const goldBal  = allEntries.reduce((s,e)=>s+Number(e.goldIn||0)-Number(e.goldOut||0),0);
+  const moneyBal = allEntries.reduce((s,e)=>s+Number(e.moneyIn||0)-Number(e.moneyOut||0),0);
+  const pureBal  = allEntries.reduce((s,e)=>s+Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0),0);
+
+  const StatusBadge = ({s}) => {
+    const map = {pending:{bg:"rgba(234,179,8,0.15)",color:"var(--gold)",label:"Pending"},approved:{bg:"rgba(34,197,94,0.15)",color:"var(--green)",label:"Approved"},rejected:{bg:"rgba(239,68,68,0.15)",color:"var(--red)",label:"Rejected"}};
+    const m = map[s]||map.pending;
+    return <span style={{background:m.bg,color:m.color,padding:"2px 10px",borderRadius:20,fontSize:"0.75rem",fontWeight:700}}>{m.label}</span>;
+  };
 
   return (
     <>
@@ -1307,17 +1555,22 @@ function AdminPanel({ onLogout }) {
             <div><div className="logo-text">GoldLedger</div><div className="logo-sub" style={{color:"var(--red)"}}>Admin Panel</div></div>
           </div>
           <nav className="sidebar-nav">
-            <div className={`nav-item${tab==="users"?" active":""}`} onClick={()=>setTab("users")}><Icon name="customers" size={17}/>All Businesses</div>
-            {selUser&&<div className={`nav-item${tab==="view"?" active":""}`} onClick={()=>setTab("view")}><Icon name="ledger" size={17}/>Viewing: {selUser.username}</div>}
+            <div className={`nav-item${tab==="payments"?" active":""}`} onClick={()=>setTab("payments")}>
+              <Icon name="money" size={17}/>Payments
+              {pending.length>0&&<span style={{marginLeft:"auto",background:"var(--red)",color:"#fff",borderRadius:10,fontSize:"0.7rem",padding:"1px 7px",fontWeight:700}}>{pending.length}</span>}
+            </div>
+            <div className={`nav-item${tab==="users"?" active":""}`} onClick={()=>setTab("users")}><Icon name="customers" size={17}/>Businesses</div>
+            {selUser&&<div className={`nav-item${tab==="view"?" active":""}`} onClick={()=>setTab("view")}><Icon name="reports" size={17}/>{selUser.username}</div>}
           </nav>
           <div className="sidebar-footer">
+            <div className="nav-item" onClick={loadAll}><Icon name="sync" size={17}/>Refresh</div>
             <div className="nav-item" onClick={onLogout}><Icon name="logout" size={17}/>Sign Out</div>
           </div>
         </aside>
         <div className="main">
           <header className="header">
             <div className="header-title">
-              {tab==="users"?"All Registered Businesses":tab==="view"&&selUser?`${selUser.businessName} — Ledger View`:"Admin"}
+              {tab==="payments"?"Payment Approvals":tab==="users"?"All Businesses":tab==="view"&&selUser?selUser.businessName:"Admin"}
             </div>
             <div className="header-right">
               <div className="user-badge">
@@ -1328,46 +1581,114 @@ function AdminPanel({ onLogout }) {
           </header>
           <div className="page">
 
-            {/* ── Users List ── */}
+            {/* ── PAYMENTS TAB ── */}
+            {tab==="payments"&&(
+              <div>
+                {/* Summary cards */}
+                <div className="stats-grid" style={{marginBottom:20}}>
+                  <div className="stat-card gold"><div className="stat-icon gold"><Icon name="money" size={18} color="var(--gold)"/></div><div className="stat-label">Pending Approvals</div><div className="stat-value gold">{pending.length}</div></div>
+                  <div className="stat-card green"><div className="stat-icon green"><Icon name="check" size={18} color="var(--green)"/></div><div className="stat-label">Total Approved</div><div className="stat-value green">{approved.length}</div></div>
+                  <div className="stat-card blue"><div className="stat-icon blue"><Icon name="money" size={18} color="var(--blue)"/></div><div className="stat-label">Revenue (approx)</div><div className="stat-value blue">₹{approved.reduce((s,p)=>s+p.amount,0)}</div></div>
+                  <div className="stat-card red"><div className="stat-icon red"><Icon name="trash" size={18} color="var(--red)"/></div><div className="stat-label">Rejected</div><div className="stat-value red">{rejected.length}</div></div>
+                </div>
+
+                {/* Pending first */}
+                {pending.length>0&&(
+                  <div className="card" style={{marginBottom:16,border:"1px solid rgba(234,179,8,0.3)"}}>
+                    <div style={{fontFamily:"var(--font-display)",fontWeight:700,marginBottom:14,color:"var(--gold)"}}>⏳ Pending Approval ({pending.length})</div>
+                    <div className="table-wrap" style={{border:"none"}}>
+                      <table>
+                        <thead><tr><th>Business</th><th>Plan</th><th>Amount</th><th>UTR / Txn ID</th><th>Submitted</th><th className="th-center">Action</th></tr></thead>
+                        <tbody>
+                          {pending.map(p=>(
+                            <tr key={p.id}>
+                              <td><div className="fw6">{p.businessName}</div><div className="fs-xs text3">{p.username}</div></td>
+                              <td><span className="badge badge-gold" style={{textTransform:"capitalize"}}>{p.plan}</span></td>
+                              <td className="fw6">₹{p.amount}</td>
+                              <td><span style={{fontFamily:"monospace",fontSize:"0.85rem",background:"var(--surface2)",padding:"2px 8px",borderRadius:4}}>{p.utr}</span></td>
+                              <td className="text2 fs-xs">{new Date(p.submittedAt).toLocaleString("en-IN")}</td>
+                              <td className="center">
+                                <div className="flex gap2" style={{justifyContent:"center"}}>
+                                  <button className="btn btn-sm" style={{background:"var(--green)",color:"#fff",border:"none"}} onClick={()=>approvePayment(p)}>✅ Approve</button>
+                                  <button className="btn btn-danger btn-sm" onClick={()=>rejectPayment(p)}>❌ Reject</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* All payments history */}
+                <div className="card">
+                  <div className="fw7 fs-sm" style={{marginBottom:14}}>All Payment History</div>
+                  {loading?<div className="empty"><div className="empty-sub">Loading...</div></div>:payments.length===0?
+                    <div className="empty"><div className="empty-sub">No payments yet</div></div>
+                  :(
+                    <div className="table-wrap" style={{border:"none"}}>
+                      <table>
+                        <thead><tr><th>Business</th><th>Plan</th><th>Amount</th><th>UTR</th><th>Status</th><th>Expiry</th><th>Date</th></tr></thead>
+                        <tbody>
+                          {[...payments].sort((a,b)=>b.submittedAt-a.submittedAt).map(p=>(
+                            <tr key={p.id}>
+                              <td><div className="fw6">{p.businessName}</div><div className="fs-xs text3">{p.username}</div></td>
+                              <td style={{textTransform:"capitalize"}}>{p.plan}</td>
+                              <td className="fw6">₹{p.amount}</td>
+                              <td><span style={{fontFamily:"monospace",fontSize:"0.82rem"}}>{p.utr}</span></td>
+                              <td><StatusBadge s={p.status}/></td>
+                              <td className="text2 fs-xs">{p.expiryDate||"-"}</td>
+                              <td className="text2 fs-xs">{new Date(p.submittedAt).toLocaleDateString("en-IN")}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── BUSINESSES TAB ── */}
             {tab==="users"&&(
               <div>
                 <div className="section-header">
-                  <div>
-                    <div className="section-title">Registered Businesses</div>
-                    <div className="section-sub">{users.length} total businesses</div>
-                  </div>
+                  <div><div className="section-title">Registered Businesses</div><div className="section-sub">{users.length} total</div></div>
                 </div>
-                {loading?(
-                  <div className="empty"><div className="empty-sub">Loading...</div></div>
-                ):users.length===0?(
-                  <div className="empty"><div className="empty-icon"><Icon name="customers" size={28}/></div><div className="empty-title">No businesses registered yet</div></div>
-                ):(
+                {loading?<div className="empty"><div className="empty-sub">Loading...</div></div>:users.length===0?
+                  <div className="empty"><div className="empty-title">No businesses yet</div></div>
+                :(
                   <div className="table-wrap">
                     <table>
-                      <thead>
-                        <tr>
-                          <th>#</th>
-                          <th>Business Name</th>
-                          <th>Username</th>
-                          <th>Registered On</th>
-                          <th className="th-center">Actions</th>
-                        </tr>
-                      </thead>
+                      <thead><tr><th>#</th><th>Business</th><th>Username</th><th>Plan</th><th>Expiry</th><th>Status</th><th className="th-center">Actions</th></tr></thead>
                       <tbody>
-                        {users.map((u,i)=>(
-                          <tr key={u.id}>
-                            <td className="text3">{i+1}</td>
-                            <td><div className="fw6">{u.businessName||"-"}</div></td>
-                            <td><span className="badge badge-blue">{u.username}</span></td>
-                            <td className="text2">{u.createdAt?fmtDate(new Date(u.createdAt).toISOString().split("T")[0]):"-"}</td>
-                            <td className="center">
-                              <div className="flex gap2" style={{justifyContent:"center"}}>
-                                <button className="btn btn-secondary btn-sm" onClick={()=>viewUser(u)}><Icon name="eye" size={13}/>View Ledger</button>
-                                <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u)}><Icon name="trash" size={13}/>Delete</button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
+                        {users.map((u,i)=>{
+                          const expired = isExpired(u);
+                          const left    = daysLeft(u);
+                          return (
+                            <tr key={u.id}>
+                              <td className="text3">{i+1}</td>
+                              <td><div className="fw6">{u.businessName||"-"}</div></td>
+                              <td><span className="badge badge-blue">{u.username}</span></td>
+                              <td style={{textTransform:"capitalize"}}>{u.plan||"-"}</td>
+                              <td className="text2 fs-xs">{u.expiryDate||"Not set"}</td>
+                              <td>
+                                {!u.expiryDate?<span style={{color:"var(--text3)",fontSize:"0.78rem"}}>No subscription</span>
+                                :expired?<span style={{color:"var(--red)",fontSize:"0.78rem",fontWeight:600}}>Expired</span>
+                                :<span style={{color:"var(--green)",fontSize:"0.78rem",fontWeight:600}}>{left}d left</span>}
+                              </td>
+                              <td className="center">
+                                <div className="flex gap2" style={{justifyContent:"center",flexWrap:"wrap"}}>
+                                  <button className="btn btn-secondary btn-sm" onClick={()=>viewUser(u)}><Icon name="eye" size={13}/>View</button>
+                                  <button className="btn btn-sm" style={{background:"rgba(34,197,94,0.15)",color:"var(--green)",border:"1px solid rgba(34,197,94,0.3)"}} onClick={()=>extendSub(u,1)}>+1M</button>
+                                  <button className="btn btn-sm" style={{background:"rgba(34,197,94,0.15)",color:"var(--green)",border:"1px solid rgba(34,197,94,0.3)"}} onClick={()=>extendSub(u,12)}>+1Y</button>
+                                  <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u)}><Icon name="trash" size={13}/></button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -1375,36 +1696,28 @@ function AdminPanel({ onLogout }) {
               </div>
             )}
 
-            {/* ── View Selected User's Data ── */}
+            {/* ── VIEW USER LEDGER ── */}
             {tab==="view"&&selUser&&(
               <div>
                 <div className="section-header">
                   <div className="flex items-center gap3">
                     <button className="btn btn-secondary btn-sm" onClick={()=>setTab("users")}><Icon name="back" size={16}/>Back</button>
-                    <div>
-                      <div className="section-title">{selUser.businessName}</div>
-                      <div className="section-sub">@{selUser.username}</div>
-                    </div>
+                    <div><div className="section-title">{selUser.businessName}</div><div className="section-sub">@{selUser.username} · Expires: {selUser.expiryDate||"Not set"}</div></div>
                   </div>
                 </div>
-                {userLoading?(
-                  <div className="empty"><div className="empty-sub">Loading business data...</div></div>
-                ):!userData?(
-                  <div className="empty"><div className="empty-title">No data found for this user</div></div>
-                ):(
+                {userLoading?<div className="empty"><div className="empty-sub">Loading...</div></div>:!userData?
+                  <div className="empty"><div className="empty-title">No data found</div></div>
+                :(
                   <>
                     <div className="stats-grid" style={{marginBottom:20}}>
-                      <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Gold Balance</div><div className="stat-value gold">{fmtGold(goldBal)}</div><div className="stat-sub">Pure 24K: {fmtGold(pureBal)}</div></div>
+                      <div className="stat-card gold"><div className="stat-icon gold"><Icon name="gold" size={18} color="var(--gold)"/></div><div className="stat-label">Gold Balance</div><div className="stat-value gold">{fmtGold(goldBal)}</div><div className="stat-sub">Pure: {fmtGold(pureBal)}</div></div>
                       <div className={`stat-card ${moneyBal>=0?"green":"red"}`}><div className={`stat-icon ${moneyBal>=0?"green":"red"}`}><Icon name="money" size={18} color={moneyBal>=0?"var(--green)":"var(--red)"}/></div><div className="stat-label">Money Balance</div><div className={`stat-value ${moneyBal>=0?"green":"red"}`}>{fmtMoney(moneyBal)}</div></div>
                       <div className="stat-card blue"><div className="stat-icon blue"><Icon name="customers" size={18} color="var(--blue)"/></div><div className="stat-label">Customers</div><div className="stat-value blue">{allCustomers.length}</div></div>
                       <div className="stat-card"><div className="stat-icon" style={{background:"rgba(167,139,250,0.12)",color:"#a78bfa"}}><Icon name="workers" size={18} color="#a78bfa"/></div><div className="stat-label">Workers</div><div className="stat-value" style={{color:"#a78bfa"}}>{allWorkers.length}</div></div>
                     </div>
-
                     <div className="card">
                       <div className="fw7 fs-sm" style={{marginBottom:14}}>All Entries ({allEntries.length})</div>
-                      {allEntries.length===0?(
-                        <div className="empty" style={{padding:24}}><div className="empty-sub">No entries yet</div></div>
-                      ):(
+                      {allEntries.length===0?<div className="empty" style={{padding:24}}><div className="empty-sub">No entries yet</div></div>:(
                         <div className="table-wrap" style={{border:"none"}}>
                           <table>
                             <thead><tr><th>Date</th><th>Person</th><th>Description</th><th className="th-right">Gold In</th><th className="th-right">Gold Out</th><th className="th-center">Purity</th><th className="th-right">Money In</th><th className="th-right">Money Out</th></tr></thead>
@@ -1554,6 +1867,31 @@ export default function App() {
     </>
   );
 
+  // ── Subscription expired / not paid → show payment page ──
+  if(!loading && currentUser && isExpired(currentUser)) return (
+    <>
+      <style>{styles}</style>
+      <PaymentPage
+        currentUser={currentUser}
+        onLogout={()=>{setCurrentUser(null);setData({...defaultBusinessData});setFileSha(null);}}
+        onRefresh={async()=>{
+          // Re-fetch latest user record from users.json to check if approved
+          try {
+            const result = await ghGet(USERS_FILE);
+            const users  = result?.data?.users || [];
+            const fresh  = users.find(u=>u.username===currentUser.username);
+            if (fresh && !isExpired(fresh)) {
+              setCurrentUser(fresh);
+              loadUserData(fresh);
+            } else {
+              alert("Not activated yet. Please wait for admin to approve your payment.");
+            }
+          } catch(e) { alert("Could not check. Try again."); }
+        }}
+      />
+    </>
+  );
+
   // ── Loading screen (after login, while fetching business data) ──
   if(loading) return (
     <>
@@ -1614,6 +1952,13 @@ export default function App() {
           </header>
 
           <div className="page">
+            {/* Expiry warning banner */}
+            {currentUser && daysLeft(currentUser) <= 7 && daysLeft(currentUser) > 0 && (
+              <div style={{background:"rgba(234,179,8,0.12)",border:"1px solid rgba(234,179,8,0.4)",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
+                <div style={{fontSize:"0.88rem",color:"var(--gold)",fontWeight:600}}>⚠️ Your subscription expires in {daysLeft(currentUser)} day{daysLeft(currentUser)===1?"":"s"}. Renew to avoid interruption.</div>
+                <button onClick={()=>{setCurrentUser(u=>({...u,expiryDate:"2000-01-01"}));}} style={{background:"var(--gold)",color:"#000",border:"none",borderRadius:6,padding:"5px 14px",fontWeight:700,cursor:"pointer",fontSize:"0.8rem",whiteSpace:"nowrap"}}>Renew Now</button>
+              </div>
+            )}
             {page==="dashboard"&&<Dashboard data={data} setPage={setPage} setViewPerson={setViewPerson} currentUser={currentUser}/>}
             {page==="customers"&&(
               <PeopleList type="customer" data={data.customers} entries={data.entries}
