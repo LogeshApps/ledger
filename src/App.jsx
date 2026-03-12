@@ -132,6 +132,7 @@ const fmtMoneyPDF = (n) => {
   return (num < 0 ? "-&#8377;" : "&#8377;") + formatted;
 };
 const fmtGold  = (n) => `${(Number(n)||0).toFixed(3)}g`;
+const fmtGoldN = (n) => `${(Number(n)||0).toFixed(3)}`;  // no g suffix – used where column header already says (g)
 const pureGold = (weight, purity) => {
   const w = parseFloat(weight);
   if (!w) return 0;
@@ -985,10 +986,10 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
                     checked={rows.length>0&&rows.every(r=>selectedIds.has(r.id))}
                     onChange={e=>setSelectedIds(e.target.checked?new Set(rows.map(r=>r.id)):new Set())}/>
                 </th>
-                {[["date","Date"],["desc","Description"],["goldIn","Gold In (g)"],["goldOut","Gold Out (g)"],["purity","Purity"],["pureGoldIn","Pure In (g)"],["pureGoldOut","Pure Out (g)"],["pureTot","Total Pure (g)"],["goldBal","Gold Balance"]].map(([col,lbl])=>(
-                  <th key={col} className={col==="goldIn"||col==="goldOut"||col==="pureGold"||col==="goldBal"?"th-right":col==="purity"?"th-center":""}
+                {[["date","Date & Time"],["desc","Description"],["goldIn","Gold In (g)"],["goldOut","Gold Out (g)"],["purity","Purity"],["pureGoldIn","Pure In (g)"],["pureGoldOut","Pure Out (g)"],["pureTot","Total Pure (g)"]].map(([col,lbl])=>(
+                  <th key={col} className={col==="goldIn"||col==="goldOut"||col==="pureGoldIn"||col==="pureGoldOut"||col==="pureTot"?"th-right":col==="purity"?"th-center":""}
                     onClick={()=>{ if(["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)){ if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc"); else{setSortCol(col);setSortDir("desc");} } }}
-                    style={{cursor:["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)?"pointer":"default",userSelect:"none",whiteSpace:"nowrap"}}>
+                    style={{cursor:["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)?"pointer":"default",userSelect:"none",whiteSpace:"nowrap",fontSize:"0.82rem",fontWeight:700}}>
                     {lbl}{sortCol===col?<span style={{color:"var(--gold)",marginLeft:3,fontSize:"0.7rem"}}>{sortDir==="asc"?"↑":"↓"}</span>:<span style={{opacity:["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)?0.2:0,marginLeft:3,fontSize:"0.7rem"}}>⇅</span>}
                   </th>
                 ))}
@@ -1010,24 +1011,23 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
                       checked={selectedIds.has(row.id)}
                       onChange={e=>{const s=new Set(selectedIds);e.target.checked?s.add(row.id):s.delete(row.id);setSelectedIds(s);}}/>
                   </td>
-                  <td style={{whiteSpace:"nowrap",color:"var(--text2)"}}>{fmtDate(row.date)}</td>
-                  <td><div className="fw6">{row.description||"-"}</div>{row.notes&&<div className="fs-xs text3">{row.notes}</div>}</td>
-                  <td className="right"><span className={row.goldIn?  "gold-in":"text3"}>{row.goldIn?  fmtGold(row.goldIn): "-"}</span></td>
-                  <td className="right"><span className={row.goldOut? "gold-out":"text3"}>{row.goldOut? fmtGold(row.goldOut):"-"}</span></td>
-                  <td className="center"><span className="badge badge-gold">{row.purity||"-"}</span></td>
-                  <td className="right" style={{fontSize:"0.8rem"}}>
-                    <span style={{color:"#a78bfa",fontWeight:600}}>{row.pureGoldIn?`${Number(row.pureGoldIn).toFixed(3)}g`:"-"}</span>
+                  <td style={{whiteSpace:"nowrap",color:"var(--text2)",fontSize:"0.88rem"}}>{fmtDate(row.date)}</td>
+                  <td><div className="fw6" style={{fontSize:"0.9rem"}}>{row.description||"-"}</div>{row.notes&&<div className="fs-xs text3">{row.notes}</div>}</td>
+                  <td className="right"><span style={{color:row.goldIn?"var(--green)":"var(--text3)",fontWeight:row.goldIn?700:400,fontSize:"0.9rem"}}>{row.goldIn?fmtGoldN(row.goldIn):"-"}</span></td>
+                  <td className="right"><span style={{color:row.goldOut?"var(--red)":"var(--text3)",fontWeight:row.goldOut?700:400,fontSize:"0.9rem"}}>{row.goldOut?fmtGoldN(row.goldOut):"-"}</span></td>
+                  <td className="center"><span className="badge badge-gold" style={{fontSize:"0.85rem"}}>{row.purity||"-"}</span></td>
+                  <td className="right" style={{fontSize:"0.88rem"}}>
+                    <span style={{color:row.pureGoldIn?"var(--green)":"var(--text3)",fontWeight:row.pureGoldIn?600:400}}>{row.pureGoldIn?fmtGoldN(row.pureGoldIn):"-"}</span>
                   </td>
-                  <td className="right" style={{fontSize:"0.8rem"}}>
-                    <span style={{color:"#f97316",fontWeight:600}}>{row.pureGoldOut?`${Number(row.pureGoldOut).toFixed(3)}g`:"-"}</span>
+                  <td className="right" style={{fontSize:"0.88rem"}}>
+                    <span style={{color:row.pureGoldOut?"var(--red)":"var(--text3)",fontWeight:row.pureGoldOut?600:400}}>{row.pureGoldOut?fmtGoldN(row.pureGoldOut):"-"}</span>
                   </td>
-                  <td className="right" style={{fontSize:"0.8rem"}}>
-                    {(row.pureGoldIn||row.pureGoldOut)?<span style={{color:"#fbbf24",fontWeight:700}}>{(Number(row.pureGoldIn||0)-Number(row.pureGoldOut||0)).toFixed(3)}g</span>:<span className="text3">-</span>}
+                  <td className="right" style={{fontSize:"0.88rem"}}>
+                    {(row.pureGoldIn||row.pureGoldOut)?<span style={{color:(Number(row.pureGoldIn||0)-Number(row.pureGoldOut||0))>=0?"var(--gold)":"var(--red)",fontWeight:700}}>{fmtGoldN(Number(row.pureGoldIn||0)-Number(row.pureGoldOut||0))}</span>:<span className="text3">-</span>}
                   </td>
-                  <td className="right"><span className="balance-gold">{fmtGold(row.goldBal)}</span></td>
-                  <td className="right"><span className={row.moneyIn?  "money-in":"text3"}>{row.moneyIn?  fmtMoney(row.moneyIn): "-"}</span></td>
-                  <td className="right"><span className={row.moneyOut? "money-out":"text3"}>{row.moneyOut? fmtMoney(row.moneyOut):"-"}</span></td>
-                  <td className="right"><span className="balance-money">{fmtMoney(row.moneyBal)}</span></td>
+                  <td className="right" style={{fontSize:"0.88rem"}}><span style={{color:row.moneyIn?"var(--green)":"var(--text3)",fontWeight:row.moneyIn?600:400}}>{row.moneyIn?fmtMoney(row.moneyIn):"-"}</span></td>
+                  <td className="right" style={{fontSize:"0.88rem"}}><span style={{color:row.moneyOut?"var(--red)":"var(--text3)",fontWeight:row.moneyOut?600:400}}>{row.moneyOut?fmtMoney(row.moneyOut):"-"}</span></td>
+                  <td className="right"><span style={{fontWeight:700,fontSize:"0.9rem",color:row.moneyBal>=0?"var(--green)":"var(--red)"}}>{fmtMoney(row.moneyBal)}</span></td>
                   <td className="no-print">
                     <div className="flex gap2">
                       <button className="btn btn-icon btn-secondary btn-sm" onClick={()=>onEditEntry(row)}><Icon name="edit" size={13}/></button>
@@ -1039,17 +1039,16 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
               {/* Totals row */}
               <tr className="ledger-balance-row">
                 <td/>
-                <td colSpan={2}><span className="fw7">TOTALS</span></td>
-                <td className="right"><span className="text-green fw7">{fmtGold(totals.goldIn)}</span></td>
-                <td className="right"><span className="text-red fw7">{fmtGold(totals.goldOut)}</span></td>
+                <td colSpan={2}><span className="fw7" style={{fontSize:"0.95rem"}}>TOTALS ({rows.length})</span></td>
+                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--green)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.goldIn)}</span></td>
+                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.goldOut)}</span></td>
                 <td/>
-                <td className="right" style={{fontSize:"0.8rem"}}><span style={{color:"#a78bfa",fontWeight:700}}>{fmtGold(totals.pureIn)}</span></td>
-                <td className="right" style={{fontSize:"0.8rem"}}><span style={{color:"#f97316",fontWeight:700}}>{fmtGold(totals.pureOut)}</span></td>
-                <td className="right" style={{fontSize:"0.8rem"}}><span style={{color:"#fbbf24",fontWeight:700}}>{fmtGold(totals.pureIn-totals.pureOut)}</span></td>
-                <td className="right"><span className="text-gold fw7">{fmtGold(totals.goldIn-totals.goldOut)}</span></td>
-                <td className="right"><span className="text-green fw7">{fmtMoney(totals.moneyIn)}</span></td>
-                <td className="right"><span className="text-red fw7">{fmtMoney(totals.moneyOut)}</span></td>
-                <td className="right"><span className={`fw7 ${totals.moneyIn-totals.moneyOut>=0?"text-green":"text-red"}`}>{fmtMoney(totals.moneyIn-totals.moneyOut)}</span></td>
+                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--green)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.pureIn)}</span></td>
+                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.pureOut)}</span></td>
+                <td className="right"><span style={{background:"rgba(251,191,36,0.3)",border:"2px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:totals.pureIn-totals.pureOut>=0?"var(--gold)":"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.pureIn-totals.pureOut)}</span></td>
+                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--green)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtMoney(totals.moneyIn)}</span></td>
+                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtMoney(totals.moneyOut)}</span></td>
+                <td className="right"><span style={{background:"rgba(251,191,36,0.3)",border:"2px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:totals.moneyIn-totals.moneyOut>=0?"var(--gold)":"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtMoney(totals.moneyIn-totals.moneyOut)}</span></td>
                 <td className="no-print"/>
               </tr>
             </tbody>
@@ -1085,20 +1084,20 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
   const tableRows = sorted.map(e=>{
     rG+=Number(e.goldIn||0)-Number(e.goldOut||0);
     rM+=Number(e.moneyIn||0)-Number(e.moneyOut||0);
-    let cols=`<td>${fmtDate(e.date)}</td><td><strong>${e._personName||"-"}</strong><br/><small style="color:${e.personType==="customer"?"#2563eb":"#7c3aed"};font-weight:600">${e.personType==="customer"?"Customer":"Worker"}</small></td><td>${e.description||"-"}</td>`;
-    if(showGold) cols+=`<td style="text-align:right;color:#16a34a">${e.goldIn?fmtGold(e.goldIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.goldOut?fmtGold(e.goldOut):"-"}</td><td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:600">${e.purity||"-"}</span></td><td style="text-align:right;color:#7c3aed;font-size:11px;font-weight:600">${e.pureGoldIn?`${Number(e.pureGoldIn).toFixed(3)}g`:"-"}</td><td style="text-align:right;color:#c2410c;font-size:11px;font-weight:600">${e.pureGoldOut?`${Number(e.pureGoldOut).toFixed(3)}g`:"-"}</td><td style="text-align:right;color:#d97706;font-size:11px;font-weight:700">${(e.pureGoldIn||e.pureGoldOut)?(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)).toFixed(3)+"g":"-"}</td><td style="text-align:right;font-weight:700;color:${rG>=0?"#d97706":"#dc2626"}">${fmtGold(rG)}</td>`;
-    if(showMoney) cols+=`<td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyPDF(e.moneyOut):"-"}</td><td style="text-align:right;font-weight:700;color:${rM>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(rM)}</td>`;
+    let cols=`<td style="font-size:13.5px;color:#1a1a1a">${fmtDate(e.date)}</td><td><strong style="font-size:13.5px">${e._personName||"-"}</strong><br/><small style="color:${e.personType==="customer"?"#2563eb":"#7c3aed"};font-weight:600">${e.personType==="customer"?"Customer":"Worker"}</small></td><td style="font-size:13.5px;color:#1a1a1a">${e.description||"-"}</td>`;
+    if(showGold) cols+=`<td style="text-align:right;color:#16a34a;font-size:13px;font-weight:600">${e.goldIn?fmtGoldN(e.goldIn):"-"}</td><td style="text-align:right;color:#dc2626;font-size:13px;font-weight:600">${e.goldOut?fmtGoldN(e.goldOut):"-"}</td><td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">${e.purity||"-"}</span></td><td style="text-align:right;color:#16a34a;font-size:13px;font-weight:600">${e.pureGoldIn?fmtGoldN(e.pureGoldIn):"-"}</td><td style="text-align:right;color:#dc2626;font-size:13px;font-weight:600">${e.pureGoldOut?fmtGoldN(e.pureGoldOut):"-"}</td><td style="text-align:right;font-weight:700;font-size:13px;color:${(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0))>=0?"#d97706":"#dc2626"}">${(e.pureGoldIn||e.pureGoldOut)?fmtGoldN(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)):"-"}</td>`;
+    if(showMoney) cols+=`<td style="text-align:right;color:#16a34a;font-size:13px;font-weight:600">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td><td style="text-align:right;color:#dc2626;font-size:13px;font-weight:600">${e.moneyOut?fmtMoneyPDF(e.moneyOut):"-"}</td><td style="text-align:right;font-weight:700;font-size:13px;color:${rM>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(rM)}</td>`;
     return `<tr>${cols}</tr>`;
   }).join("");
   let headCols=`<th>Date</th><th>Name</th><th>Description</th>`;
-  if(showGold)  headCols+=`<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right;color:#7c3aed">Pure In (g)</th><th style="text-align:right;color:#c2410c">Pure Out (g)</th><th style="text-align:right;color:#d97706">Total Pure (g)</th><th style="text-align:right">Gold Balance</th>`;
+  if(showGold)  headCols+=`<th style="text-align:right">Gold In (g)</th><th style="text-align:right">Gold Out (g)</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure In (g)</th><th style="text-align:right">Pure Out (g)</th><th style="text-align:right">Total Pure (g)</th>`;
   if(showMoney) headCols+=`<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
 
   // Reuse same CSS/biz-box as the main buildHTML (inlined minimal version)
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-    body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.5}
+    body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.6}
     .biz-box{position:relative;overflow:hidden;text-align:center;padding:20px 16px 16px;border-radius:16px;margin-bottom:18px;background:#7c3207!important;background-image:linear-gradient(135deg,#6b2a04 0%,#7c3207 25%,#9a3d0a 50%,#7c3207 75%,#6b2a04 100%)!important;border:3px solid #d97706;box-shadow:0 0 0 2px rgba(217,119,6,0.4),0 8px 32px rgba(0,0,0,0.35)}
     .biz-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#fbbf24!important;background-image:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent)!important;z-index:3}
     .biz-box::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:#fbbf24!important;background-image:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent)!important;z-index:3}
@@ -1119,15 +1118,19 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
     .badge{display:inline-block;background:#fef3c7;color:#92400e;padding:3px 12px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #fcd34d;letter-spacing:0.04em}
     .auto-badge{display:inline-block;background:#dbeafe;color:#1d4ed8;padding:3px 12px;border-radius:99px;font-weight:700;font-size:11px;border:1px solid #93c5fd;letter-spacing:0.04em;margin-left:6px}
     table{width:100%;border-collapse:collapse;margin-top:4px}
-    th{background:#f9fafb;padding:9px 11px;text-align:left;font-size:10.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
-    td{padding:9px 11px;border-bottom:1px solid #f3f4f6;font-size:12.5px;vertical-align:middle}
-    .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:13px}
+    th{background:#f9fafb;padding:10px 12px;text-align:left;font-size:11.5px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+    td{padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:13.5px;vertical-align:middle;color:#1a1a1a}
+    tr:hover td{background:#fafafa}
+    .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:14px}
+    .tot-box{display:inline-block;padding:3px 10px;border-radius:6px;border:1.5px solid #fbbf24;background:#fffbeb;font-weight:800;font-size:13px}
+    .green-tot{color:#16a34a}.red-tot{color:#dc2626}.gold-tot{color:#d97706}
     .balances{margin-top:22px;padding:16px 18px;border:2px solid #fbbf24;border-radius:12px;background:#fffbeb}
-    .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#1a1a1a;margin-bottom:12px}
+    .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:800;color:#1a1a1a;margin-bottom:12px}
     .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-    .bal-item{text-align:center;padding:12px 10px;background:#fffbeb!important;border-radius:9px;border:2px solid #fbbf24}
-    .bal-label{font-size:10px;color:#1a1a1a;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
-    .bal-value{font-size:17px;font-weight:800;line-height:1.2}
+    .bal-item{text-align:center;padding:14px 10px;background:#fffbeb!important;border-radius:9px;border:2px solid #fbbf24}
+    .bal-label{font-size:11px;color:#1a1a1a;text-transform:uppercase;font-weight:700;letter-spacing:0.05em;margin-bottom:6px}
+    .bal-value{font-size:20px;font-weight:800;line-height:1.2}
+    .bal-sub{font-size:11px;color:#374151;margin-top:4px}
     .gold-val{color:#d97706}.purple-val{color:#7c3aed}.green-val{color:#16a34a}.red-val{color:#dc2626}.blue-val{color:#2563eb}
     .page-footer{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
     @media print{body{padding:20px 24px}@page{margin:1cm;size:A4}}
@@ -1152,18 +1155,21 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
   <table><thead><tr>${headCols}</tr></thead>
   <tbody>${tableRows}
     <tr class="totals-row"><td colspan="3">TOTALS (${sorted.length} entries)</td>
-      ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed;font-weight:700">${fmtGold(s.pureIn)}</td><td style="text-align:right;color:#c2410c;font-weight:700">${fmtGold(s.pureOut)}</td><td style="text-align:right;color:#d97706;font-weight:700">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
-      ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</td>`:""}
+      ${showGold?`<td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.goldIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.goldOut)}</span></td><td></td><td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.pureIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.pureOut)}</span></td><td style="text-align:right"><span class="tot-box gold-tot">${fmtGoldN(s.pureIn-s.pureOut)}</span></td>`:""}
+      ${showMoney?`<td style="text-align:right"><span class="tot-box green-tot">${fmtMoneyPDF(s.moneyIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtMoneyPDF(s.moneyOut)}</span></td><td style="text-align:right"><span class="tot-box ${s.moneyIn-s.moneyOut>=0?"gold-tot":"red-tot"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</span></td>`:""}
     </tr>
   </tbody></table>
   <div class="balances">
     <div class="balances-title">Final Balances</div>
     <div class="bal-grid">
-      ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value" style="color:${s.goldIn-s.goldOut>=0?"#d97706":"#dc2626"}">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} &middot; Out: ${fmtGold(s.goldOut)}</div></div>
-      <div class="bal-item"><div class="bal-label">Pure Gold In (100%)</div><div class="bal-value" style="color:#7c3aed">${fmtGold(s.pureIn)}</div></div>
-      <div class="bal-item"><div class="bal-label">Pure Gold Out (100%)</div><div class="bal-value" style="color:#c2410c">${fmtGold(s.pureOut)}</div></div>
-      <div class="bal-item"><div class="bal-label">Total Pure Balance</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} &middot; Out: ${fmtGold(s.pureOut)}</div></div>`:""}
-      ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
+      ${showGold?`<div class="bal-item"><div class="bal-label">Gold In (g)</div><div class="bal-value" style="color:#16a34a">${fmtGoldN(s.goldIn)}</div></div>
+      <div class="bal-item"><div class="bal-label">Gold Out (g)</div><div class="bal-value" style="color:#dc2626">${fmtGoldN(s.goldOut)}</div></div>
+      <div class="bal-item"><div class="bal-label">Pure In (g)</div><div class="bal-value" style="color:#16a34a">${fmtGoldN(s.pureIn)}</div></div>
+      <div class="bal-item"><div class="bal-label">Pure Out (g)</div><div class="bal-value" style="color:#dc2626">${fmtGoldN(s.pureOut)}</div></div>
+      <div class="bal-item"><div class="bal-label">Total Pure Balance (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
+      ${showMoney?`<div class="bal-item"><div class="bal-label">Money In</div><div class="bal-value" style="color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</div></div>
+      <div class="bal-item"><div class="bal-label">Money Out</div><div class="bal-value" style="color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</div></div>
+      <div class="bal-item"><div class="bal-label">Net Cash Balance</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
       <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${sorted.length}</div></div>
     </div>
   </div>
@@ -1353,27 +1359,26 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         <td><strong>${pName}</strong><br/><small style="color:${isC?"#2563eb":"#7c3aed"};font-weight:600">${isC?"Customer":"Worker"}</small></td>
         <td>${e.description||"-"}</td>`;
       if (showGold) cols += `
-        <td style="text-align:right;color:#16a34a">${e.goldIn?fmtGold(e.goldIn):"-"}</td>
-        <td style="text-align:right;color:#dc2626">${e.goldOut?fmtGold(e.goldOut):"-"}</td>
-        <td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:600">${e.purity||"-"}</span></td>
-        <td style="text-align:right;color:#7c3aed;font-size:11px;font-weight:600">${e.pureGoldIn?`${Number(e.pureGoldIn).toFixed(3)}g`:"-"}</td>
-        <td style="text-align:right;color:#c2410c;font-size:11px;font-weight:600">${e.pureGoldOut?`${Number(e.pureGoldOut).toFixed(3)}g`:"-"}</td>
-        <td style="text-align:right;color:#d97706;font-size:11px;font-weight:700">${(e.pureGoldIn||e.pureGoldOut)?(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)).toFixed(3)+"g":"-"}</td>
-        <td style="text-align:right;font-weight:700;color:${e.runGold>=0?"#d97706":"#dc2626"}">${fmtGold(e.runGold)}</td>`;
+        <td style="text-align:right;color:#16a34a;font-size:13px;font-weight:600">${e.goldIn?fmtGoldN(e.goldIn):"-"}</td>
+        <td style="text-align:right;color:#dc2626;font-size:13px;font-weight:600">${e.goldOut?fmtGoldN(e.goldOut):"-"}</td>
+        <td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">${e.purity||"-"}</span></td>
+        <td style="text-align:right;color:#16a34a;font-size:13px;font-weight:600">${e.pureGoldIn?fmtGoldN(e.pureGoldIn):"-"}</td>
+        <td style="text-align:right;color:#dc2626;font-size:13px;font-weight:600">${e.pureGoldOut?fmtGoldN(e.pureGoldOut):"-"}</td>
+        <td style="text-align:right;font-weight:700;font-size:13px;color:${(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0))>=0?"#d97706":"#dc2626"}">${(e.pureGoldIn||e.pureGoldOut)?fmtGoldN(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)):"-"}</td>`;
       if (showMoney) cols += `
-        <td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td>
-        <td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyPDF(e.moneyOut):"-"}</td>
-        <td style="text-align:right;font-weight:700;color:${e.runMoney>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(e.runMoney)}</td>`;
+        <td style="text-align:right;color:#16a34a;font-size:13px;font-weight:600">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td>
+        <td style="text-align:right;color:#dc2626;font-size:13px;font-weight:600">${e.moneyOut?fmtMoneyPDF(e.moneyOut):"-"}</td>
+        <td style="text-align:right;font-weight:700;font-size:13px;color:${e.runMoney>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(e.runMoney)}</td>`;
       return `<tr>${cols}</tr>`;
     }).join("");
     let headCols = `<th>Date &amp; Time</th><th>Name</th><th>Description</th>`;
-    if (showGold)  headCols += `<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right;color:#7c3aed">Pure In (g)</th><th style="text-align:right;color:#c2410c">Pure Out (g)</th><th style="text-align:right;color:#d97706">Total Pure (g)</th><th style="text-align:right">Gold Balance</th>`;
+    if (showGold)  headCols += `<th style="text-align:right">Gold In (g)</th><th style="text-align:right">Gold Out (g)</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure In (g)</th><th style="text-align:right">Pure Out (g)</th><th style="text-align:right">Total Pure (g)</th>`;
     if (showMoney) headCols += `<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
     <style>
       /* Using system Arial font */
       *{box-sizing:border-box;margin:0;padding:0}
-      body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.5}
+      body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.6}
 
       /* ── Business Header ── */
       /* Force backgrounds to print in PDF */
@@ -1467,19 +1472,21 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
       /* ── Table ── */
       table{width:100%;border-collapse:collapse;margin-top:4px}
-      th{background:#f9fafb;padding:9px 11px;text-align:left;font-size:10.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
-      td{padding:9px 11px;border-bottom:1px solid #f3f4f6;font-size:12.5px;vertical-align:middle}
+      th{background:#f9fafb;padding:10px 12px;text-align:left;font-size:11.5px;font-weight:700;color:#374151;text-transform:uppercase;letter-spacing:0.05em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
+      td{padding:10px 12px;border-bottom:1px solid #f3f4f6;font-size:13.5px;vertical-align:middle;color:#1a1a1a}
       tr:hover td{background:#fafafa}
-      .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:13px}
+      .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:14px}
+      .tot-box{display:inline-block;padding:3px 10px;border-radius:6px;border:1.5px solid #fbbf24;background:#fffbeb;font-weight:800;font-size:13px}
+      .green-tot{color:#16a34a}.red-tot{color:#dc2626}.gold-tot{color:#d97706}
 
       /* ── Balances footer ── */
       .balances{margin-top:22px;padding:16px 18px;border:2px solid #fbbf24;border-radius:12px;background:#fffbeb}
       .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#1a1a1a;margin-bottom:12px}
       .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-      .bal-item{text-align:center;padding:12px 10px;background:#fff;border-radius:9px;border:2px solid #fbbf24;background:#fffbeb!important}
-      .bal-label{font-size:10px;color:#1a1a1a;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
-      .bal-value{font-size:17px;font-weight:800;line-height:1.2}
-      .bal-sub{font-size:10px;color:#374151;margin-top:3px}
+      .bal-item{text-align:center;padding:14px 10px;background:#fffbeb!important;border-radius:9px;border:2px solid #fbbf24}
+      .bal-label{font-size:11px;color:#1a1a1a;text-transform:uppercase;font-weight:700;letter-spacing:0.05em;margin-bottom:6px}
+      .bal-value{font-size:20px;font-weight:800;line-height:1.2}
+      .bal-sub{font-size:11px;color:#374151;margin-top:4px}
       .gold-val{color:#d97706}.purple-val{color:#7c3aed}.green-val{color:#16a34a}.red-val{color:#dc2626}.blue-val{color:#2563eb}
 
       /* ── Footer ── */
@@ -1586,18 +1593,21 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       <table><thead><tr>${headCols}</tr></thead>
       <tbody>${tableRows}
         <tr class="totals-row"><td colspan="3">TOTALS (${ents.length} entries)</td>
-          ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed;font-weight:700">${fmtGold(s.pureIn)}</td><td style="text-align:right;color:#c2410c;font-weight:700">${fmtGold(s.pureOut)}</td><td style="text-align:right;color:#d97706;font-weight:700">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
-          ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</td>`:""}
+          ${showGold?`<td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.goldIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.goldOut)}</span></td><td></td><td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.pureIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.pureOut)}</span></td><td style="text-align:right"><span class="tot-box gold-tot">${fmtGoldN(s.pureIn-s.pureOut)}</span></td>`:""}
+          ${showMoney?`<td style="text-align:right"><span class="tot-box green-tot">${fmtMoneyPDF(s.moneyIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtMoneyPDF(s.moneyOut)}</span></td><td style="text-align:right"><span class="tot-box ${s.moneyIn-s.moneyOut>=0?"gold-tot":"red-tot"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</span></td>`:""}
         </tr>
       </tbody></table>
       <div class="balances">
         <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
-          ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value" style="color:${s.goldIn-s.goldOut>=0?"#d97706":"#dc2626"}">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} &middot; Out: ${fmtGold(s.goldOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure Gold In (100%)</div><div class="bal-value" style="color:#7c3aed">${fmtGold(s.pureIn)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure Gold Out (100%)</div><div class="bal-value" style="color:#c2410c">${fmtGold(s.pureOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Total Pure Balance</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} &middot; Out: ${fmtGold(s.pureOut)}</div></div>`:""}
-          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
+          ${showGold?`<div class="bal-item"><div class="bal-label">Gold In (g)</div><div class="bal-value" style="color:#16a34a">${fmtGoldN(s.goldIn)}</div></div>
+          <div class="bal-item"><div class="bal-label">Gold Out (g)</div><div class="bal-value" style="color:#dc2626">${fmtGoldN(s.goldOut)}</div></div>
+          <div class="bal-item"><div class="bal-label">Pure In (g)</div><div class="bal-value" style="color:#16a34a">${fmtGoldN(s.pureIn)}</div></div>
+          <div class="bal-item"><div class="bal-label">Pure Out (g)</div><div class="bal-value" style="color:#dc2626">${fmtGoldN(s.pureOut)}</div></div>
+          <div class="bal-item"><div class="bal-label">Total Pure Balance (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
+          ${showMoney?`<div class="bal-item"><div class="bal-label">Money In</div><div class="bal-value" style="color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</div></div>
+          <div class="bal-item"><div class="bal-label">Money Out</div><div class="bal-value" style="color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</div></div>
+          <div class="bal-item"><div class="bal-label">Net Cash Balance</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
       </div>
@@ -1738,13 +1748,12 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
               <Th col="name" label="Name"/>
               <th>Description</th>
               {showG&&<>
-                <Th col="goldIn"  label="Gold In"  className="th-right"/>
-                <Th col="goldOut" label="Gold Out" className="th-right"/>
+                <Th col="goldIn"  label="Gold In (g)"  className="th-right"/>
+                <Th col="goldOut" label="Gold Out (g)" className="th-right"/>
                 <th className="th-center">Purity</th>
-                <th className="th-right" style={{color:"#a78bfa"}}>Pure In (g)</th>
-                <th className="th-right" style={{color:"#f97316"}}>Pure Out (g)</th>
-                <th className="th-right" style={{color:"#fbbf24"}}>Total Pure (g)</th>
-                <th className="th-right">Gold Bal</th>
+                <th className="th-right">Pure In (g)</th>
+                <th className="th-right">Pure Out (g)</th>
+                <th className="th-right">Total Pure (g)</th>
               </>}
               {showM&&<>
                 <Th col="moneyIn"  label="Money In"  className="th-right"/>
@@ -1764,22 +1773,21 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
                         checked={selectedIds.has(e.id)}
                         onChange={ev=>{const s=new Set(selectedIds);ev.target.checked?s.add(e.id):s.delete(e.id);setSelectedIds(s);}}/>
                     </td>}
-                    <td><div style={{color:"var(--text2)"}}>{fmtDate(e.date)}</div>{time&&<div style={{fontSize:"0.7rem",color:"var(--text3)"}}>{time}</div>}</td>
-                    <td><div className="fw6">{p?.name||"-"}</div><div className="fs-xs" style={{color:isC?"var(--blue)":"#a78bfa",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>{isC?"👤 Customer":"🔧 Worker"}</div></td>
-                    <td style={{color:"var(--text2)"}}>{e.description||"-"}</td>
+                    <td><div style={{color:"var(--text2)",fontSize:"0.88rem"}}>{fmtDate(e.date)}</div>{time&&<div style={{fontSize:"0.75rem",color:"var(--text3)"}}>{time}</div>}</td>
+                    <td><div className="fw6" style={{fontSize:"0.9rem"}}>{p?.name||"-"}</div><div className="fs-xs" style={{color:isC?"var(--blue)":"#a78bfa",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.04em"}}>{isC?"👤 Customer":"🔧 Worker"}</div></td>
+                    <td style={{color:"var(--text2)",fontSize:"0.88rem"}}>{e.description||"-"}</td>
                     {showG&&<>
-                      <td className="right text-green">{e.goldIn?fmtGold(e.goldIn):"-"}</td>
-                      <td className="right text-red">{e.goldOut?fmtGold(e.goldOut):"-"}</td>
-                      <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
-                      <td className="right" style={{fontSize:"0.8rem",color:"#a78bfa",fontWeight:600}}>{e.pureGoldIn?`${Number(e.pureGoldIn).toFixed(3)}g`:"-"}</td>
-                      <td className="right" style={{fontSize:"0.8rem",color:"#f97316",fontWeight:600}}>{e.pureGoldOut?`${Number(e.pureGoldOut).toFixed(3)}g`:"-"}</td>
-                      <td className="right" style={{fontSize:"0.8rem",color:"#fbbf24",fontWeight:700}}>{(e.pureGoldIn||e.pureGoldOut)?(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)).toFixed(3)+"g":"-"}</td>
-                      <td className="right"><span style={{fontWeight:700,color:e.rG>=0?"var(--gold)":"var(--red)"}}>{fmtGold(e.rG)}</span></td>
+                      <td className="right" style={{fontSize:"0.9rem"}}><span style={{color:e.goldIn?"var(--green)":"var(--text3)",fontWeight:e.goldIn?700:400}}>{e.goldIn?fmtGoldN(e.goldIn):"-"}</span></td>
+                      <td className="right" style={{fontSize:"0.9rem"}}><span style={{color:e.goldOut?"var(--red)":"var(--text3)",fontWeight:e.goldOut?700:400}}>{e.goldOut?fmtGoldN(e.goldOut):"-"}</span></td>
+                      <td className="center"><span className="badge badge-gold" style={{fontSize:"0.85rem"}}>{e.purity||"-"}</span></td>
+                      <td className="right" style={{fontSize:"0.88rem"}}><span style={{color:e.pureGoldIn?"var(--green)":"var(--text3)",fontWeight:e.pureGoldIn?600:400}}>{e.pureGoldIn?fmtGoldN(e.pureGoldIn):"-"}</span></td>
+                      <td className="right" style={{fontSize:"0.88rem"}}><span style={{color:e.pureGoldOut?"var(--red)":"var(--text3)",fontWeight:e.pureGoldOut?600:400}}>{e.pureGoldOut?fmtGoldN(e.pureGoldOut):"-"}</span></td>
+                      <td className="right" style={{fontSize:"0.88rem"}}><span style={{fontWeight:700,color:(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0))>=0?"var(--gold)":"var(--red)"}}>{(e.pureGoldIn||e.pureGoldOut)?fmtGoldN(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)):"-"}</span></td>
                     </>}
                     {showM&&<>
-                      <td className="right text-green">{e.moneyIn?fmtMoney(e.moneyIn):"-"}</td>
-                      <td className="right text-red">{e.moneyOut?fmtMoney(e.moneyOut):"-"}</td>
-                      <td className="right"><span style={{fontWeight:700,color:e.rM>=0?"var(--green)":"var(--red)"}}>{fmtMoney(e.rM)}</span></td>
+                      <td className="right" style={{fontSize:"0.9rem"}}><span style={{color:e.moneyIn?"var(--green)":"var(--text3)",fontWeight:e.moneyIn?600:400}}>{e.moneyIn?fmtMoney(e.moneyIn):"-"}</span></td>
+                      <td className="right" style={{fontSize:"0.9rem"}}><span style={{color:e.moneyOut?"var(--red)":"var(--text3)",fontWeight:e.moneyOut?600:400}}>{e.moneyOut?fmtMoney(e.moneyOut):"-"}</span></td>
+                      <td className="right"><span style={{fontWeight:700,fontSize:"0.9rem",color:e.rM>=0?"var(--green)":"var(--red)"}}>{fmtMoney(e.rM)}</span></td>
                     </>}
                   </tr>
                 );
@@ -1794,34 +1802,43 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
           <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontWeight:700,fontSize:"0.9rem",marginBottom:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
             <Icon name="reports" size={15}/>Final Balances — {ents.length} entries
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:10}}>
             {showG&&<>
-              <div style={{background:"var(--gold-dim)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Gold</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:s.goldIn-s.goldOut>=0?"var(--gold)":"var(--red)"}}>{fmtGold(s.goldIn-s.goldOut)}</div>
-                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Gold In (g)</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--green)"}}>{fmtGoldN(s.goldIn)}</div>
               </div>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure Gold In (100%)</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:"#a78bfa"}}>{fmtGold(s.pureIn)}</div>
-                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>Calculated from purity</div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Gold Out (g)</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--red)"}}>{fmtGoldN(s.goldOut)}</div>
               </div>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure Gold Out (100%)</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:"#f97316"}}>{fmtGold(s.pureOut)}</div>
-                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>Calculated from purity</div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Pure In (g)</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--green)"}}>{fmtGoldN(s.pureIn)}</div>
               </div>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Total Pure Balance</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:s.pureIn-s.pureOut>=0?"var(--gold)":"var(--red)"}}>{fmtGold(s.pureIn-s.pureOut)}</div>
-                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Pure Out (g)</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--red)"}}>{fmtGoldN(s.pureOut)}</div>
+              </div>
+              <div style={{background:"rgba(251,191,36,0.25)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Total Pure Balance (g)</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.5rem",fontWeight:800,color:s.pureIn-s.pureOut>=0?"var(--gold)":"var(--red)"}}>{fmtGoldN(s.pureIn-s.pureOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:3}}>In: {fmtGoldN(s.pureIn)} · Out: {fmtGoldN(s.pureOut)}</div>
               </div>
             </>}
             {showM&&<>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Cash</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}}>{fmtMoney(s.moneyIn-s.moneyOut)}</div>
-                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Money In</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--green)"}}>{fmtMoney(s.moneyIn)}</div>
+              </div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Money Out</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--red)"}}>{fmtMoney(s.moneyOut)}</div>
+              </div>
+              <div style={{background:"rgba(251,191,36,0.25)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Net Cash Balance</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.5rem",fontWeight:800,color:s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}}>{fmtMoney(s.moneyIn-s.moneyOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:3}}>In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div>
               </div>
             </>}
           </div>
