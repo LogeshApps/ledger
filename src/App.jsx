@@ -752,7 +752,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
               <th style={{...hdr,width:90}}>Purity %</th>
               <th style={{...hdr,width:90,color:"#a78bfa",textAlign:"right"}}>Pure Gold In (g)</th>
               <th style={{...hdr,width:90,color:"#f97316",textAlign:"right"}}>Pure Gold Out (g)</th>
-              <th style={{...hdr,width:90,color:"#fbbf24",textAlign:"right"}}>Total Pure (g)</th>
+              <th style={{...hdr,width:90,color:"#fbbf24",textAlign:"right"}}>Total Pure Gold (g)</th>
               <th style={{...hdr,width:100,color:"var(--green)"}}>Money In ₹</th>
               <th style={{...hdr,width:100,color:"var(--red)"}}>Money Out ₹</th>
               <th style={{...hdr,width:80}}>Notes</th>
@@ -986,7 +986,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
                     checked={rows.length>0&&rows.every(r=>selectedIds.has(r.id))}
                     onChange={e=>setSelectedIds(e.target.checked?new Set(rows.map(r=>r.id)):new Set())}/>
                 </th>
-                {[["date","Date & Time"],["desc","Description"],["goldIn","Gold In (g)"],["goldOut","Gold Out (g)"],["purity","Purity"],["pureGoldIn","Pure In (g)"],["pureGoldOut","Pure Out (g)"],["pureTot","Total Pure (g)"]].map(([col,lbl])=>(
+                {[["date","Date & Time"],["desc","Description"],["goldIn","Gold In (g)"],["goldOut","Gold Out (g)"],["purity","Purity"],["pureGoldIn","Pure Gold In (g)"],["pureGoldOut","Pure Gold Out (g)"],["pureTot","Total Pure Gold (g)"]].map(([col,lbl])=>(
                   <th key={col} className={col==="goldIn"||col==="goldOut"||col==="pureGoldIn"||col==="pureGoldOut"||col==="pureTot"?"th-right":col==="purity"?"th-center":""}
                     onClick={()=>{ if(["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)){ if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc"); else{setSortCol(col);setSortDir("desc");} } }}
                     style={{cursor:["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)?"pointer":"default",userSelect:"none",whiteSpace:"nowrap",fontSize:"0.82rem",fontWeight:700}}>
@@ -1090,7 +1090,7 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
     return `<tr>${cols}</tr>`;
   }).join("");
   let headCols=`<th>Date</th><th>Name</th><th>Description</th>`;
-  if(showGold)  headCols+=`<th style="text-align:right">Gold In (g)</th><th style="text-align:right">Gold Out (g)</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure In (g)</th><th style="text-align:right">Pure Out (g)</th><th style="text-align:right">Total Pure (g)</th>`;
+  if(showGold)  headCols+=`<th style="text-align:right">Gold In (g)</th><th style="text-align:right">Gold Out (g)</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold In (g)</th><th style="text-align:right">Pure Gold Out (g)</th><th style="text-align:right">Total Pure Gold (g)</th>`;
   if(showMoney) headCols+=`<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
 
   // Reuse same CSS/biz-box as the main buildHTML (inlined minimal version)
@@ -1155,25 +1155,30 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
         <ellipse cx="68" cy="68" rx="4" ry="10" transform="rotate(-45 68 68)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
       </svg>
     </div>
-    <!-- Right ornament - BIS 916 Hallmark -->
+    <!-- Right ornament - Official BIS 916 Hallmark -->
     <div class="biz-orn-right">
-      <svg width="112" height="112" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="56,4 102,28 102,76 56,100 10,76 10,28" stroke="rgba(251,191,36,0.8)" stroke-width="2" fill="rgba(251,191,36,0.08)"/>
-        <polygon points="56,14 92,34 92,74 56,94 20,74 20,34" stroke="rgba(251,191,36,0.5)" stroke-width="1" fill="none"/>
-        <text x="56" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="900" fill="rgba(251,191,36,0.95)" letter-spacing="3">BIS</text>
-        <text x="56" y="62" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="#fbbf24" letter-spacing="1">916</text>
-        <text x="56" y="76" text-anchor="middle" font-family="Arial,sans-serif" font-size="8.5" font-weight="700" fill="rgba(251,191,36,0.85)" letter-spacing="1.5">91.6%</text>
-        <circle cx="56" cy="4" r="3" fill="rgba(251,191,36,0.9)"/>
-        <circle cx="102" cy="28" r="3" fill="rgba(251,191,36,0.9)"/>
-        <circle cx="102" cy="76" r="3" fill="rgba(251,191,36,0.9)"/>
-        <circle cx="56" cy="100" r="3" fill="rgba(251,191,36,0.9)"/>
-        <circle cx="10" cy="76" r="3" fill="rgba(251,191,36,0.9)"/>
-        <circle cx="10" cy="28" r="3" fill="rgba(251,191,36,0.9)"/>
-        <text x="56" y="90" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" fill="rgba(251,191,36,0.7)" letter-spacing="0.5">INDIA</text>
-      </svg>
+      ${hallmark?`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px">
+        <svg width="54" height="60" viewBox="0 0 54 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <polygon points="27,2 52,16 52,44 27,58 2,44 2,16" stroke="#fbbf24" stroke-width="2.5" fill="rgba(251,191,36,0.13)"/>
+          <polygon points="27,9 45,19 45,41 27,51 9,41 9,19" stroke="rgba(251,191,36,0.55)" stroke-width="1" fill="none"/>
+          <text x="27" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="900" fill="#fbbf24" letter-spacing="2">BIS</text>
+          <text x="27" y="40" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" font-weight="900" fill="#fde68a" letter-spacing="1">916</text>
+          <text x="27" y="49" text-anchor="middle" font-family="Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(251,191,36,0.8)" letter-spacing="1">INDIA</text>
+          <circle cx="27" cy="2"  r="2.5" fill="#fbbf24"/>
+          <circle cx="52" cy="16" r="2.5" fill="#fbbf24"/>
+          <circle cx="52" cy="44" r="2.5" fill="#fbbf24"/>
+          <circle cx="27" cy="58" r="2.5" fill="#fbbf24"/>
+          <circle cx="2"  cy="44" r="2.5" fill="#fbbf24"/>
+          <circle cx="2"  cy="16" r="2.5" fill="#fbbf24"/>
+        </svg>
+        <div style="font-family:Arial,sans-serif;font-size:8.5px;font-weight:900;color:#fbbf24;letter-spacing:0.1em;text-transform:uppercase;line-height:1.6;text-align:center">916<br/>BIS HALLMARK<br/>JEWELLERY</div>
+      </div>`:`<svg width="100" height="100" viewBox="0 0 100 100" fill="none">
+        <circle cx="50" cy="50" r="45" stroke="rgba(251,191,36,0.3)" stroke-width="1" fill="none"/>
+        <circle cx="50" cy="50" r="30" stroke="rgba(251,191,36,0.2)" stroke-width="0.8" fill="none" stroke-dasharray="3,4"/>
+        <circle cx="50" cy="50" r="8" fill="rgba(251,191,36,0.25)" stroke="rgba(251,191,36,0.5)" stroke-width="1.2"/>
+      </svg>`}
     </div>
     <div class="biz-inner">
-      ${hallmark?`<div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>`:""}
       <div class="biz-name">${bizName}</div>
       ${bizOwner?`<div class="biz-sub">Proprietor: ${bizOwner}</div>`:""}
       <div class="biz-divider"><div class="biz-divider-line"></div><div class="biz-divider-diamond"></div><div class="biz-divider-line"></div></div>
@@ -1198,7 +1203,7 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
   <div class="balances">
     <div class="balances-title">Final Balances</div>
     <div class="bal-grid">
-      ${showGold?`<div class="bal-item"><div class="bal-label">Total Pure Balance (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
+      ${showGold?`<div class="bal-item"><div class="bal-label">Total Pure Gold Balance (100%) (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
       ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash Balance</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
       <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${sorted.length}</div></div>
     </div>
@@ -1402,7 +1407,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       return `<tr>${cols}</tr>`;
     }).join("");
     let headCols = `<th>Date &amp; Time</th><th>Name</th><th>Description</th>`;
-    if (showGold)  headCols += `<th style="text-align:right">Gold In (g)</th><th style="text-align:right">Gold Out (g)</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure In (g)</th><th style="text-align:right">Pure Out (g)</th><th style="text-align:right">Total Pure (g)</th>`;
+    if (showGold)  headCols += `<th style="text-align:right">Gold In (g)</th><th style="text-align:right">Gold Out (g)</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold In (g)</th><th style="text-align:right">Pure Gold Out (g)</th><th style="text-align:right">Total Pure Gold (g)</th>`;
     if (showMoney) headCols += `<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
     <style>
@@ -1557,33 +1562,31 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
             <rect x="28" y="78" width="3" height="3" rx="0.5" transform="rotate(45 29 79)" fill="rgba(251,191,36,0.5)"/>
           </svg>
         </div>
-        <!-- Right ornament panel - BIS 916 Hallmark -->
+        <!-- Right ornament panel - Official BIS 916 Hallmark -->
         <div class="biz-orn-right">
-          <svg width="112" height="112" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- Outer hexagon shape (BIS hallmark is hexagonal) -->
-            <polygon points="56,4 102,28 102,76 56,100 10,76 10,28" stroke="rgba(251,191,36,0.8)" stroke-width="2" fill="rgba(251,191,36,0.08)"/>
-            <!-- Inner hexagon -->
-            <polygon points="56,14 92,34 92,74 56,94 20,74 20,34" stroke="rgba(251,191,36,0.5)" stroke-width="1" fill="none"/>
-            <!-- BIS text at top -->
-            <text x="56" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="900" fill="rgba(251,191,36,0.95)" letter-spacing="3">BIS</text>
-            <!-- Main 916 number -->
-            <text x="56" y="62" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="#fbbf24" letter-spacing="1">916</text>
-            <!-- Purity percentage -->
-            <text x="56" y="76" text-anchor="middle" font-family="Arial,sans-serif" font-size="8.5" font-weight="700" fill="rgba(251,191,36,0.85)" letter-spacing="1.5">91.6%</text>
-            <!-- Gold dots at corners -->
-            <circle cx="56" cy="4"  r="3" fill="rgba(251,191,36,0.9)"/>
-            <circle cx="102" cy="28" r="3" fill="rgba(251,191,36,0.9)"/>
-            <circle cx="102" cy="76" r="3" fill="rgba(251,191,36,0.9)"/>
-            <circle cx="56" cy="100" r="3" fill="rgba(251,191,36,0.9)"/>
-            <circle cx="10" cy="76" r="3" fill="rgba(251,191,36,0.9)"/>
-            <circle cx="10" cy="28" r="3" fill="rgba(251,191,36,0.9)"/>
-            <!-- Small lion (India mark) simplified -->
-            <text x="56" y="90" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" fill="rgba(251,191,36,0.7)" letter-spacing="0.5">INDIA</text>
-          </svg>
+          ${hallmark?`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:10px">
+            <svg width="54" height="60" viewBox="0 0 54 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polygon points="27,2 52,16 52,44 27,58 2,44 2,16" stroke="#fbbf24" stroke-width="2.5" fill="rgba(251,191,36,0.13)"/>
+              <polygon points="27,9 45,19 45,41 27,51 9,41 9,19" stroke="rgba(251,191,36,0.55)" stroke-width="1" fill="none"/>
+              <text x="27" y="25" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" font-weight="900" fill="#fbbf24" letter-spacing="2">BIS</text>
+              <text x="27" y="40" text-anchor="middle" font-family="Arial,sans-serif" font-size="17" font-weight="900" fill="#fde68a" letter-spacing="1">916</text>
+              <text x="27" y="49" text-anchor="middle" font-family="Arial,sans-serif" font-size="5.5" font-weight="700" fill="rgba(251,191,36,0.8)" letter-spacing="1">INDIA</text>
+              <circle cx="27" cy="2"  r="2.5" fill="#fbbf24"/>
+              <circle cx="52" cy="16" r="2.5" fill="#fbbf24"/>
+              <circle cx="52" cy="44" r="2.5" fill="#fbbf24"/>
+              <circle cx="27" cy="58" r="2.5" fill="#fbbf24"/>
+              <circle cx="2"  cy="44" r="2.5" fill="#fbbf24"/>
+              <circle cx="2"  cy="16" r="2.5" fill="#fbbf24"/>
+            </svg>
+            <div style="font-family:Arial,sans-serif;font-size:8.5px;font-weight:900;color:#fbbf24;letter-spacing:0.1em;text-transform:uppercase;line-height:1.6;text-align:center">916<br/>BIS HALLMARK<br/>JEWELLERY</div>
+          </div>`:`<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="50" cy="50" r="45" stroke="rgba(251,191,36,0.3)" stroke-width="1" fill="none"/>
+            <circle cx="50" cy="50" r="30" stroke="rgba(251,191,36,0.2)" stroke-width="0.8" fill="none" stroke-dasharray="3,4"/>
+            <circle cx="50" cy="50" r="8"  fill="rgba(251,191,36,0.25)" stroke="rgba(251,191,36,0.5)" stroke-width="1.2"/>
+          </svg>`}
         </div>
         <!-- Main content -->
         <div class="biz-inner">
-          ${hallmark?`<div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>`:""}
           <div class="biz-name">${bizName}</div>
           ${bizOwner ? `<div class="biz-sub">Proprietor: ${bizOwner}</div>` : ""}
           <div class="biz-divider"><div class="biz-divider-line"></div><div class="biz-divider-diamond"></div><div class="biz-divider-line"></div></div>
@@ -1623,7 +1626,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       <div class="balances">
         <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
-          ${showGold?`<div class="bal-item"><div class="bal-label">Total Pure Balance (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
+          ${showGold?`<div class="bal-item"><div class="bal-label">Total Pure Gold Balance (100%) (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
           ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash Balance</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
@@ -1768,9 +1771,9 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
                 <Th col="goldIn"  label="Gold In (g)"  className="th-right"/>
                 <Th col="goldOut" label="Gold Out (g)" className="th-right"/>
                 <th className="th-center">Purity</th>
-                <th className="th-right">Pure In (g)</th>
-                <th className="th-right">Pure Out (g)</th>
-                <th className="th-right">Total Pure (g)</th>
+                <th className="th-right">Pure Gold In (g)</th>
+                <th className="th-right">Pure Gold Out (g)</th>
+                <th className="th-right">Total Pure Gold (g)</th>
               </>}
               {showM&&<>
                 <Th col="moneyIn"  label="Money In"  className="th-right"/>
@@ -1822,7 +1825,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:10}}>
             {showG&&<>
               <div style={{background:"rgba(251,191,36,0.25)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Total Pure Balance (g)</div>
+                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Total Pure Gold Balance (100%) (g)</div>
                 <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.5rem",fontWeight:800,color:s.pureIn-s.pureOut>=0?"var(--gold)":"var(--red)"}}>{fmtGoldN(s.pureIn-s.pureOut)}</div>
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:3}}>In: {fmtGoldN(s.pureIn)} · Out: {fmtGoldN(s.pureOut)}</div>
               </div>
