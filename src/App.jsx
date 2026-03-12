@@ -1040,14 +1040,14 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
               <tr className="ledger-balance-row">
                 <td/>
                 <td colSpan={2}><span className="fw7" style={{fontSize:"0.95rem"}}>TOTALS ({rows.length})</span></td>
-                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--green)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.goldIn)}</span></td>
-                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.goldOut)}</span></td>
+                <td className="right"><span style={{color:"var(--green)",fontWeight:700,fontSize:"0.9rem"}}>{fmtGoldN(totals.goldIn)}</span></td>
+                <td className="right"><span style={{color:"var(--red)",fontWeight:700,fontSize:"0.9rem"}}>{fmtGoldN(totals.goldOut)}</span></td>
                 <td/>
                 <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--green)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.pureIn)}</span></td>
                 <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.pureOut)}</span></td>
                 <td className="right"><span style={{background:"rgba(251,191,36,0.3)",border:"2px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:totals.pureIn-totals.pureOut>=0?"var(--gold)":"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtGoldN(totals.pureIn-totals.pureOut)}</span></td>
-                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--green)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtMoney(totals.moneyIn)}</span></td>
-                <td className="right"><span style={{background:"rgba(251,191,36,0.18)",border:"1px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtMoney(totals.moneyOut)}</span></td>
+                <td className="right"><span style={{color:"var(--green)",fontWeight:700,fontSize:"0.9rem"}}>{fmtMoney(totals.moneyIn)}</span></td>
+                <td className="right"><span style={{color:"var(--red)",fontWeight:700,fontSize:"0.9rem"}}>{fmtMoney(totals.moneyOut)}</span></td>
                 <td className="right"><span style={{background:"rgba(251,191,36,0.3)",border:"2px solid #fbbf24",borderRadius:6,padding:"3px 10px",color:totals.moneyIn-totals.moneyOut>=0?"var(--gold)":"var(--red)",fontWeight:800,fontSize:"0.95rem",display:"inline-block"}}>{fmtMoney(totals.moneyIn-totals.moneyOut)}</span></td>
                 <td className="no-print"/>
               </tr>
@@ -1099,6 +1099,8 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
     *{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
     body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:36px 40px;font-size:14px;background:#fff;line-height:1.6}
     .biz-box{position:relative;overflow:hidden;text-align:center;padding:20px 16px 16px;border-radius:16px;margin-bottom:18px;background:#7c3207!important;background-image:linear-gradient(135deg,#6b2a04 0%,#7c3207 25%,#9a3d0a 50%,#7c3207 75%,#6b2a04 100%)!important;border:3px solid #d97706;box-shadow:0 0 0 2px rgba(217,119,6,0.4),0 8px 32px rgba(0,0,0,0.35)}
+    .biz-orn-left{position:absolute;left:0;top:0;bottom:0;width:130px;display:flex;align-items:center;justify-content:center;pointer-events:none;border-right:1px solid rgba(251,191,36,0.3)}
+    .biz-orn-right{position:absolute;right:0;top:0;bottom:0;width:130px;display:flex;align-items:center;justify-content:center;pointer-events:none;border-left:1px solid rgba(251,191,36,0.3)}
     .biz-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:#fbbf24!important;background-image:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent)!important;z-index:3}
     .biz-box::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:#fbbf24!important;background-image:linear-gradient(90deg,transparent,#fde68a,#fbbf24,#fde68a,transparent)!important;z-index:3}
     .biz-inner{position:relative;z-index:2;padding:0 8px}
@@ -1136,6 +1138,40 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
     @media print{body{padding:20px 24px}@page{margin:1cm;size:A4}}
   </style></head><body>
   <div class="biz-box">
+    <!-- Left ornament -->
+    <div class="biz-orn-left">
+      <svg width="110" height="110" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="55" cy="55" r="50" stroke="rgba(251,191,36,0.35)" stroke-width="1" fill="none"/>
+        <circle cx="55" cy="55" r="33" stroke="rgba(251,191,36,0.30)" stroke-width="1" fill="none"/>
+        <circle cx="55" cy="55" r="22" stroke="rgba(251,191,36,0.40)" stroke-width="1.2" fill="rgba(251,191,36,0.06)"/>
+        <circle cx="55" cy="55" r="4"  fill="rgba(251,191,36,0.8)"/>
+        <ellipse cx="55" cy="34" rx="4" ry="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+        <ellipse cx="55" cy="76" rx="4" ry="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+        <ellipse cx="34" cy="55" rx="10" ry="4" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+        <ellipse cx="76" cy="55" rx="10" ry="4" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
+        <ellipse cx="42" cy="42" rx="4" ry="10" transform="rotate(-45 42 42)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+        <ellipse cx="68" cy="42" rx="4" ry="10" transform="rotate(45 68 42)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+        <ellipse cx="42" cy="68" rx="4" ry="10" transform="rotate(45 42 68)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+        <ellipse cx="68" cy="68" rx="4" ry="10" transform="rotate(-45 68 68)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
+      </svg>
+    </div>
+    <!-- Right ornament - BIS 916 Hallmark -->
+    <div class="biz-orn-right">
+      <svg width="112" height="112" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="56,4 102,28 102,76 56,100 10,76 10,28" stroke="rgba(251,191,36,0.8)" stroke-width="2" fill="rgba(251,191,36,0.08)"/>
+        <polygon points="56,14 92,34 92,74 56,94 20,74 20,34" stroke="rgba(251,191,36,0.5)" stroke-width="1" fill="none"/>
+        <text x="56" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="900" fill="rgba(251,191,36,0.95)" letter-spacing="3">BIS</text>
+        <text x="56" y="62" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="#fbbf24" letter-spacing="1">916</text>
+        <text x="56" y="76" text-anchor="middle" font-family="Arial,sans-serif" font-size="8.5" font-weight="700" fill="rgba(251,191,36,0.85)" letter-spacing="1.5">91.6%</text>
+        <circle cx="56" cy="4" r="3" fill="rgba(251,191,36,0.9)"/>
+        <circle cx="102" cy="28" r="3" fill="rgba(251,191,36,0.9)"/>
+        <circle cx="102" cy="76" r="3" fill="rgba(251,191,36,0.9)"/>
+        <circle cx="56" cy="100" r="3" fill="rgba(251,191,36,0.9)"/>
+        <circle cx="10" cy="76" r="3" fill="rgba(251,191,36,0.9)"/>
+        <circle cx="10" cy="28" r="3" fill="rgba(251,191,36,0.9)"/>
+        <text x="56" y="90" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" fill="rgba(251,191,36,0.7)" letter-spacing="0.5">INDIA</text>
+      </svg>
+    </div>
     <div class="biz-inner">
       ${hallmark?`<div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>`:""}
       <div class="biz-name">${bizName}</div>
@@ -1155,21 +1191,15 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
   <table><thead><tr>${headCols}</tr></thead>
   <tbody>${tableRows}
     <tr class="totals-row"><td colspan="3">TOTALS (${sorted.length} entries)</td>
-      ${showGold?`<td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.goldIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.goldOut)}</span></td><td></td><td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.pureIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.pureOut)}</span></td><td style="text-align:right"><span class="tot-box gold-tot">${fmtGoldN(s.pureIn-s.pureOut)}</span></td>`:""}
+      ${showGold?`<td></td><td></td><td></td><td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.pureIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.pureOut)}</span></td><td style="text-align:right"><span class="tot-box ${s.pureIn-s.pureOut>=0?"gold-tot":"red-tot"}">${fmtGoldN(s.pureIn-s.pureOut)}</span></td>`:""}
       ${showMoney?`<td style="text-align:right"><span class="tot-box green-tot">${fmtMoneyPDF(s.moneyIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtMoneyPDF(s.moneyOut)}</span></td><td style="text-align:right"><span class="tot-box ${s.moneyIn-s.moneyOut>=0?"gold-tot":"red-tot"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</span></td>`:""}
     </tr>
   </tbody></table>
   <div class="balances">
     <div class="balances-title">Final Balances</div>
     <div class="bal-grid">
-      ${showGold?`<div class="bal-item"><div class="bal-label">Gold In (g)</div><div class="bal-value" style="color:#16a34a">${fmtGoldN(s.goldIn)}</div></div>
-      <div class="bal-item"><div class="bal-label">Gold Out (g)</div><div class="bal-value" style="color:#dc2626">${fmtGoldN(s.goldOut)}</div></div>
-      <div class="bal-item"><div class="bal-label">Pure In (g)</div><div class="bal-value" style="color:#16a34a">${fmtGoldN(s.pureIn)}</div></div>
-      <div class="bal-item"><div class="bal-label">Pure Out (g)</div><div class="bal-value" style="color:#dc2626">${fmtGoldN(s.pureOut)}</div></div>
-      <div class="bal-item"><div class="bal-label">Total Pure Balance (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
-      ${showMoney?`<div class="bal-item"><div class="bal-label">Money In</div><div class="bal-value" style="color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</div></div>
-      <div class="bal-item"><div class="bal-label">Money Out</div><div class="bal-value" style="color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</div></div>
-      <div class="bal-item"><div class="bal-label">Net Cash Balance</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
+      ${showGold?`<div class="bal-item"><div class="bal-label">Total Pure Balance (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
+      ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash Balance</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
       <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${sorted.length}</div></div>
     </div>
   </div>
@@ -1527,35 +1557,28 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
             <rect x="28" y="78" width="3" height="3" rx="0.5" transform="rotate(45 29 79)" fill="rgba(251,191,36,0.5)"/>
           </svg>
         </div>
-        <!-- Right ornament panel -->
+        <!-- Right ornament panel - BIS 916 Hallmark -->
         <div class="biz-orn-right">
-          <svg width="110" height="110" viewBox="0 0 110 110" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <!-- Outer ring -->
-            <circle cx="55" cy="55" r="50" stroke="rgba(251,191,36,0.35)" stroke-width="1" fill="none"/>
-            <circle cx="55" cy="55" r="42" stroke="rgba(251,191,36,0.25)" stroke-width="0.8" fill="none" stroke-dasharray="3,4"/>
-            <circle cx="55" cy="55" r="33" stroke="rgba(251,191,36,0.30)" stroke-width="1" fill="none"/>
-            <circle cx="55" cy="55" r="22" stroke="rgba(251,191,36,0.40)" stroke-width="1.2" fill="rgba(251,191,36,0.06)"/>
-            <circle cx="55" cy="55" r="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.6)" stroke-width="1.5"/>
-            <circle cx="55" cy="55" r="4"  fill="rgba(251,191,36,0.8)"/>
-            <!-- 8 petal lotus -->
-            <ellipse cx="55" cy="34" rx="4" ry="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
-            <ellipse cx="55" cy="76" rx="4" ry="10" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
-            <ellipse cx="34" cy="55" rx="10" ry="4" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
-            <ellipse cx="76" cy="55" rx="10" ry="4" fill="rgba(251,191,36,0.20)" stroke="rgba(251,191,36,0.45)" stroke-width="0.8"/>
-            <!-- Diagonal petals -->
-            <ellipse cx="42" cy="42" rx="4" ry="10" transform="rotate(-45 42 42)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
-            <ellipse cx="68" cy="42" rx="4" ry="10" transform="rotate(45 68 42)"  fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
-            <ellipse cx="42" cy="68" rx="4" ry="10" transform="rotate(45 42 68)"  fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
-            <ellipse cx="68" cy="68" rx="4" ry="10" transform="rotate(-45 68 68)" fill="rgba(251,191,36,0.15)" stroke="rgba(251,191,36,0.35)" stroke-width="0.8"/>
-            <!-- 8 diamond dots on ring at 33px -->
-            <rect x="53" y="20" width="4" height="4" rx="0.5" transform="rotate(45 55 22)" fill="rgba(251,191,36,0.7)"/>
-            <rect x="53" y="84" width="4" height="4" rx="0.5" transform="rotate(45 55 86)" fill="rgba(251,191,36,0.7)"/>
-            <rect x="20" y="53" width="4" height="4" rx="0.5" transform="rotate(45 22 55)" fill="rgba(251,191,36,0.7)"/>
-            <rect x="84" y="53" width="4" height="4" rx="0.5" transform="rotate(45 86 55)" fill="rgba(251,191,36,0.7)"/>
-            <rect x="76" y="28" width="3" height="3" rx="0.5" transform="rotate(45 77 29)" fill="rgba(251,191,36,0.5)"/>
-            <rect x="28" y="28" width="3" height="3" rx="0.5" transform="rotate(45 29 29)" fill="rgba(251,191,36,0.5)"/>
-            <rect x="76" y="78" width="3" height="3" rx="0.5" transform="rotate(45 77 79)" fill="rgba(251,191,36,0.5)"/>
-            <rect x="28" y="78" width="3" height="3" rx="0.5" transform="rotate(45 29 79)" fill="rgba(251,191,36,0.5)"/>
+          <svg width="112" height="112" viewBox="0 0 112 112" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Outer hexagon shape (BIS hallmark is hexagonal) -->
+            <polygon points="56,4 102,28 102,76 56,100 10,76 10,28" stroke="rgba(251,191,36,0.8)" stroke-width="2" fill="rgba(251,191,36,0.08)"/>
+            <!-- Inner hexagon -->
+            <polygon points="56,14 92,34 92,74 56,94 20,74 20,34" stroke="rgba(251,191,36,0.5)" stroke-width="1" fill="none"/>
+            <!-- BIS text at top -->
+            <text x="56" y="35" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="900" fill="rgba(251,191,36,0.95)" letter-spacing="3">BIS</text>
+            <!-- Main 916 number -->
+            <text x="56" y="62" text-anchor="middle" font-family="Arial,sans-serif" font-size="26" font-weight="900" fill="#fbbf24" letter-spacing="1">916</text>
+            <!-- Purity percentage -->
+            <text x="56" y="76" text-anchor="middle" font-family="Arial,sans-serif" font-size="8.5" font-weight="700" fill="rgba(251,191,36,0.85)" letter-spacing="1.5">91.6%</text>
+            <!-- Gold dots at corners -->
+            <circle cx="56" cy="4"  r="3" fill="rgba(251,191,36,0.9)"/>
+            <circle cx="102" cy="28" r="3" fill="rgba(251,191,36,0.9)"/>
+            <circle cx="102" cy="76" r="3" fill="rgba(251,191,36,0.9)"/>
+            <circle cx="56" cy="100" r="3" fill="rgba(251,191,36,0.9)"/>
+            <circle cx="10" cy="76" r="3" fill="rgba(251,191,36,0.9)"/>
+            <circle cx="10" cy="28" r="3" fill="rgba(251,191,36,0.9)"/>
+            <!-- Small lion (India mark) simplified -->
+            <text x="56" y="90" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="600" fill="rgba(251,191,36,0.7)" letter-spacing="0.5">INDIA</text>
           </svg>
         </div>
         <!-- Main content -->
@@ -1593,21 +1616,15 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       <table><thead><tr>${headCols}</tr></thead>
       <tbody>${tableRows}
         <tr class="totals-row"><td colspan="3">TOTALS (${ents.length} entries)</td>
-          ${showGold?`<td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.goldIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.goldOut)}</span></td><td></td><td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.pureIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.pureOut)}</span></td><td style="text-align:right"><span class="tot-box gold-tot">${fmtGoldN(s.pureIn-s.pureOut)}</span></td>`:""}
+          ${showGold?`<td></td><td></td><td></td><td style="text-align:right"><span class="tot-box green-tot">${fmtGoldN(s.pureIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtGoldN(s.pureOut)}</span></td><td style="text-align:right"><span class="tot-box ${s.pureIn-s.pureOut>=0?"gold-tot":"red-tot"}">${fmtGoldN(s.pureIn-s.pureOut)}</span></td>`:""}
           ${showMoney?`<td style="text-align:right"><span class="tot-box green-tot">${fmtMoneyPDF(s.moneyIn)}</span></td><td style="text-align:right"><span class="tot-box red-tot">${fmtMoneyPDF(s.moneyOut)}</span></td><td style="text-align:right"><span class="tot-box ${s.moneyIn-s.moneyOut>=0?"gold-tot":"red-tot"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</span></td>`:""}
         </tr>
       </tbody></table>
       <div class="balances">
         <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
-          ${showGold?`<div class="bal-item"><div class="bal-label">Gold In (g)</div><div class="bal-value" style="color:#16a34a">${fmtGoldN(s.goldIn)}</div></div>
-          <div class="bal-item"><div class="bal-label">Gold Out (g)</div><div class="bal-value" style="color:#dc2626">${fmtGoldN(s.goldOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure In (g)</div><div class="bal-value" style="color:#16a34a">${fmtGoldN(s.pureIn)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure Out (g)</div><div class="bal-value" style="color:#dc2626">${fmtGoldN(s.pureOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Total Pure Balance (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
-          ${showMoney?`<div class="bal-item"><div class="bal-label">Money In</div><div class="bal-value" style="color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</div></div>
-          <div class="bal-item"><div class="bal-label">Money Out</div><div class="bal-value" style="color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Net Cash Balance</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
+          ${showGold?`<div class="bal-item"><div class="bal-label">Total Pure Balance (g)</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGoldN(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGoldN(s.pureIn)} &middot; Out: ${fmtGoldN(s.pureOut)}</div></div>`:""}
+          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash Balance</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
       </div>
@@ -1802,24 +1819,8 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
           <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontWeight:700,fontSize:"0.9rem",marginBottom:12,color:"var(--text2)",display:"flex",alignItems:"center",gap:6}}>
             <Icon name="reports" size={15}/>Final Balances — {ents.length} entries
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(200px,1fr))",gap:10}}>
             {showG&&<>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Gold In (g)</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--green)"}}>{fmtGoldN(s.goldIn)}</div>
-              </div>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Gold Out (g)</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--red)"}}>{fmtGoldN(s.goldOut)}</div>
-              </div>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Pure In (g)</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--green)"}}>{fmtGoldN(s.pureIn)}</div>
-              </div>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Pure Out (g)</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--red)"}}>{fmtGoldN(s.pureOut)}</div>
-              </div>
               <div style={{background:"rgba(251,191,36,0.25)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
                 <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Total Pure Balance (g)</div>
                 <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.5rem",fontWeight:800,color:s.pureIn-s.pureOut>=0?"var(--gold)":"var(--red)"}}>{fmtGoldN(s.pureIn-s.pureOut)}</div>
@@ -1827,20 +1828,16 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
               </div>
             </>}
             {showM&&<>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Money In</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--green)"}}>{fmtMoney(s.moneyIn)}</div>
-              </div>
-              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Money Out</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800,color:"var(--red)"}}>{fmtMoney(s.moneyOut)}</div>
-              </div>
               <div style={{background:"rgba(251,191,36,0.25)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
                 <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Net Cash Balance</div>
                 <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.5rem",fontWeight:800,color:s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}}>{fmtMoney(s.moneyIn-s.moneyOut)}</div>
                 <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:3}}>In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div>
               </div>
             </>}
+            <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"14px",textAlign:"center"}}>
+              <div style={{fontSize:"0.72rem",color:"var(--text2)",textTransform:"uppercase",fontWeight:700,marginBottom:5,letterSpacing:"0.05em"}}>Transactions</div>
+              <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.5rem",fontWeight:800,color:"var(--blue)"}}>{ents.length}</div>
+            </div>
           </div>
         </div>
       </div>
