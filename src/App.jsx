@@ -749,7 +749,9 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
               <th style={{...hdr,width:90,color:"var(--gold)"}}>Gold In (g)</th>
               <th style={{...hdr,width:90,color:"var(--red)"}}>Gold Out (g)</th>
               <th style={{...hdr,width:90}}>Purity %</th>
-              <th style={{...hdr,width:50,color:"#a78bfa",textAlign:"center"}}>Pure Gold 100%</th>
+              <th style={{...hdr,width:90,color:"#a78bfa",textAlign:"right"}}>Pure Gold In (g)</th>
+              <th style={{...hdr,width:90,color:"#f97316",textAlign:"right"}}>Pure Gold Out (g)</th>
+              <th style={{...hdr,width:90,color:"#fbbf24",textAlign:"right"}}>Total Pure (g)</th>
               <th style={{...hdr,width:100,color:"var(--green)"}}>Money In ₹</th>
               <th style={{...hdr,width:100,color:"var(--red)"}}>Money Out ₹</th>
               <th style={{...hdr,width:80}}>Notes</th>
@@ -797,10 +799,14 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
                       <span style={{position:"absolute",right:7,fontSize:"0.75rem",color:"var(--text3)",pointerEvents:"none"}}>%</span>
                     </div>
                   </td>
-                  <td style={{padding:"4px 8px",textAlign:"center",fontSize:"0.72rem",color:"#a78bfa",whiteSpace:"nowrap"}}>
-                    {pureIn&&<div className="text-green">+{pureIn}g</div>}
-                    {pureOut&&<div className="text-red">-{pureOut}g</div>}
-                    {!pureIn&&!pureOut&&<span style={{color:"var(--text3)"}}>-</span>}
+                  <td style={{padding:"4px 8px",textAlign:"right",fontSize:"0.72rem",color:"#a78bfa",whiteSpace:"nowrap"}}>
+                    {pureIn?<span style={{color:"#a78bfa",fontWeight:600}}>{pureIn}g</span>:<span style={{color:"var(--text3)"}}>-</span>}
+                  </td>
+                  <td style={{padding:"4px 8px",textAlign:"right",fontSize:"0.72rem",color:"#f97316",whiteSpace:"nowrap"}}>
+                    {pureOut?<span style={{color:"#f97316",fontWeight:600}}>{pureOut}g</span>:<span style={{color:"var(--text3)"}}>-</span>}
+                  </td>
+                  <td style={{padding:"4px 8px",textAlign:"right",fontSize:"0.72rem",whiteSpace:"nowrap"}}>
+                    {(pureIn||pureOut)?<span style={{color:"#fbbf24",fontWeight:700}}>{((Number(pureIn||0)-Number(pureOut||0))).toFixed(3)}g</span>:<span style={{color:"var(--text3)"}}>-</span>}
                   </td>
                   <td style={{padding:"4px 6px"}}>
                     <input style={{...inp,color:"var(--green)"}} type="number" value={f.moneyIn} onChange={e=>setRow(i,"moneyIn",e.target.value)} placeholder="0.00" min="0" step="0.01"/>
@@ -979,11 +985,11 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
                     checked={rows.length>0&&rows.every(r=>selectedIds.has(r.id))}
                     onChange={e=>setSelectedIds(e.target.checked?new Set(rows.map(r=>r.id)):new Set())}/>
                 </th>
-                {[["date","Date"],["desc","Description"],["goldIn","Gold In (g)"],["goldOut","Gold Out (g)"],["purity","Purity"],["pureGold","Pure Gold (g)"],["goldBal","Gold Balance"]].map(([col,lbl])=>(
+                {[["date","Date"],["desc","Description"],["goldIn","Gold In (g)"],["goldOut","Gold Out (g)"],["purity","Purity"],["pureGoldIn","Pure In (g)"],["pureGoldOut","Pure Out (g)"],["pureTot","Total Pure (g)"],["goldBal","Gold Balance"]].map(([col,lbl])=>(
                   <th key={col} className={col==="goldIn"||col==="goldOut"||col==="pureGold"||col==="goldBal"?"th-right":col==="purity"?"th-center":""}
                     onClick={()=>{ if(["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)){ if(sortCol===col)setSortDir(d=>d==="asc"?"desc":"asc"); else{setSortCol(col);setSortDir("desc");} } }}
                     style={{cursor:["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)?"pointer":"default",userSelect:"none",whiteSpace:"nowrap"}}>
-                    {lbl}{sortCol===col?<span style={{color:"var(--gold)",marginLeft:3,fontSize:"0.7rem"}}>{sortDir==="asc"?"↑":"↓"}</span>:<span style={{opacity:0.2,marginLeft:3,fontSize:"0.7rem"}}>⇅</span>}
+                    {lbl}{sortCol===col?<span style={{color:"var(--gold)",marginLeft:3,fontSize:"0.7rem"}}>{sortDir==="asc"?"↑":"↓"}</span>:<span style={{opacity:["date","goldIn","goldOut","moneyIn","moneyOut","desc"].includes(col)?0.2:0,marginLeft:3,fontSize:"0.7rem"}}>⇅</span>}
                   </th>
                 ))}
                 {[["moneyIn","Money In (₹)"],["moneyOut","Money Out (₹)"],["moneyBal","Money Balance"]].map(([col,lbl])=>(
@@ -1010,9 +1016,13 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
                   <td className="right"><span className={row.goldOut? "gold-out":"text3"}>{row.goldOut? fmtGold(row.goldOut):"-"}</span></td>
                   <td className="center"><span className="badge badge-gold">{row.purity||"-"}</span></td>
                   <td className="right" style={{fontSize:"0.8rem"}}>
-                    {row.pureGoldIn? <span className="text-green">+{Number(row.pureGoldIn).toFixed(3)}g</span>:null}
-                    {row.pureGoldOut?<span className="text-red"  >-{Number(row.pureGoldOut).toFixed(3)}g</span>:null}
-                    {!row.pureGoldIn&&!row.pureGoldOut&&<span className="text3">-</span>}
+                    <span style={{color:"#a78bfa",fontWeight:600}}>{row.pureGoldIn?`${Number(row.pureGoldIn).toFixed(3)}g`:"-"}</span>
+                  </td>
+                  <td className="right" style={{fontSize:"0.8rem"}}>
+                    <span style={{color:"#f97316",fontWeight:600}}>{row.pureGoldOut?`${Number(row.pureGoldOut).toFixed(3)}g`:"-"}</span>
+                  </td>
+                  <td className="right" style={{fontSize:"0.8rem"}}>
+                    {(row.pureGoldIn||row.pureGoldOut)?<span style={{color:"#fbbf24",fontWeight:700}}>{(Number(row.pureGoldIn||0)-Number(row.pureGoldOut||0)).toFixed(3)}g</span>:<span className="text3">-</span>}
                   </td>
                   <td className="right"><span className="balance-gold">{fmtGold(row.goldBal)}</span></td>
                   <td className="right"><span className={row.moneyIn?  "money-in":"text3"}>{row.moneyIn?  fmtMoney(row.moneyIn): "-"}</span></td>
@@ -1033,7 +1043,9 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
                 <td className="right"><span className="text-green fw7">{fmtGold(totals.goldIn)}</span></td>
                 <td className="right"><span className="text-red fw7">{fmtGold(totals.goldOut)}</span></td>
                 <td/>
-                <td className="right" style={{fontSize:"0.8rem"}}><span className="text3">{fmtGold(totals.pureIn-totals.pureOut)} net</span></td>
+                <td className="right" style={{fontSize:"0.8rem"}}><span style={{color:"#a78bfa",fontWeight:700}}>{fmtGold(totals.pureIn)}</span></td>
+                <td className="right" style={{fontSize:"0.8rem"}}><span style={{color:"#f97316",fontWeight:700}}>{fmtGold(totals.pureOut)}</span></td>
+                <td className="right" style={{fontSize:"0.8rem"}}><span style={{color:"#fbbf24",fontWeight:700}}>{fmtGold(totals.pureIn-totals.pureOut)}</span></td>
                 <td className="right"><span className="text-gold fw7">{fmtGold(totals.goldIn-totals.goldOut)}</span></td>
                 <td className="right"><span className="text-green fw7">{fmtMoney(totals.moneyIn)}</span></td>
                 <td className="right"><span className="text-red fw7">{fmtMoney(totals.moneyOut)}</span></td>
@@ -1052,7 +1064,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
 }
 
 // ─── Standalone report HTML builder (no auto-print, used for saving) ──
-function buildReportHTML(ents, title, type, personName, companyData, sortDir="desc") {
+function buildReportHTML(ents, title, type, personName, companyData, sortDir="desc", hallmark=true) {
   const bizName    = companyData?.companyName || "Gold Shop";
   const bizOwner   = companyData?.companyOwner || "";
   const bizAddress = companyData?.companyAddress || "";
@@ -1074,12 +1086,12 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
     rG+=Number(e.goldIn||0)-Number(e.goldOut||0);
     rM+=Number(e.moneyIn||0)-Number(e.moneyOut||0);
     let cols=`<td>${fmtDate(e.date)}</td><td><strong>${e._personName||"-"}</strong><br/><small style="color:${e.personType==="customer"?"#2563eb":"#7c3aed"};font-weight:600">${e.personType==="customer"?"Customer":"Worker"}</small></td><td>${e.description||"-"}</td>`;
-    if(showGold) cols+=`<td style="text-align:right;color:#16a34a">${e.goldIn?fmtGold(e.goldIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.goldOut?fmtGold(e.goldOut):"-"}</td><td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:600">${e.purity||"-"}</span></td><td style="text-align:right;color:#7c3aed;font-size:11px">${e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}${e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}${!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td><td style="text-align:right;font-weight:700;color:${rG>=0?"#d97706":"#dc2626"}">${fmtGold(rG)}</td>`;
+    if(showGold) cols+=`<td style="text-align:right;color:#16a34a">${e.goldIn?fmtGold(e.goldIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.goldOut?fmtGold(e.goldOut):"-"}</td><td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:600">${e.purity||"-"}</span></td><td style="text-align:right;color:#7c3aed;font-size:11px;font-weight:600">${e.pureGoldIn?`${Number(e.pureGoldIn).toFixed(3)}g`:"-"}</td><td style="text-align:right;color:#c2410c;font-size:11px;font-weight:600">${e.pureGoldOut?`${Number(e.pureGoldOut).toFixed(3)}g`:"-"}</td><td style="text-align:right;color:#d97706;font-size:11px;font-weight:700">${(e.pureGoldIn||e.pureGoldOut)?(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)).toFixed(3)+"g":"-"}</td><td style="text-align:right;font-weight:700;color:${rG>=0?"#d97706":"#dc2626"}">${fmtGold(rG)}</td>`;
     if(showMoney) cols+=`<td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td><td style="text-align:right;color:#dc2626">${e.moneyOut?fmtMoneyPDF(e.moneyOut):"-"}</td><td style="text-align:right;font-weight:700;color:${rM>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(rM)}</td>`;
     return `<tr>${cols}</tr>`;
   }).join("");
   let headCols=`<th>Date</th><th>Name</th><th>Description</th>`;
-  if(showGold)  headCols+=`<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold</th><th style="text-align:right">Gold Balance</th>`;
+  if(showGold)  headCols+=`<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right;color:#7c3aed">Pure In (g)</th><th style="text-align:right;color:#c2410c">Pure Out (g)</th><th style="text-align:right;color:#d97706">Total Pure (g)</th><th style="text-align:right">Gold Balance</th>`;
   if(showMoney) headCols+=`<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
 
   // Reuse same CSS/biz-box as the main buildHTML (inlined minimal version)
@@ -1110,11 +1122,11 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
     th{background:#f9fafb;padding:9px 11px;text-align:left;font-size:10.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;border-bottom:2px solid #e5e7eb;white-space:nowrap}
     td{padding:9px 11px;border-bottom:1px solid #f3f4f6;font-size:12.5px;vertical-align:middle}
     .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:13px}
-    .balances{margin-top:22px;padding:16px 18px;border:2px solid #e5e7eb;border-radius:12px;background:#f9fafb}
-    .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#374151;margin-bottom:12px}
+    .balances{margin-top:22px;padding:16px 18px;border:2px solid #fbbf24;border-radius:12px;background:#fffbeb}
+    .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#1a1a1a;margin-bottom:12px}
     .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-    .bal-item{text-align:center;padding:12px 10px;background:#fff;border-radius:9px;border:1px solid #e5e7eb}
-    .bal-label{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
+    .bal-item{text-align:center;padding:12px 10px;background:#fffbeb!important;border-radius:9px;border:2px solid #fbbf24}
+    .bal-label{font-size:10px;color:#1a1a1a;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
     .bal-value{font-size:17px;font-weight:800;line-height:1.2}
     .gold-val{color:#d97706}.purple-val{color:#7c3aed}.green-val{color:#16a34a}.red-val{color:#dc2626}.blue-val{color:#2563eb}
     .page-footer{margin-top:18px;padding-top:10px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;display:flex;justify-content:space-between}
@@ -1122,7 +1134,7 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
   </style></head><body>
   <div class="biz-box">
     <div class="biz-inner">
-      <div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>
+      ${hallmark?`<div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>`:""}
       <div class="biz-name">${bizName}</div>
       ${bizOwner?`<div class="biz-sub">Proprietor: ${bizOwner}</div>`:""}
       <div class="biz-divider"><div class="biz-divider-line"></div><div class="biz-divider-diamond"></div><div class="biz-divider-line"></div></div>
@@ -1140,16 +1152,18 @@ function buildReportHTML(ents, title, type, personName, companyData, sortDir="de
   <table><thead><tr>${headCols}</tr></thead>
   <tbody>${tableRows}
     <tr class="totals-row"><td colspan="3">TOTALS (${sorted.length} entries)</td>
-      ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
+      ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed;font-weight:700">${fmtGold(s.pureIn)}</td><td style="text-align:right;color:#c2410c;font-weight:700">${fmtGold(s.pureOut)}</td><td style="text-align:right;color:#d97706;font-weight:700">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
       ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</td>`:""}
     </tr>
   </tbody></table>
   <div class="balances">
     <div class="balances-title">Final Balances</div>
     <div class="bal-grid">
-      ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} &middot; Out: ${fmtGold(s.goldOut)}</div></div>
-      <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div></div>`:""}
-      ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div></div>`:""}
+      ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value" style="color:${s.goldIn-s.goldOut>=0?"#d97706":"#dc2626"}">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} &middot; Out: ${fmtGold(s.goldOut)}</div></div>
+      <div class="bal-item"><div class="bal-label">Pure Gold In (100%)</div><div class="bal-value" style="color:#7c3aed">${fmtGold(s.pureIn)}</div></div>
+      <div class="bal-item"><div class="bal-label">Pure Gold Out (100%)</div><div class="bal-value" style="color:#c2410c">${fmtGold(s.pureOut)}</div></div>
+      <div class="bal-item"><div class="bal-label">Total Pure Balance</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} &middot; Out: ${fmtGold(s.pureOut)}</div></div>`:""}
+      ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
       <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${sorted.length}</div></div>
     </div>
   </div>
@@ -1225,6 +1239,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
   const [preview,    setPreview]   = useState(null);
   const [saveModal,  setSaveModal] = useState(false);
   const [saving,     setSaving]   = useState(false);
+  const [show916,    setShow916]  = useState(true);
 
   // ── Date range state ──
   const [rangePreset, setRangePreset] = useState("thisMonth");
@@ -1309,7 +1324,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
   };
 
   // ── Build HTML for preview/export ──
-  const buildHTML = (ents, title, type, personName, sortByArg, sortDirArg, autoPrint=true) => {
+  const buildHTML = (ents, title, type, personName, sortByArg, sortDirArg, autoPrint=true, hallmark=true) => {
     const s = summary(ents);
     const bizName = companyName || "My Business";
     const bizAddress = companyData?.companyAddress || "";
@@ -1341,7 +1356,9 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         <td style="text-align:right;color:#16a34a">${e.goldIn?fmtGold(e.goldIn):"-"}</td>
         <td style="text-align:right;color:#dc2626">${e.goldOut?fmtGold(e.goldOut):"-"}</td>
         <td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:99px;font-size:10px;font-weight:600">${e.purity||"-"}</span></td>
-        <td style="text-align:right;color:#7c3aed;font-size:11px">${e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}${e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}${!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
+        <td style="text-align:right;color:#7c3aed;font-size:11px;font-weight:600">${e.pureGoldIn?`${Number(e.pureGoldIn).toFixed(3)}g`:"-"}</td>
+        <td style="text-align:right;color:#c2410c;font-size:11px;font-weight:600">${e.pureGoldOut?`${Number(e.pureGoldOut).toFixed(3)}g`:"-"}</td>
+        <td style="text-align:right;color:#d97706;font-size:11px;font-weight:700">${(e.pureGoldIn||e.pureGoldOut)?(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)).toFixed(3)+"g":"-"}</td>
         <td style="text-align:right;font-weight:700;color:${e.runGold>=0?"#d97706":"#dc2626"}">${fmtGold(e.runGold)}</td>`;
       if (showMoney) cols += `
         <td style="text-align:right;color:#16a34a">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td>
@@ -1350,7 +1367,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       return `<tr>${cols}</tr>`;
     }).join("");
     let headCols = `<th>Date &amp; Time</th><th>Name</th><th>Description</th>`;
-    if (showGold)  headCols += `<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure Gold</th><th style="text-align:right">Gold Balance</th>`;
+    if (showGold)  headCols += `<th style="text-align:right">Gold In</th><th style="text-align:right">Gold Out</th><th style="text-align:center">Purity</th><th style="text-align:right;color:#7c3aed">Pure In (g)</th><th style="text-align:right;color:#c2410c">Pure Out (g)</th><th style="text-align:right;color:#d97706">Total Pure (g)</th><th style="text-align:right">Gold Balance</th>`;
     if (showMoney) headCols += `<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Money Balance</th>`;
     return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>${title}</title>
     <style>
@@ -1456,13 +1473,13 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       .totals-row td{background:#fffbeb;font-weight:700;border-top:2px solid #f59e0b;font-size:13px}
 
       /* ── Balances footer ── */
-      .balances{margin-top:22px;padding:16px 18px;border:2px solid #e5e7eb;border-radius:12px;background:#f9fafb}
-      .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#374151;margin-bottom:12px}
+      .balances{margin-top:22px;padding:16px 18px;border:2px solid #fbbf24;border-radius:12px;background:#fffbeb}
+      .balances-title{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:800;color:#1a1a1a;margin-bottom:12px}
       .bal-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-      .bal-item{text-align:center;padding:12px 10px;background:#fff;border-radius:9px;border:1px solid #e5e7eb}
-      .bal-label{font-size:10px;color:#6b7280;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
+      .bal-item{text-align:center;padding:12px 10px;background:#fff;border-radius:9px;border:2px solid #fbbf24;background:#fffbeb!important}
+      .bal-label{font-size:10px;color:#1a1a1a;text-transform:uppercase;font-weight:700;letter-spacing:0.06em;margin-bottom:5px}
       .bal-value{font-size:17px;font-weight:800;line-height:1.2}
-      .bal-sub{font-size:10px;color:#9ca3af;margin-top:3px}
+      .bal-sub{font-size:10px;color:#374151;margin-top:3px}
       .gold-val{color:#d97706}.purple-val{color:#7c3aed}.green-val{color:#16a34a}.red-val{color:#dc2626}.blue-val{color:#2563eb}
 
       /* ── Footer ── */
@@ -1536,7 +1553,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         </div>
         <!-- Main content -->
         <div class="biz-inner">
-          <div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>
+          ${hallmark?`<div class="hallmark-tag"><span class="hall-num">916</span> BIS Hallmarked Jewellery</div>`:""}
           <div class="biz-name">${bizName}</div>
           ${bizOwner ? `<div class="biz-sub">Proprietor: ${bizOwner}</div>` : ""}
           <div class="biz-divider"><div class="biz-divider-line"></div><div class="biz-divider-diamond"></div><div class="biz-divider-line"></div></div>
@@ -1569,16 +1586,18 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
       <table><thead><tr>${headCols}</tr></thead>
       <tbody>${tableRows}
         <tr class="totals-row"><td colspan="3">TOTALS (${ents.length} entries)</td>
-          ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
+          ${showGold?`<td style="text-align:right;color:#16a34a">${fmtGold(s.goldIn)}</td><td style="text-align:right;color:#dc2626">${fmtGold(s.goldOut)}</td><td></td><td style="text-align:right;color:#7c3aed;font-weight:700">${fmtGold(s.pureIn)}</td><td style="text-align:right;color:#c2410c;font-weight:700">${fmtGold(s.pureOut)}</td><td style="text-align:right;color:#d97706;font-weight:700">${fmtGold(s.pureIn-s.pureOut)}</td><td style="text-align:right;color:#d97706">${fmtGold(s.goldIn-s.goldOut)}</td>`:""}
           ${showMoney?`<td style="text-align:right;color:#16a34a">${fmtMoneyPDF(s.moneyIn)}</td><td style="text-align:right;color:#dc2626">${fmtMoneyPDF(s.moneyOut)}</td><td style="text-align:right;color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</td>`:""}
         </tr>
       </tbody></table>
       <div class="balances">
         <div class="balances-title">Final Balances</div>
         <div class="bal-grid">
-          ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value gold-val">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} &middot; Out: ${fmtGold(s.goldOut)}</div></div>
-          <div class="bal-item"><div class="bal-label">Pure Gold 100%</div><div class="bal-value purple-val">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} &middot; Out: ${fmtGold(s.pureOut)}</div></div>`:""}
-          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value ${s.moneyIn-s.moneyOut>=0?"green":"red"}-val">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
+          ${showGold?`<div class="bal-item"><div class="bal-label">Net Gold</div><div class="bal-value" style="color:${s.goldIn-s.goldOut>=0?"#d97706":"#dc2626"}">${fmtGold(s.goldIn-s.goldOut)}</div><div class="bal-sub">In: ${fmtGold(s.goldIn)} &middot; Out: ${fmtGold(s.goldOut)}</div></div>
+          <div class="bal-item"><div class="bal-label">Pure Gold In (100%)</div><div class="bal-value" style="color:#7c3aed">${fmtGold(s.pureIn)}</div></div>
+          <div class="bal-item"><div class="bal-label">Pure Gold Out (100%)</div><div class="bal-value" style="color:#c2410c">${fmtGold(s.pureOut)}</div></div>
+          <div class="bal-item"><div class="bal-label">Total Pure Balance</div><div class="bal-value" style="color:${s.pureIn-s.pureOut>=0?"#d97706":"#dc2626"}">${fmtGold(s.pureIn-s.pureOut)}</div><div class="bal-sub">In: ${fmtGold(s.pureIn)} &middot; Out: ${fmtGold(s.pureOut)}</div></div>`:""}
+          ${showMoney?`<div class="bal-item"><div class="bal-label">Net Cash</div><div class="bal-value" style="color:${s.moneyIn-s.moneyOut>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(s.moneyIn-s.moneyOut)}</div><div class="bal-sub">In: ${fmtMoneyPDF(s.moneyIn)} &middot; Out: ${fmtMoneyPDF(s.moneyOut)}</div></div>`:""}
           <div class="bal-item"><div class="bal-label">Transactions</div><div class="bal-value blue-val">${ents.length}</div></div>
         </div>
       </div>
@@ -1588,7 +1607,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
   const openPreview = (ents, title, personName) => {
     const sorted = applySortToEnts(ents, sortBy, sortDir);
-    setPreview({html: buildHTML(sorted, title, exportType, personName, sortBy, sortDir), title, ents: sorted});
+    setPreview({html: buildHTML(sorted, title, exportType, personName, sortBy, sortDir, true, show916), title, ents: sorted});
   };
 
   const doPrint = () => {
@@ -1722,7 +1741,9 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
                 <Th col="goldIn"  label="Gold In"  className="th-right"/>
                 <Th col="goldOut" label="Gold Out" className="th-right"/>
                 <th className="th-center">Purity</th>
-                <th className="th-right">Pure Gold</th>
+                <th className="th-right" style={{color:"#a78bfa"}}>Pure In (g)</th>
+                <th className="th-right" style={{color:"#f97316"}}>Pure Out (g)</th>
+                <th className="th-right" style={{color:"#fbbf24"}}>Total Pure (g)</th>
                 <th className="th-right">Gold Bal</th>
               </>}
               {showM&&<>
@@ -1750,7 +1771,9 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
                       <td className="right text-green">{e.goldIn?fmtGold(e.goldIn):"-"}</td>
                       <td className="right text-red">{e.goldOut?fmtGold(e.goldOut):"-"}</td>
                       <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
-                      <td className="right fs-xs text2">{e.pureGoldIn?`+${Number(e.pureGoldIn).toFixed(3)}g`:""}{e.pureGoldOut?`-${Number(e.pureGoldOut).toFixed(3)}g`:""}{!e.pureGoldIn&&!e.pureGoldOut?"-":""}</td>
+                      <td className="right" style={{fontSize:"0.8rem",color:"#a78bfa",fontWeight:600}}>{e.pureGoldIn?`${Number(e.pureGoldIn).toFixed(3)}g`:"-"}</td>
+                      <td className="right" style={{fontSize:"0.8rem",color:"#f97316",fontWeight:600}}>{e.pureGoldOut?`${Number(e.pureGoldOut).toFixed(3)}g`:"-"}</td>
+                      <td className="right" style={{fontSize:"0.8rem",color:"#fbbf24",fontWeight:700}}>{(e.pureGoldIn||e.pureGoldOut)?(Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0)).toFixed(3)+"g":"-"}</td>
                       <td className="right"><span style={{fontWeight:700,color:e.rG>=0?"var(--gold)":"var(--red)"}}>{fmtGold(e.rG)}</span></td>
                     </>}
                     {showM&&<>
@@ -1773,22 +1796,32 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
             {showG&&<>
-              <div style={{background:"var(--gold-dim)",border:"1px solid rgba(251,191,36,0.3)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Gold</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:"var(--gold)"}}>{fmtGold(s.goldIn-s.goldOut)}</div>
-                <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div>
+              <div style={{background:"var(--gold-dim)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Gold</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:s.goldIn-s.goldOut>=0?"var(--gold)":"var(--red)"}}>{fmtGold(s.goldIn-s.goldOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>In: {fmtGold(s.goldIn)} · Out: {fmtGold(s.goldOut)}</div>
               </div>
-              <div style={{background:"rgba(167,139,250,0.1)",border:"1px solid rgba(167,139,250,0.3)",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure Gold 100%</div>
-                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:"#a78bfa"}}>{fmtGold(s.pureIn-s.pureOut)}</div>
-                <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure Gold In (100%)</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:"#a78bfa"}}>{fmtGold(s.pureIn)}</div>
+                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>Calculated from purity</div>
+              </div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Pure Gold Out (100%)</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:"#f97316"}}>{fmtGold(s.pureOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>Calculated from purity</div>
+              </div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Total Pure Balance</div>
+                <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:s.pureIn-s.pureOut>=0?"var(--gold)":"var(--red)"}}>{fmtGold(s.pureIn-s.pureOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>In: {fmtGold(s.pureIn)} · Out: {fmtGold(s.pureOut)}</div>
               </div>
             </>}
             {showM&&<>
-              <div style={{background:s.moneyIn-s.moneyOut>=0?"var(--green-dim)":"var(--red-dim)",border:`1px solid ${s.moneyIn-s.moneyOut>=0?"rgba(34,211,160,0.3)":"rgba(244,63,94,0.3)"}`,borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
-                <div style={{fontSize:"0.7rem",color:"var(--text3)",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Cash</div>
+              <div style={{background:"rgba(251,191,36,0.15)",border:"2px solid #fbbf24",borderRadius:10,padding:"12px 14px",textAlign:"center"}}>
+                <div style={{fontSize:"0.7rem",color:"#000",textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Net Cash</div>
                 <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.3rem",fontWeight:800,color:s.moneyIn-s.moneyOut>=0?"var(--green)":"var(--red)"}}>{fmtMoney(s.moneyIn-s.moneyOut)}</div>
-                <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:2}}>In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div>
+                <div style={{fontSize:"0.72rem",color:"#000",marginTop:2}}>In: {fmtMoney(s.moneyIn)} · Out: {fmtMoney(s.moneyOut)}</div>
               </div>
             </>}
           </div>
@@ -1830,6 +1863,15 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
         <div><div className="section-title">Reports</div></div>
         {activeEnts.length>0&&(
           <div className="flex gap2" style={{flexWrap:"wrap",justifyContent:"flex-end"}}>
+            {/* 916 Hallmark toggle */}
+            <div style={{display:"flex",alignItems:"center",gap:8,background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",padding:"5px 12px"}}>
+              <span style={{fontSize:"0.78rem",fontWeight:700,color:"var(--text2)"}}>916 Hallmark</span>
+              <button onClick={()=>setShow916(v=>!v)}
+                style={{position:"relative",width:40,height:22,borderRadius:99,border:"none",cursor:"pointer",transition:"background 0.2s",
+                  background:show916?"#fbbf24":"var(--border2)",padding:0}}>
+                <span style={{position:"absolute",top:3,left:show916?20:3,width:16,height:16,borderRadius:"50%",background:"#fff",transition:"left 0.2s",display:"block"}}/>
+              </button>
+            </div>
             <div style={{display:"flex",gap:6,alignItems:"center",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",padding:"5px 10px"}}>
               {[{v:"all",l:"Both"},{v:"gold",l:"Gold Only"},{v:"money",l:"Cash Only"}].map(opt=>(
                 <label key={opt.v} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer",fontSize:"0.82rem",fontWeight:exportType===opt.v?700:400,color:exportType===opt.v?"var(--gold)":"var(--text2)",whiteSpace:"nowrap"}}>
@@ -1846,7 +1888,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
               const now = new Date();
               const stamp = now.toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}) + " " + now.toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
               const defaultName = `${reportTitle} - ${stamp}`;
-              const html = buildHTML(sorted, reportTitle, exportType, pName, sortBy, sortDir, false);
+              const html = buildHTML(sorted, reportTitle, exportType, pName, sortBy, sortDir, false, show916);
               setSaveModal({html, ents: sorted, defaultName});
             }} style={{display:"inline-flex",alignItems:"center",gap:7,padding:"8px 16px",borderRadius:"var(--radius-sm)",fontSize:"0.875rem",fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",background:"rgba(34,211,160,0.15)",color:"var(--green)",border:"1px solid rgba(34,211,160,0.3)"}}><Icon name="download" size={16}/>💾 Save Report</button>
           </div>
