@@ -94,6 +94,24 @@
       "moneyBal": -5850000,
       "deletedAt": 1773411154730,
       "deletedBy": "senthil916"
+    },
+    {
+      "date": "2026-03-13",
+      "personId": "xgl1fyyummlugs8h",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 0,
+      "goldOut": 0,
+      "purity": "100",
+      "moneyIn": 650000,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 0,
+      "pureGoldOut": 0,
+      "createdAt": 1773411169270,
+      "id": "efe0rtpzmmoz7zsm",
+      "deletedAt": 1773411203198,
+      "deletedBy": "senthil916"
     }
   ]
 }
