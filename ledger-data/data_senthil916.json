@@ -156,6 +156,38 @@
       "pureGoldOut": 915.9999999999999,
       "createdAt": 1773246073438,
       "id": "jq1f3u6bmmm8xf1a"
+    },
+    {
+      "date": "2026-03-13",
+      "personId": "xgl1fyyummlugs8h",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 0,
+      "goldOut": 0,
+      "purity": "100",
+      "moneyIn": 650000,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 0,
+      "pureGoldOut": 0,
+      "createdAt": 1773411169270,
+      "id": "efe0rtpzmmoz7zsm"
+    },
+    {
+      "date": "2026-03-13",
+      "personId": "xgl1fyyummlugs8h",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 0,
+      "goldOut": 0,
+      "purity": "100",
+      "moneyIn": 0,
+      "moneyOut": 650000,
+      "notes": "",
+      "pureGoldIn": 0,
+      "pureGoldOut": 0,
+      "createdAt": 1773411169270,
+      "id": "byr39kofmmoz7zsm"
     }
   ],
   "companyName": "SG ANTIQUES",
