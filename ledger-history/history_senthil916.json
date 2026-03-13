@@ -36,6 +36,25 @@
       "id": "kwc3toi2mmm8noo3",
       "deletedAt": 1773246772544,
       "deletedBy": "senthil916"
+    },
+    {
+      "date": "2026-03-09",
+      "personId": "xgl1fyyummlugs8h",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 0,
+      "goldOut": 0,
+      "purity": "22K (916)",
+      "customPurity": "",
+      "moneyIn": 650000,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 0,
+      "pureGoldOut": 0,
+      "id": "jv1k4t1gmmluht21",
+      "createdAt": 1773221830489,
+      "deletedAt": 1773411144657,
+      "deletedBy": "senthil916"
     }
   ]
 }
