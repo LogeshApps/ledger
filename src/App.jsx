@@ -193,7 +193,7 @@ const Icon = ({ name, size=18, color="currentColor" }) => {
 };
 
 // ─── Styles ─────────────────────────────────────────────────────────
-const styles = `
+const getStyles = (theme={}) => `
 
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -208,6 +208,15 @@ const styles = `
     --radius:12px;--radius-sm:8px;--shadow:0 4px 24px rgba(0,0,0,0.4);
     --font:Arial,Helvetica,sans-serif;--font-display:Arial,Helvetica,sans-serif;
     --sidebar-w:240px;--tr:0.2s cubic-bezier(0.4,0,0.2,1);
+    ${theme.bg        ? `--bg:${theme.bg};`        : ""}
+    ${theme.surface   ? `--surface:${theme.surface};--surface2:${theme.surface2||theme.surface};--surface3:${theme.surface3||theme.surface};` : ""}
+    ${theme.border    ? `--border:${theme.border};--border2:${theme.border2||theme.border};` : ""}
+    ${theme.text      ? `--text:${theme.text};` : ""}
+    ${theme.accent    ? `--accent:${theme.accent};--accent2:${theme.accent2||theme.accent};--accent-dim:${theme.accentDim||"rgba(99,102,241,0.15)"};` : ""}
+    ${theme.gold      ? `--gold:${theme.gold};--amber:${theme.amber||theme.gold};--gold-dim:${theme.goldDim||"rgba(251,191,36,0.12)"};` : ""}
+    ${theme.green     ? `--green:${theme.green};--green-dim:${theme.greenDim||"rgba(34,211,160,0.12)"};` : ""}
+    ${theme.red       ? `--red:${theme.red};--red-dim:${theme.redDim||"rgba(244,63,94,0.12)"};` : ""}
+    ${theme.blue      ? `--blue:${theme.blue};--blue-dim:${theme.blueDim||"rgba(56,189,248,0.12)"};` : ""}
   }
   html{font-size:15px}
   body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;overflow-x:hidden}
@@ -1424,7 +1433,7 @@ async function autoGenerateMonthEndReport(user, businessData) {
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────
-function Reports({ entries, customers, workers, companyName, companyData, onDeleteEntry, onDeleteManyEntries, currentUser }) {
+function Reports({ entries, customers, workers, companyName, companyData, onDeleteEntry, onDeleteManyEntries, onEditEntry, currentUser }) {
   const [tab,        setTab]       = useState("monthly");
   const [person,     setPerson]    = useState("");
   const [exportType, setExportType]= useState("all");
@@ -1850,6 +1859,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
   const RenderTable = ({ents, sumData}) => {
     if (!ents.length) return <div className="empty"><div className="empty-icon"><Icon name="reports" size={28}/></div><div className="empty-title">No entries found</div></div>;
 
+    const [delEntry, setDelEntry] = useState(null);
     const sorted = applySortToEnts(ents, sortBy, sortDir);
     // Running balances computed on sorted order
     let rG=0, rM=0;
@@ -1931,6 +1941,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
                 <Th col="moneyOut" label="Money Out" className="th-right"/>
                 <th className="th-right">Money Bal</th>
               </>}
+              {(onEditEntry||onDeleteEntry)&&<th style={{width:80,textAlign:"center"}}>Actions</th>}
             </tr></thead>
             <tbody>
               {rows.map(e=>{
@@ -1960,12 +1971,21 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
                       <td className="right" style={{fontSize:"0.9rem"}}><span style={{color:e.moneyOut?"var(--red)":"var(--text3)",fontWeight:e.moneyOut?600:400}}>{e.moneyOut?fmtMoney(e.moneyOut):"-"}</span></td>
                       <td className="right"><span style={{fontWeight:700,fontSize:"0.9rem",color:e.rM>=0?"var(--green)":"var(--red)"}}>{fmtMoney(e.rM)}</span></td>
                     </>}
+                    {(onEditEntry||onDeleteEntry)&&(
+                      <td style={{textAlign:"center",padding:"6px 8px"}}>
+                        <div className="flex gap2" style={{justifyContent:"center"}}>
+                          {onEditEntry&&<button className="btn btn-icon btn-secondary btn-sm" title="Edit entry" onClick={()=>onEditEntry(e)}><Icon name="edit" size={13}/></button>}
+                          {onDeleteEntry&&<button className="btn btn-icon btn-danger btn-sm" title="Delete entry" onClick={()=>setDelEntry(e)}><Icon name="trash" size={13}/></button>}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
+        {delEntry&&onDeleteEntry&&<Confirm msg={`Delete entry "${delEntry.description||fmtDate(delEntry.date)}"?`} onOk={()=>{onDeleteEntry(delEntry.id);setDelEntry(null);}} onCancel={()=>setDelEntry(null)}/>}
         {bulkConfirm&&onDeleteEntry&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{(onDeleteManyEntries||((ids)=>ids.forEach(id=>onDeleteEntry(id))))([...selectedIds]);setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
       {saveModal&&<SaveReportModal defaultName={saveModal.defaultName} onSave={doSaveReport} onClose={()=>setSaveModal(null)} saving={saving}/>}
         {/* ── Balance Summary at BOTTOM ── */}
@@ -2129,13 +2149,95 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 }
 
 // ─── Settings ────────────────────────────────────────────────────────
-function SettingsPage({ data, onChange, addToast, currentUser }) {
+// ─── Built-in Themes ─────────────────────────────────────────────────
+const PRESET_THEMES = [
+  { id:"default",    name:"Midnight",    emoji:"🌑",
+    bg:"#0c0e14", surface:"#13161f", surface2:"#1a1e2a", surface3:"#222636",
+    border:"#2a2f42", border2:"#353b52", text:"#e8eaf0",
+    accent:"#6366f1", accent2:"#818cf8", accentDim:"rgba(99,102,241,0.15)",
+    gold:"#fbbf24", amber:"#f59e0b", goldDim:"rgba(251,191,36,0.12)",
+    green:"#22d3a0", greenDim:"rgba(34,211,160,0.12)",
+    red:"#f43f5e",   redDim:"rgba(244,63,94,0.12)",
+    blue:"#38bdf8",  blueDim:"rgba(56,189,248,0.12)" },
+  { id:"obsidian",   name:"Obsidian",    emoji:"🖤",
+    bg:"#000000", surface:"#0d0d0d", surface2:"#141414", surface3:"#1a1a1a",
+    border:"#252525", border2:"#303030", text:"#f0f0f0",
+    accent:"#a855f7", accent2:"#c084fc", accentDim:"rgba(168,85,247,0.15)",
+    gold:"#f59e0b", amber:"#d97706", goldDim:"rgba(245,158,11,0.12)",
+    green:"#34d399", greenDim:"rgba(52,211,153,0.12)",
+    red:"#f87171",   redDim:"rgba(248,113,113,0.12)",
+    blue:"#60a5fa",  blueDim:"rgba(96,165,250,0.12)" },
+  { id:"forest",     name:"Forest",      emoji:"🌿",
+    bg:"#0a0f0a", surface:"#0f1a0f", surface2:"#152015", surface3:"#1a2a1a",
+    border:"#253525", border2:"#2e422e", text:"#d4edda",
+    accent:"#22c55e", accent2:"#4ade80", accentDim:"rgba(34,197,94,0.15)",
+    gold:"#facc15", amber:"#eab308", goldDim:"rgba(250,204,21,0.12)",
+    green:"#4ade80", greenDim:"rgba(74,222,128,0.12)",
+    red:"#f87171",   redDim:"rgba(248,113,113,0.12)",
+    blue:"#67e8f9",  blueDim:"rgba(103,232,249,0.12)" },
+  { id:"ocean",      name:"Ocean",       emoji:"🌊",
+    bg:"#020b18", surface:"#051525", surface2:"#0a2040", surface3:"#0d2d55",
+    border:"#103060", border2:"#154070", text:"#cce4ff",
+    accent:"#0ea5e9", accent2:"#38bdf8", accentDim:"rgba(14,165,233,0.15)",
+    gold:"#fbbf24", amber:"#f59e0b", goldDim:"rgba(251,191,36,0.12)",
+    green:"#06b6d4", greenDim:"rgba(6,182,212,0.12)",
+    red:"#fb7185",   redDim:"rgba(251,113,133,0.12)",
+    blue:"#38bdf8",  blueDim:"rgba(56,189,248,0.12)" },
+  { id:"crimson",    name:"Crimson",     emoji:"🔴",
+    bg:"#0f0509", surface:"#1a080d", surface2:"#240d14", surface3:"#2e121a",
+    border:"#3d1a22", border2:"#4d222c", text:"#fde8ec",
+    accent:"#e11d48", accent2:"#fb7185", accentDim:"rgba(225,29,72,0.15)",
+    gold:"#fbbf24", amber:"#f59e0b", goldDim:"rgba(251,191,36,0.12)",
+    green:"#34d399", greenDim:"rgba(52,211,153,0.12)",
+    red:"#fb7185",   redDim:"rgba(251,113,133,0.12)",
+    blue:"#67e8f9",  blueDim:"rgba(103,232,249,0.12)" },
+  { id:"amber",      name:"Amber",       emoji:"🟡",
+    bg:"#0d0a00", surface:"#1a1400", surface2:"#261e00", surface3:"#302600",
+    border:"#403200", border2:"#504000", text:"#fff3cd",
+    accent:"#f59e0b", accent2:"#fbbf24", accentDim:"rgba(245,158,11,0.15)",
+    gold:"#fbbf24", amber:"#f59e0b", goldDim:"rgba(251,191,36,0.12)",
+    green:"#86efac", greenDim:"rgba(134,239,172,0.12)",
+    red:"#fca5a5",   redDim:"rgba(252,165,165,0.12)",
+    blue:"#93c5fd",  blueDim:"rgba(147,197,253,0.12)" },
+  { id:"violet",     name:"Violet",      emoji:"💜",
+    bg:"#07030f", surface:"#0f0520", surface2:"#180830", surface3:"#200b3e",
+    border:"#2d1250", border2:"#3b1862", text:"#ede9fe",
+    accent:"#8b5cf6", accent2:"#a78bfa", accentDim:"rgba(139,92,246,0.15)",
+    gold:"#fbbf24", amber:"#f59e0b", goldDim:"rgba(251,191,36,0.12)",
+    green:"#34d399", greenDim:"rgba(52,211,153,0.12)",
+    red:"#f87171",   redDim:"rgba(248,113,113,0.12)",
+    blue:"#c4b5fd",  blueDim:"rgba(196,181,253,0.12)" },
+  { id:"slate",      name:"Slate",       emoji:"🩶",
+    bg:"#0b0d11", surface:"#141820", surface2:"#1c2230", surface3:"#232a38",
+    border:"#2c3444", border2:"#384050", text:"#e2e8f0",
+    accent:"#64748b", accent2:"#94a3b8", accentDim:"rgba(100,116,139,0.15)",
+    gold:"#fbbf24", amber:"#f59e0b", goldDim:"rgba(251,191,36,0.12)",
+    green:"#34d399", greenDim:"rgba(52,211,153,0.12)",
+    red:"#f87171",   redDim:"rgba(248,113,113,0.12)",
+    blue:"#93c5fd",  blueDim:"rgba(147,197,253,0.12)" },
+];
+
+function SettingsPage({ data, onChange, addToast, currentUser, userTheme={}, applyTheme }) {
   const [co, setCo] = useState({ name:data.companyName||"", owner:data.companyOwner||"", address:data.companyAddress||"", phone:data.companyPhone||"" });
   const [pw, setPw] = useState({ old:"", nw:"", cf:"" });
   const [pwErr, setPwErr] = useState("");
   const [pwBusy, setPwBusy] = useState(false);
+  const [themeTab, setThemeTab] = useState("presets"); // presets | custom
+  const [customVars, setCustomVars] = useState({
+    bg:       userTheme.bg       || "#0c0e14",
+    surface:  userTheme.surface  || "#13161f",
+    surface2: userTheme.surface2 || "#1a1e2a",
+    surface3: userTheme.surface3 || "#222636",
+    border:   userTheme.border   || "#2a2f42",
+    text:     userTheme.text     || "#e8eaf0",
+    accent:   userTheme.accent   || "#6366f1",
+    gold:     userTheme.gold     || "#fbbf24",
+    green:    userTheme.green    || "#22d3a0",
+    red:      userTheme.red      || "#f43f5e",
+    blue:     userTheme.blue     || "#38bdf8",
+  });
 
-  const saveCompany = () => { onChange({ companyName:co.name, companyOwner:co.owner||'', companyAddress:co.address, companyPhone:co.phone }); addToast("Business info saved!"); };
+  const saveCompany = () => { onChange({ companyName:co.name, companyOwner:co.owner||"", companyAddress:co.address, companyPhone:co.phone }); addToast("Business info saved!"); };
 
   const changePw = async () => {
     if (currentUser.password!==pw.old) return setPwErr("Current password incorrect.");
@@ -2145,9 +2247,8 @@ function SettingsPage({ data, onChange, addToast, currentUser }) {
     try {
       const result = await ghGet(USERS_FILE);
       const users = result?.data?.users || [];
-      const sha = result?.sha || null;
       const updated = users.map(u=>u.id===currentUser.id?{...u,password:pw.nw}:u);
-      await ghPut(USERS_FILE, { users: updated }, sha, `Password update for ${currentUser.username}`);
+      await ghPut(USERS_FILE, { users: updated }, result?.sha, `Password update for ${currentUser.username}`);
       setPwErr(""); setPw({old:"",nw:"",cf:""}); addToast("Password changed!");
     } catch(e) { setPwErr("Failed to update password."); }
     setPwBusy(false);
@@ -2159,9 +2260,174 @@ function SettingsPage({ data, onChange, addToast, currentUser }) {
     a.download=`goldledger_${currentUser.username}_backup_${today()}.json`; a.click(); addToast("Backup exported!");
   };
 
+  const applyPreset = (p) => {
+    applyTheme(p);
+    addToast(`Theme "${p.name}" applied! ✨`);
+  };
+
+  const applyCustom = () => {
+    // Derive dim/surface variants automatically
+    const t = {
+      ...customVars,
+      surface2: customVars.surface2,
+      surface3: customVars.surface3,
+      border2:  customVars.border,
+      amber:    customVars.gold,
+      accent2:  customVars.accent,
+      accentDim:`${customVars.accent}26`,
+      goldDim:  `${customVars.gold}20`,
+      greenDim: `${customVars.green}20`,
+      redDim:   `${customVars.red}20`,
+      blueDim:  `${customVars.blue}20`,
+    };
+    applyTheme(t);
+    addToast("Custom theme applied! 🎨");
+  };
+
+  const resetTheme = () => { applyTheme({}); addToast("Theme reset to default."); };
+
+  const activeId = PRESET_THEMES.find(p =>
+    p.bg===userTheme.bg && p.accent===userTheme.accent
+  )?.id || (Object.keys(userTheme).length===0 ? "default" : "custom");
+
+  const cv = (k,v) => setCustomVars(prev=>({...prev,[k]:v}));
+
+  const colorRow = (label, key, hint="") => (
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
+      <div style={{flex:1}}>
+        <div style={{fontWeight:600,fontSize:"0.85rem"}}>{label}</div>
+        {hint&&<div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:1}}>{hint}</div>}
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <div style={{width:28,height:28,borderRadius:6,background:customVars[key],border:"2px solid var(--border2)",flexShrink:0}}/>
+        <input type="color" value={customVars[key]} onChange={e=>cv(key,e.target.value)}
+          style={{width:36,height:36,padding:2,border:"1px solid var(--border)",borderRadius:6,cursor:"pointer",background:"transparent"}}/>
+        <input value={customVars[key]} onChange={e=>cv(key,e.target.value)}
+          style={{width:90,fontFamily:"monospace",fontSize:"0.82rem",padding:"5px 8px",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)"}}/>
+      </div>
+    </div>
+  );
+
   return (
     <div>
-      <div className="section-title" style={{marginBottom:20}}>Settings</div>
+      <div className="section-title" style={{marginBottom:20}}>⚙️ Settings</div>
+
+      {/* ── THEME SECTION ── */}
+      <div className="card" style={{marginBottom:20,border:"1px solid rgba(251,191,36,0.3)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16,flexWrap:"wrap",gap:10}}>
+          <div>
+            <div className="fw7" style={{fontSize:"1rem",display:"flex",alignItems:"center",gap:8}}>🎨 Theme & Colors</div>
+            <div className="fs-sm text2" style={{marginTop:3}}>Personalize the look of your Ledger app</div>
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            {activeId!=="default"&&activeId!=="custom"&&<span style={{background:"var(--accent-dim)",color:"var(--accent2)",padding:"3px 10px",borderRadius:20,fontSize:"0.72rem",fontWeight:700}}>
+              {PRESET_THEMES.find(p=>p.id===activeId)?.emoji} {PRESET_THEMES.find(p=>p.id===activeId)?.name} Active
+            </span>}
+            {Object.keys(userTheme).length>0&&<button className="btn btn-secondary btn-sm" onClick={resetTheme}>↩ Reset Default</button>}
+          </div>
+        </div>
+
+        {/* Tabs */}
+        <div className="tabs" style={{marginBottom:16}}>
+          <div className={`tab${themeTab==="presets"?" active":""}`} onClick={()=>setThemeTab("presets")}>🎭 Preset Themes</div>
+          <div className={`tab${themeTab==="custom"?" active":""}`} onClick={()=>setThemeTab("custom")}>🎨 Custom Colors</div>
+        </div>
+
+        {/* ── Preset Themes Grid ── */}
+        {themeTab==="presets"&&(
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(150px,1fr))",gap:10}}>
+            {PRESET_THEMES.map(p=>{
+              const isActive = activeId===p.id;
+              return (
+                <div key={p.id} onClick={()=>applyPreset(p)}
+                  style={{
+                    border:`2px solid ${isActive?"var(--gold)":"var(--border)"}`,
+                    borderRadius:12, padding:"12px 10px", cursor:"pointer", textAlign:"center",
+                    background: isActive?"rgba(251,191,36,0.06)":"var(--surface2)",
+                    transition:"all 0.2s", position:"relative",
+                  }}
+                  onMouseEnter={e=>!isActive&&(e.currentTarget.style.borderColor="var(--border2)")}
+                  onMouseLeave={e=>!isActive&&(e.currentTarget.style.borderColor="var(--border)")}
+                >
+                  {isActive&&<div style={{position:"absolute",top:-8,right:-8,background:"var(--gold)",color:"#000",fontSize:"0.65rem",fontWeight:800,width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}>✓</div>}
+                  {/* Mini preview swatch */}
+                  <div style={{display:"flex",gap:3,justifyContent:"center",marginBottom:8}}>
+                    <div style={{width:14,height:14,borderRadius:3,background:p.bg,border:"1px solid #fff2"}}/>
+                    <div style={{width:14,height:14,borderRadius:3,background:p.accent}}/>
+                    <div style={{width:14,height:14,borderRadius:3,background:p.gold}}/>
+                    <div style={{width:14,height:14,borderRadius:3,background:p.green}}/>
+                    <div style={{width:14,height:14,borderRadius:3,background:p.red}}/>
+                  </div>
+                  <div style={{fontSize:"1.2rem",marginBottom:3}}>{p.emoji}</div>
+                  <div style={{fontWeight:700,fontSize:"0.82rem",color:isActive?"var(--gold)":"var(--text)"}}>{p.name}</div>
+                  {isActive&&<div style={{fontSize:"0.68rem",color:"var(--gold)",marginTop:2,fontWeight:600}}>Active</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Custom Colors ── */}
+        {themeTab==="custom"&&(
+          <div>
+            <div style={{fontSize:"0.82rem",color:"var(--text2)",marginBottom:14}}>
+              Fine-tune every color individually. Changes preview when you click <strong style={{color:"var(--gold)"}}>Apply Custom</strong>.
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0 24px"}}>
+              <div>
+                <div style={{fontSize:"0.72rem",fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6,paddingBottom:4,borderBottom:"1px solid var(--border)"}}>Backgrounds</div>
+                {colorRow("Page Background","bg","Main background")}
+                {colorRow("Surface (Cards)","surface","Card/sidebar bg")}
+                {colorRow("Surface 2","surface2","Inputs, hover")}
+                {colorRow("Surface 3","surface3","Elevated elements")}
+                {colorRow("Border","border","Lines & dividers")}
+                {colorRow("Text","text","Primary text")}
+              </div>
+              <div>
+                <div style={{fontSize:"0.72rem",fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.05em",marginBottom:6,paddingBottom:4,borderBottom:"1px solid var(--border)"}}>Accent Colors</div>
+                {colorRow("Accent (Buttons)","accent","Active nav, tabs")}
+                {colorRow("Gold","gold","Balances, logo")}
+                {colorRow("Green","green","Positive values")}
+                {colorRow("Red","red","Negative / danger")}
+                {colorRow("Blue","blue","Info / entries")}
+              </div>
+            </div>
+            {/* Live preview bar */}
+            <div style={{marginTop:16,borderRadius:10,overflow:"hidden",border:"1px solid var(--border)"}}>
+              <div style={{background:customVars.surface,padding:"10px 14px",display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:32,height:32,borderRadius:8,background:customVars.gold,display:"flex",alignItems:"center",justifyContent:"center",fontSize:"14px"}}>⭐</div>
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,color:customVars.text,fontSize:"0.9rem"}}>Live Preview</div>
+                  <div style={{fontSize:"0.72rem",color:customVars.text,opacity:0.5}}>See your colors in action</div>
+                </div>
+                <div style={{background:customVars.accent,color:"#fff",padding:"5px 12px",borderRadius:6,fontSize:"0.78rem",fontWeight:600}}>Button</div>
+                <div style={{background:customVars.green+"25",color:customVars.green,padding:"5px 12px",borderRadius:6,fontSize:"0.78rem",fontWeight:600}}>+Income</div>
+                <div style={{background:customVars.red+"25",color:customVars.red,padding:"5px 12px",borderRadius:6,fontSize:"0.78rem",fontWeight:600}}>-Expense</div>
+              </div>
+              <div style={{background:customVars.bg,padding:"8px 14px",display:"flex",gap:6}}>
+                {[customVars.bg,customVars.surface,customVars.accent,customVars.gold,customVars.green,customVars.red,customVars.blue].map((c,i)=>(
+                  <div key={i} style={{width:20,height:20,borderRadius:4,background:c,border:"1px solid #fff2"}} title={c}/>
+                ))}
+              </div>
+            </div>
+            <div style={{marginTop:14,display:"flex",gap:10,flexWrap:"wrap"}}>
+              <button className="btn btn-gold" onClick={applyCustom}>🎨 Apply Custom Theme</button>
+              <button className="btn btn-secondary" onClick={()=>{
+                const preset = PRESET_THEMES[0];
+                setCustomVars({bg:preset.bg,surface:preset.surface,surface2:preset.surface2,surface3:preset.surface3,border:preset.border,text:preset.text,accent:preset.accent,gold:preset.gold,green:preset.green,red:preset.red,blue:preset.blue});
+              }}>↩ Reset Colors</button>
+              <button className="btn btn-secondary" onClick={()=>{
+                const json = JSON.stringify(customVars);
+                const a=document.createElement("a");
+                a.href="data:application/json;charset=utf-8,"+encodeURIComponent(json);
+                a.download="ledger_theme.json"; a.click();
+              }}><Icon name="download" size={14}/>Export Theme</button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Other Settings ── */}
       <div className="grid2">
         <div className="card">
           <div className="fw7 mb4 flex items-center gap2"><Icon name="building" size={18}/>Business Information</div>
@@ -2169,20 +2435,20 @@ function SettingsPage({ data, onChange, addToast, currentUser }) {
           <div className="form-group" style={{marginBottom:12}}><label>Owner / Proprietor Name</label><input value={co.owner||""} onChange={e=>setCo(c=>({...c,owner:e.target.value}))} placeholder="Owner name shown in reports"/></div>
           <div className="form-group" style={{marginBottom:12}}><label>Address</label><textarea value={co.address} onChange={e=>setCo(c=>({...c,address:e.target.value}))} rows={2}/></div>
           <div className="form-group" style={{marginBottom:16}}><label>Phone</label><input value={co.phone} onChange={e=>setCo(c=>({...c,phone:e.target.value}))}/></div>
-          <button className="btn btn-gold" onClick={saveCompany}>Save Info</button>
+          <button className="btn btn-gold" onClick={saveCompany}>💾 Save Info</button>
         </div>
         <div>
           <div className="card" style={{marginBottom:16}}>
-            <div className="fw7 mb4">Change Password</div>
+            <div className="fw7 mb4">🔐 Change Password</div>
             {pwErr&&<div className="alert alert-error">{pwErr}</div>}
             <div className="form-group" style={{marginBottom:10}}><label>Current Password</label><input type="password" value={pw.old} onChange={e=>setPw(p=>({...p,old:e.target.value}))}/></div>
             <div className="form-group" style={{marginBottom:10}}><label>New Password</label><input type="password" value={pw.nw} onChange={e=>setPw(p=>({...p,nw:e.target.value}))}/></div>
             <div className="form-group" style={{marginBottom:16}}><label>Confirm Password</label><input type="password" value={pw.cf} onChange={e=>setPw(p=>({...p,cf:e.target.value}))}/></div>
-            <button className="btn btn-primary" onClick={changePw}>Update Password</button>
+            <button className="btn btn-primary" onClick={changePw} disabled={pwBusy}>{pwBusy?"Updating...":"Update Password"}</button>
           </div>
           <div className="card">
-            <div className="fw7 mb4">Data & Backup</div>
-            <div className="text2 fs-sm" style={{marginBottom:14}}>Download all your data as a JSON backup file.</div>
+            <div className="fw7 mb4">📦 Data & Backup</div>
+            <div className="text2 fs-sm" style={{marginBottom:14}}>Download all your ledger data as a JSON backup file.</div>
             <button className="btn btn-secondary" onClick={exportBackup}><Icon name="download" size={16}/>Export Backup</button>
           </div>
         </div>
@@ -2480,7 +2746,7 @@ function PaymentPage({ currentUser, onRefresh, onLogout, siteSettings }) {
 }
 
 // ─── Admin Panel ─────────────────────────────────────────────────────
-function AdminPanel({ onLogout }) {
+function AdminPanel({ onLogout, userTheme={} }) {
   const [users,       setUsers]      = useState([]);
   const [payments,    setPayments]   = useState([]);
   const [loading,     setLoading]    = useState(true);
@@ -2667,7 +2933,7 @@ function AdminPanel({ onLogout }) {
 
   return (
     <>
-      <style>{styles}</style>
+      <style>{getStyles(userTheme)}</style>
       <div className="app">
         <aside className="sidebar">
           <div className="sidebar-logo">
@@ -3513,6 +3779,10 @@ export default function App() {
   const [sidebarOpen, setSidebar] = useState(false);
   const [viewPerson,  setViewPerson] = useState(null);
   const [siteSettings, setSiteSettings] = useState(null);
+  const [userTheme, setUserTheme] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("ledger_theme") || "{}"); } catch{ return {}; }
+  });
+  const applyTheme = (t) => { setUserTheme(t); try { localStorage.setItem("ledger_theme", JSON.stringify(t)); } catch{} };
   const { toasts, add: addToast, remove: removeToast } = useToast();
 
   // Modals
@@ -3650,13 +3920,13 @@ export default function App() {
 
   // ── Admin Panel ──
   if(currentUser && isAdmin) return (
-    <AdminPanel onLogout={()=>{setCurrentUser(null);setIsAdmin(false);}}/>
+    <AdminPanel onLogout={()=>{setCurrentUser(null);setIsAdmin(false);}} userTheme={userTheme}/>
   );
 
   // ── Login screen ──
   if(!currentUser) return (
     <>
-      <style>{styles}</style>
+      <style>{getStyles(userTheme)}</style>
       <LoginPage onLogin={handleLogin}/>
     </>
   );
@@ -3664,7 +3934,7 @@ export default function App() {
   // ── Subscription expired / not paid → show payment page ──
   if(!loading && currentUser && isExpired(currentUser, siteSettings)) return (
     <>
-      <style>{styles}</style>
+      <style>{getStyles(userTheme)}</style>
       <PaymentPage
         currentUser={currentUser}
         siteSettings={siteSettings}
@@ -3693,7 +3963,7 @@ export default function App() {
   // ── Loading screen (after login, while fetching business data) ──
   if(loading) return (
     <>
-      <style>{styles}</style>
+      <style>{getStyles(userTheme)}</style>
       <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",background:"var(--bg)",gap:16}}>
         <div style={{width:56,height:56,background:"linear-gradient(135deg,var(--gold),var(--amber))",borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center"}}><Icon name="gold" size={28} color="#000"/></div>
         <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.4rem",fontWeight:800}}>Ledger</div>
@@ -3707,7 +3977,7 @@ export default function App() {
 
   return (
     <>
-      <style>{styles}</style>
+      <style>{getStyles(userTheme)}</style>
       <div className="app">
         {/* Sidebar */}
         <aside className={`sidebar${sidebarOpen?" open":""}`}>
@@ -3781,10 +4051,10 @@ export default function App() {
                 onDeleteEntry={deleteEntry}
                 onDeleteManyEntries={deleteManyEntries}/>
             )}
-            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data} onDeleteEntry={deleteEntry} onDeleteManyEntries={deleteManyEntries} currentUser={currentUser}/>}
+            {page==="reports" &&<Reports entries={data.entries} customers={data.customers} workers={data.workers} companyName={data.companyName} companyData={data} onDeleteEntry={deleteEntry} onDeleteManyEntries={deleteManyEntries} onEditEntry={e=>setEntryForm({entry:e,personId:e.personId})} currentUser={currentUser}/>}
             {page==="history"&&<DeletedHistory currentUser={currentUser} allPeople={allPeople}/>}
             {page==="savedreports"&&<SavedReports currentUser={currentUser}/>}
-            {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser}/>}
+            {page==="settings"&&<SettingsPage data={data} onChange={updateData} addToast={addToast} currentUser={currentUser} userTheme={userTheme} applyTheme={applyTheme}/>}
           </div>
         </div>
       </div>
