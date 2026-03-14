@@ -210,9 +210,10 @@ const styles = `
   }
   html{font-size:15px}
   body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;overflow-x:hidden}
-  ::-webkit-scrollbar{width:6px;height:6px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+  ::-webkit-scrollbar{width:10px;height:14px}
+  ::-webkit-scrollbar-track{background:var(--surface2);border-radius:99px}
+  ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px;border:2px solid var(--surface2)}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text3)}
 
   .app{display:flex;min-height:100vh}
   .sidebar{width:var(--sidebar-w);min-height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;z-index:100;transition:transform var(--tr)}
@@ -704,10 +705,13 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
       if (!r.goldIn && !r.goldOut && !r.moneyIn && !r.moneyOut) return setErr(`Row ${i+1}: Enter at least one value.`);
     }
     setErr("");
-    const prepared = filled.map(r => {
+    if (isEdit) {
+      // Edit mode: pass single object preserving original id
+      const r = filled[0];
       const pv = r.purity||"100";
-      return {
+      onSave({
         ...r,
+        id:          initial.id,
         goldIn:      Number(r.goldIn||0),
         goldOut:     Number(r.goldOut||0),
         moneyIn:     Number(r.moneyIn||0),
@@ -715,16 +719,30 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
         purity:      pv,
         pureGoldIn:  pureGold(r.goldIn||0, pv),
         pureGoldOut: pureGold(r.goldOut||0, pv),
-        createdAt:   Date.now(),
-      };
-    });
-    onSave(prepared);
+      });
+    } else {
+      const prepared = filled.map(r => {
+        const pv = r.purity||"100";
+        return {
+          ...r,
+          goldIn:      Number(r.goldIn||0),
+          goldOut:     Number(r.goldOut||0),
+          moneyIn:     Number(r.moneyIn||0),
+          moneyOut:    Number(r.moneyOut||0),
+          purity:      pv,
+          pureGoldIn:  pureGold(r.goldIn||0, pv),
+          pureGoldOut: pureGold(r.goldOut||0, pv),
+          createdAt:   Date.now(),
+        };
+      });
+      onSave(prepared);
+    }
   };
 
   const filledCount = rows.filter(r=>r.personId||r.goldIn||r.goldOut||r.moneyIn||r.moneyOut).length;
   const allPeopleFlat = [...people.filter(p=>p.ptype==="customer"), ...people.filter(p=>p.ptype==="worker")];
 
-  const inp = {background:"var(--surface)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontFamily:"var(--font)",fontSize:"0.82rem",padding:"6px 8px",width:"100%",outline:"none",boxSizing:"border-box"};
+  const inp = {background:"var(--surface)",border:"1px solid var(--border)",borderRadius:6,color:"var(--text)",fontFamily:"var(--font)",fontSize:"0.78rem",padding:"5px 6px",width:"100%",outline:"none",boxSizing:"border-box"};
   const hdr = {fontSize:"0.7rem",fontWeight:700,color:"var(--text3)",textTransform:"uppercase",letterSpacing:"0.05em",padding:"6px 8px",background:"var(--surface2)",whiteSpace:"nowrap"};
 
   return (
@@ -739,24 +757,24 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
 
       {/* Column headers */}
       <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:900}}>
+        <table style={{width:"100%",borderCollapse:"collapse",tableLayout:"fixed",minWidth:760}}>
           <thead>
             <tr style={{borderBottom:"2px solid var(--border)"}}>
-              <th style={{...hdr,width:36}}>#</th>
-              <th style={{...hdr,width:120}}>Date</th>
-              <th style={{...hdr,width:90}}>Type</th>
-              <th style={{...hdr,width:160}}>Name *</th>
-              <th style={{...hdr,width:160}}>Description</th>
-              <th style={{...hdr,width:90,color:"var(--gold)"}}>Gold In (g)</th>
-              <th style={{...hdr,width:90,color:"var(--red)"}}>Gold Out (g)</th>
-              <th style={{...hdr,width:90}}>Purity %</th>
-              <th style={{...hdr,width:90,color:"#a78bfa",textAlign:"right"}}>Pure Gold In (g)</th>
-              <th style={{...hdr,width:90,color:"#f97316",textAlign:"right"}}>Pure Gold Out (g)</th>
-              <th style={{...hdr,width:90,color:"#fbbf24",textAlign:"right"}}>Total Pure Gold (g)</th>
-              <th style={{...hdr,width:100,color:"var(--green)"}}>Money In ₹</th>
-              <th style={{...hdr,width:100,color:"var(--red)"}}>Money Out ₹</th>
-              <th style={{...hdr,width:80}}>Notes</th>
-              <th style={{...hdr,width:32}}></th>
+              <th style={{...hdr,width:28}}>#</th>
+              <th style={{...hdr,width:100}}>Date</th>
+              <th style={{...hdr,width:72}}>Type</th>
+              <th style={{...hdr,width:130}}>Name *</th>
+              <th style={{...hdr,width:130}}>Description</th>
+              <th style={{...hdr,width:76,color:"var(--gold)"}}>Gold In</th>
+              <th style={{...hdr,width:76,color:"var(--red)"}}>Gold Out</th>
+              <th style={{...hdr,width:76}}>Purity</th>
+              <th style={{...hdr,width:78,color:"#a78bfa",textAlign:"right"}}>Pure In</th>
+              <th style={{...hdr,width:78,color:"#f97316",textAlign:"right"}}>Pure Out</th>
+              <th style={{...hdr,width:78,color:"#fbbf24",textAlign:"right"}}>Net Pure</th>
+              <th style={{...hdr,width:88,color:"var(--green)"}}>Money In ₹</th>
+              <th style={{...hdr,width:88,color:"var(--red)"}}>Money Out ₹</th>
+              <th style={{...hdr,width:70}}>Notes</th>
+              <th style={{...hdr,width:28}}></th>
             </tr>
           </thead>
           <tbody>
