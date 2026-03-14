@@ -38,6 +38,13 @@
       "password": "12345678",
       "businessName": "Udjsjsh",
       "createdAt": 1773292044926
+    },
+    {
+      "id": "mlox24w7mmpu71oa",
+      "username": "dummy",
+      "password": "12345678",
+      "businessName": "dummy",
+      "createdAt": 1773463193146
     }
   ]
 }
