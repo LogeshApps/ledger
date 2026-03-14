@@ -44,7 +44,9 @@
       "username": "dummy",
       "password": "12345678",
       "businessName": "dummy",
-      "createdAt": 1773463193146
+      "createdAt": 1773463193146,
+      "expiryDate": "2026-04-14",
+      "plan": "monthly"
     }
   ]
 }
