@@ -3404,21 +3404,68 @@ function SiteNameEditor({ name, busy, onSave }) {
 
 // ─── Deleted History ─────────────────────────────────────────────────
 function DeletedHistory({ currentUser, allPeople }) {
-  const [records, setRecords] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [search,  setSearch]  = useState("");
+  const [records,     setRecords]     = useState(null);
+  const [fileSha,     setFileSha]     = useState(null);
+  const [loading,     setLoading]     = useState(true);
+  const [busy,        setBusy]        = useState(false);
+  const [search,      setSearch]      = useState("");
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [delOne,      setDelOne]      = useState(null);   // single permanent-delete confirm
+  const [bulkConfirm, setBulkConfirm] = useState(false);  // bulk permanent-delete confirm
+  const [clearAll,    setClearAll]    = useState(false);  // clear entire history confirm
+  const { toasts, add: addToast, remove: removeToast } = useToast();
 
-  useEffect(() => {
+  const load = async () => {
     if (!currentUser) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const result = await ghGet(historyFile(currentUser.username));
-        setRecords(result?.data?.deleted || []);
-      } catch(e) { setRecords([]); }
-      setLoading(false);
-    })();
-  }, [currentUser]);
+    setLoading(true);
+    try {
+      const result = await ghGet(historyFile(currentUser.username));
+      setRecords(result?.data?.deleted || []);
+      setFileSha(result?.sha || null);
+    } catch(e) { setRecords([]); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, [currentUser]);
+
+  // ── Save updated records back to GitHub ──
+  const saveRecords = async (newList) => {
+    setBusy(true);
+    try {
+      const hFile = historyFile(currentUser.username);
+      const latest = await ghGet(hFile);
+      const sha = latest?.sha || fileSha || null;
+      const newSha = await ghPut(hFile, { deleted: newList }, sha, `Permanent delete - ${currentUser.username}`);
+      setRecords(newList);
+      setFileSha(newSha);
+    } catch(e) { addToast("Delete failed. Try again.", "error"); }
+    setBusy(false);
+  };
+
+  // ── Permanent single delete ──
+  const permDeleteOne = async (entry) => {
+    const newList = records.filter(r => r.id !== entry.id);
+    await saveRecords(newList);
+    setDelOne(null);
+    addToast("Permanently deleted.", "error");
+  };
+
+  // ── Permanent bulk delete ──
+  const permDeleteBulk = async () => {
+    const newList = records.filter(r => !selectedIds.has(r.id));
+    await saveRecords(newList);
+    setSelectedIds(new Set());
+    setBulkConfirm(false);
+    addToast(`${selectedIds.size} entries permanently deleted.`, "error");
+  };
+
+  // ── Clear entire history ──
+  const clearHistory = async () => {
+    await saveRecords([]);
+    setSelectedIds(new Set());
+    setClearAll(false);
+    addToast("History cleared.", "error");
+  };
 
   const filtered = useMemo(() => {
     if (!records) return [];
@@ -3431,6 +3478,10 @@ function DeletedHistory({ currentUser, allPeople }) {
       });
   }, [records, search, allPeople]);
 
+  const allSelected = filtered.length > 0 && filtered.every(e => selectedIds.has(e.id));
+  const toggleAll   = () => setSelectedIds(allSelected ? new Set() : new Set(filtered.map(e => e.id)));
+  const toggleOne   = (id, checked) => { const s = new Set(selectedIds); checked ? s.add(id) : s.delete(id); setSelectedIds(s); };
+
   return (
     <div>
       <div className="section-header">
@@ -3438,34 +3489,63 @@ function DeletedHistory({ currentUser, allPeople }) {
           <div className="section-title" style={{display:"flex",alignItems:"center",gap:8}}>
             <Icon name="trash" size={18} color="var(--red)"/>Deleted Transactions History
           </div>
-          <div className="section-sub">All deleted entries are archived here. Nothing is permanently lost.</div>
+          <div className="section-sub">Archived deleted entries — permanently remove when no longer needed.</div>
         </div>
-        <div style={{fontSize:"0.8rem",color:"var(--text3)",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"6px 12px"}}>
-          📁 ledger-history/history_{currentUser?.username}.json
+        <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+          {records && records.length > 0 && (
+            <button className="btn btn-danger btn-sm" onClick={()=>setClearAll(true)} disabled={busy}>
+              <Icon name="trash" size={13}/>🗑 Clear All History
+            </button>
+          )}
+          <div style={{fontSize:"0.78rem",color:"var(--text3)",background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"5px 10px"}}>
+            📁 {records?.length||0} archived
+          </div>
         </div>
       </div>
 
+      {/* Toolbar */}
       <div className="toolbar">
         <div className="search-wrap" style={{flex:1,minWidth:200}}>
           <span className="search-icon"><Icon name="search" size={15}/></span>
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search by name, description, date..."/>
         </div>
-        {records && <div style={{fontSize:"0.82rem",color:"var(--text3)"}}>{filtered.length} of {records.length} entries</div>}
+        {search && <button className="btn btn-secondary btn-sm" onClick={()=>setSearch("")}>Clear</button>}
+        {records && <div style={{fontSize:"0.82rem",color:"var(--text3)"}}>{filtered.length} of {records.length}</div>}
       </div>
+
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"rgba(244,63,94,0.1)",border:"1px solid rgba(244,63,94,0.3)",borderRadius:10,marginBottom:12,flexWrap:"wrap"}}>
+          <span style={{fontSize:"0.85rem",color:"var(--red)",fontWeight:700}}>{selectedIds.size} selected</span>
+          <button className="btn btn-danger btn-sm" onClick={()=>setBulkConfirm(true)} disabled={busy}>
+            <Icon name="trash" size={13}/>🗑 Permanently Delete Selected
+          </button>
+          <button className="btn btn-secondary btn-sm" onClick={()=>setSelectedIds(new Set())}>✕ Clear Selection</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="empty"><div className="empty-icon"><Icon name="sync" size={28}/></div><div className="empty-title">Loading history...</div></div>
       ) : !records || records.length === 0 ? (
         <div className="empty">
           <div className="empty-icon"><Icon name="trash" size={28}/></div>
-          <div className="empty-title">No deleted entries yet</div>
-          <div className="empty-sub">When you delete transactions, they'll be archived here for reference.</div>
+          <div className="empty-title">No deleted entries</div>
+          <div className="empty-sub">History is empty — nothing to show.</div>
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="empty">
+          <div className="empty-icon"><Icon name="search" size={28}/></div>
+          <div className="empty-title">No results for "{search}"</div>
         </div>
       ) : (
         <div className="table-wrap">
           <table className="ledger-table">
             <thead>
               <tr>
+                <th style={{width:36,textAlign:"center",padding:"6px 8px"}}>
+                  <input type="checkbox" style={{cursor:"pointer",accentColor:"var(--red)"}}
+                    checked={allSelected} onChange={toggleAll}/>
+                </th>
                 <th>Deleted On</th>
                 <th>Original Date</th>
                 <th>Name</th>
@@ -3476,14 +3556,20 @@ function DeletedHistory({ currentUser, allPeople }) {
                 <th className="th-right">Money In</th>
                 <th className="th-right">Money Out</th>
                 <th>Notes</th>
+                <th style={{textAlign:"center",width:80}}>Action</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((e, i) => {
-                const p = allPeople.find(x => x.id === e.personId);
+                const p   = allPeople.find(x => x.id === e.personId);
                 const isC = e.personType === "customer";
+                const sel = selectedIds.has(e.id);
                 return (
-                  <tr key={e.id || i} style={{opacity:0.85}}>
+                  <tr key={e.id || i} style={{background:sel?"rgba(244,63,94,0.07)":"",opacity:busy?0.6:1}}>
+                    <td style={{textAlign:"center",padding:"6px 8px"}}>
+                      <input type="checkbox" style={{cursor:"pointer",accentColor:"var(--red)"}}
+                        checked={sel} onChange={ev=>toggleOne(e.id, ev.target.checked)}/>
+                    </td>
                     <td style={{whiteSpace:"nowrap"}}>
                       <div style={{color:"var(--red)",fontSize:"0.78rem",fontWeight:600}}>{fmtDate(new Date(e.deletedAt).toISOString().split("T")[0])}</div>
                       <div style={{fontSize:"0.68rem",color:"var(--text3)"}}>{new Date(e.deletedAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</div>
@@ -3494,12 +3580,20 @@ function DeletedHistory({ currentUser, allPeople }) {
                       <div className="fs-xs" style={{color:isC?"var(--blue)":"#a78bfa",fontWeight:600}}>{isC?"👤 Customer":"🔧 Worker"}</div>
                     </td>
                     <td style={{color:"var(--text2)"}}>{e.description||"-"}</td>
-                    <td className="right"><span className={e.goldIn?"gold-in":"text3"}>{e.goldIn?fmtGold(e.goldIn):"-"}</span></td>
-                    <td className="right"><span className={e.goldOut?"gold-out":"text3"}>{e.goldOut?fmtGold(e.goldOut):"-"}</span></td>
+                    <td className="right"><span style={{color:e.goldIn?"var(--green)":"var(--text3)",fontWeight:e.goldIn?600:400}}>{e.goldIn?fmtGold(e.goldIn):"-"}</span></td>
+                    <td className="right"><span style={{color:e.goldOut?"var(--red)":"var(--text3)",fontWeight:e.goldOut?600:400}}>{e.goldOut?fmtGold(e.goldOut):"-"}</span></td>
                     <td className="center"><span className="badge badge-gold">{e.purity||"-"}</span></td>
-                    <td className="right"><span className={e.moneyIn?"money-in":"text3"}>{e.moneyIn?fmtMoney(e.moneyIn):"-"}</span></td>
-                    <td className="right"><span className={e.moneyOut?"money-out":"text3"}>{e.moneyOut?fmtMoney(e.moneyOut):"-"}</span></td>
+                    <td className="right"><span style={{color:e.moneyIn?"var(--green)":"var(--text3)",fontWeight:e.moneyIn?600:400}}>{e.moneyIn?fmtMoney(e.moneyIn):"-"}</span></td>
+                    <td className="right"><span style={{color:e.moneyOut?"var(--red)":"var(--text3)",fontWeight:e.moneyOut?600:400}}>{e.moneyOut?fmtMoney(e.moneyOut):"-"}</span></td>
                     <td style={{fontSize:"0.78rem",color:"var(--text3)"}}>{e.notes||"-"}</td>
+                    <td style={{textAlign:"center",padding:"6px 8px"}}>
+                      <button
+                        className="btn btn-danger btn-sm btn-icon"
+                        title="Permanently delete this entry"
+                        disabled={busy}
+                        onClick={()=>setDelOne(e)}
+                      ><Icon name="trash" size={13}/></button>
+                    </td>
                   </tr>
                 );
               })}
@@ -3507,6 +3601,62 @@ function DeletedHistory({ currentUser, allPeople }) {
           </table>
         </div>
       )}
+
+      {/* ── Single permanent delete confirm ── */}
+      {delOne && (
+        <Modal title="⚠️ Permanently Delete?" onClose={()=>setDelOne(null)} footer={<>
+          <button className="btn btn-secondary" onClick={()=>setDelOne(null)}>Cancel</button>
+          <button className="btn btn-danger" onClick={()=>permDeleteOne(delOne)} disabled={busy}>
+            {busy?"Deleting...":"🗑 Delete Forever"}
+          </button>
+        </>}>
+          <div style={{lineHeight:1.7}}>
+            <p style={{color:"var(--text2)",marginBottom:10}}>
+              This will <strong style={{color:"var(--red)"}}>permanently delete</strong> this archived entry. It <strong>cannot be recovered</strong> after this.
+            </p>
+            <div style={{background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:8,padding:"10px 14px",fontSize:"0.85rem"}}>
+              <div><span style={{color:"var(--text3)"}}>Description:</span> <strong>{delOne.description||"-"}</strong></div>
+              <div><span style={{color:"var(--text3)"}}>Date:</span> {fmtDate(delOne.date)}</div>
+              {delOne.goldIn>0&&<div><span style={{color:"var(--text3)"}}>Gold In:</span> <span style={{color:"var(--green)"}}>{fmtGold(delOne.goldIn)}</span></div>}
+              {delOne.goldOut>0&&<div><span style={{color:"var(--text3)"}}>Gold Out:</span> <span style={{color:"var(--red)"}}>{fmtGold(delOne.goldOut)}</span></div>}
+              {delOne.moneyIn>0&&<div><span style={{color:"var(--text3)"}}>Money In:</span> <span style={{color:"var(--green)"}}>{fmtMoney(delOne.moneyIn)}</span></div>}
+              {delOne.moneyOut>0&&<div><span style={{color:"var(--text3)"}}>Money Out:</span> <span style={{color:"var(--red)"}}>{fmtMoney(delOne.moneyOut)}</span></div>}
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* ── Bulk permanent delete confirm ── */}
+      {bulkConfirm && (
+        <Modal title="⚠️ Permanently Delete Selected?" onClose={()=>setBulkConfirm(false)} footer={<>
+          <button className="btn btn-secondary" onClick={()=>setBulkConfirm(false)}>Cancel</button>
+          <button className="btn btn-danger" onClick={permDeleteBulk} disabled={busy}>
+            {busy?"Deleting...":"🗑 Delete All Selected Forever"}
+          </button>
+        </>}>
+          <p style={{color:"var(--text2)",lineHeight:1.7}}>
+            You are about to <strong style={{color:"var(--red)"}}>permanently delete {selectedIds.size} {selectedIds.size===1?"entry":"entries"}</strong> from history.
+            This action <strong>cannot be undone</strong> — these records will be gone forever.
+          </p>
+        </Modal>
+      )}
+
+      {/* ── Clear all history confirm ── */}
+      {clearAll && (
+        <Modal title="⚠️ Clear Entire History?" onClose={()=>setClearAll(false)} footer={<>
+          <button className="btn btn-secondary" onClick={()=>setClearAll(false)}>Cancel</button>
+          <button className="btn btn-danger" onClick={clearHistory} disabled={busy}>
+            {busy?"Clearing...":"🗑 Clear All Forever"}
+          </button>
+        </>}>
+          <p style={{color:"var(--text2)",lineHeight:1.7}}>
+            This will <strong style={{color:"var(--red)"}}>permanently erase all {records?.length} archived entries</strong> from your deleted history.
+            This <strong>cannot be undone</strong>.
+          </p>
+        </Modal>
+      )}
+
+      <Toasts toasts={toasts} remove={removeToast}/>
     </div>
   );
 }
