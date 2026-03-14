@@ -1,5 +1,15 @@
 {
-  "customers": [],
+  "customers": [
+    {
+      "name": "new",
+      "phone": "",
+      "address": "",
+      "workType": "",
+      "notes": "",
+      "id": "swtg5y8gmmpu9ruj",
+      "createdAt": 1773463320379
+    }
+  ],
   "workers": [],
   "entries": [],
   "companyName": "dummy",
