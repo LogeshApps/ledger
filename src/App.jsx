@@ -21,7 +21,8 @@ const UPI_ID        = "logeshunique@oksbi";
 const UPI_NAME      = "Ledger";
 const PRICE_MONTHLY = 99;
 const PRICE_YEARLY  = 999;
-const PAYMENTS_FILE  = "ledger-data/payments.json";
+const PAYMENTS_FILE   = "ledger-data/payments.json";
+const SITE_SETTINGS_FILE = "ledger-data/site_settings.json";
 const historyFile   = (username) => `ledger-history/history_${username.toLowerCase().replace(/[^a-z0-9]/g,"_")}.json`;
 const reportsFile   = (username) => `ledger-reports/reports_${username.toLowerCase().replace(/[^a-z0-9]/g,"_")}.json`;
 // ───────────────────────────────────────────────────────────────────
@@ -860,7 +861,7 @@ function EntryForm({ initial, people, defaultPersonId, defaultPersonType, onSave
 }
 
 // ─── Ledger View ─────────────────────────────────────────────────────
-function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntry, onDeleteEntry, onDeleteManyEntries }) {
+function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntry, onDeleteEntry, onDeleteManyEntries, companyData }) {
   const [monthFilter, setMonthFilter] = useState("");
   const [yearFilter,  setYearFilter]  = useState("");
   const [del,    setDel]    = useState(null);
@@ -868,6 +869,15 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
   const [sortDir, setSortDir] = useState("desc");
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [preview,    setPreview]    = useState(null);
+  const [exportMenu, setExportMenu] = useState(false);
+  const exportMenuRef = useRef(null);
+
+  useEffect(()=>{
+    const h = (e) => { if(exportMenuRef.current && !exportMenuRef.current.contains(e.target)) setExportMenu(false); };
+    document.addEventListener("mousedown", h);
+    return ()=>document.removeEventListener("mousedown", h);
+  },[]);
 
   const personEntries = useMemo(() =>
     entries.filter(e=>e.personId===person.id)
@@ -925,6 +935,84 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
 
   const handlePrint = () => window.print();
 
+  // ── Build HTML report for this person's ledger ──
+  const buildLedgerHTML = (ents, type="all") => {
+    const bizName    = companyData?.companyName || "Gold Shop";
+    const bizAddress = companyData?.companyAddress || "";
+    const bizPhone   = companyData?.companyPhone || "";
+    const bizOwner   = companyData?.companyOwner || "";
+    const genTime    = new Date().toLocaleString("en-IN",{day:"2-digit",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+    const showGold   = type==="all"||type==="gold";
+    const showMoney  = type==="all"||type==="money";
+    const sorted     = [...ents].sort((a,b)=>b.date.localeCompare(a.date)||((b.createdAt||0)-(a.createdAt||0)));
+    let s = {goldIn:0,goldOut:0,pureIn:0,pureOut:0,moneyIn:0,moneyOut:0};
+    sorted.forEach(e=>{s.goldIn+=Number(e.goldIn||0);s.goldOut+=Number(e.goldOut||0);s.pureIn+=Number(e.pureGoldIn||0);s.pureOut+=Number(e.pureGoldOut||0);s.moneyIn+=Number(e.moneyIn||0);s.moneyOut+=Number(e.moneyOut||0);});
+    let runGold=0, runMoney=0;
+    const tableRows = sorted.map(e=>{
+      runGold  += Number(e.goldIn||0) - Number(e.goldOut||0);
+      runMoney += Number(e.moneyIn||0) - Number(e.moneyOut||0);
+      const time = e.createdAt ? new Date(e.createdAt).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"}) : "";
+      let cols = `<td>${fmtDate(e.date)}${time?`<br/><small style="color:#9ca3af">${time}</small>`:""}</td><td>${e.description||"-"}</td>${e.notes?`<td style="color:#6b7280;font-size:12px">${e.notes}</td>`:"<td>-</td>"}`;
+      if(showGold) cols+=`<td style="text-align:right;color:#16a34a;font-weight:600">${e.goldIn?fmtGoldN(e.goldIn):"-"}</td><td style="text-align:right;color:#dc2626;font-weight:600">${e.goldOut?fmtGoldN(e.goldOut):"-"}</td><td style="text-align:center"><span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700">${e.purity||"-"}</span></td><td style="text-align:right;color:#16a34a;font-weight:600">${e.pureGoldIn?fmtGoldN(e.pureGoldIn):"-"}</td><td style="text-align:right;color:#dc2626;font-weight:600">${e.pureGoldOut?fmtGoldN(e.pureGoldOut):"-"}</td><td style="text-align:right;font-weight:700;color:${runGold>=0?"#d97706":"#dc2626"}">${fmtGoldN(runGold)}</td>`;
+      if(showMoney) cols+=`<td style="text-align:right;color:#16a34a;font-weight:600">${e.moneyIn?fmtMoneyPDF(e.moneyIn):"-"}</td><td style="text-align:right;color:#dc2626;font-weight:600">${e.moneyOut?fmtMoneyPDF(e.moneyOut):"-"}</td><td style="text-align:right;font-weight:700;color:${runMoney>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(runMoney)}</td>`;
+      return `<tr style="border-bottom:1px solid #f3f4f6">${cols}</tr>`;
+    }).join("");
+    let headCols = `<th>Date</th><th>Description</th><th>Notes</th>`;
+    if(showGold)  headCols+=`<th style="text-align:right">Gold In (g)</th><th style="text-align:right">Gold Out (g)</th><th style="text-align:center">Purity</th><th style="text-align:right">Pure In (g)</th><th style="text-align:right">Pure Out (g)</th><th style="text-align:right">Net Pure (g)</th>`;
+    if(showMoney) headCols+=`<th style="text-align:right">Money In</th><th style="text-align:right">Money Out</th><th style="text-align:right">Balance</th>`;
+    const pureNet = s.pureIn-s.pureOut; const moneyNet = s.moneyIn-s.moneyOut;
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"/><title>Ledger – ${person.name}</title>
+    <style>*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}body{font-family:Arial,Helvetica,sans-serif;color:#1a1a1a;padding:32px 36px;font-size:13px;background:#fff;line-height:1.5}
+    .biz-box{display:flex;justify-content:space-between;align-items:flex-start;background:linear-gradient(135deg,#1a1a2e,#16213e);color:#fff;padding:20px 24px;border-radius:12px;margin-bottom:20px}
+    .biz-name{font-size:18px;font-weight:800;letter-spacing:0.02em;color:#fbbf24;margin-bottom:3px}.biz-sub{font-size:11px;color:#94a3b8}.person-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px 18px;margin-bottom:18px;display:flex;align-items:center;gap:14px}
+    .person-avatar{width:44px;height:44px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#000;flex-shrink:0}
+    .summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:18px}
+    .sum-card{border-radius:10px;padding:12px 14px;border:1px solid #e2e8f0}
+    table{width:100%;border-collapse:collapse;font-size:12.5px}thead{background:#1e293b;color:#fff}th{padding:9px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}td{padding:8px 10px;vertical-align:middle;font-size:12.5px}
+    tr:nth-child(even){background:#f8fafc}tbody tr:hover{background:#f1f5f9}
+    .footer{margin-top:20px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:12px}
+    @media print{body{padding:16px 20px}}</style></head><body>
+    <div class="biz-box"><div><div class="biz-name">${bizName}</div><div class="biz-sub">${bizAddress}${bizAddress&&bizPhone?" | ":""}${bizPhone}</div></div><div style="text-align:right"><div style="font-size:11px;color:#94a3b8;margin-bottom:2px">Generated</div><div style="font-size:11px;color:#cbd5e1">${genTime}</div></div></div>
+    <div class="person-box"><div class="person-avatar">${person.name[0].toUpperCase()}</div><div><div style="font-size:15px;font-weight:700;color:#1e293b">${person.name}</div><div style="font-size:11px;color:#64748b;text-transform:capitalize;margin-top:2px">${person.ptype||"customer"}${person.phone?" · "+person.phone:""}</div><div style="font-size:11px;color:#94a3b8;margin-top:1px">${ents.length} entries · ${yearFilter||monthFilter?"Filtered":"All time"}</div></div></div>
+    <div class="summary-grid">
+      <div class="sum-card" style="background:#fffbeb;border-color:#fde68a"><div style="font-size:10px;color:#92400e;font-weight:700;text-transform:uppercase;margin-bottom:4px">Gold In</div><div style="font-size:16px;font-weight:800;color:#d97706">${fmtGoldN(s.goldIn)}g</div></div>
+      <div class="sum-card" style="background:#fef2f2;border-color:#fecaca"><div style="font-size:10px;color:#991b1b;font-weight:700;text-transform:uppercase;margin-bottom:4px">Gold Out</div><div style="font-size:16px;font-weight:800;color:#dc2626">${fmtGoldN(s.goldOut)}g</div></div>
+      <div class="sum-card" style="background:${pureNet>=0?"#f0fdf4":"#fef2f2"};border-color:${pureNet>=0?"#bbf7d0":"#fecaca"}"><div style="font-size:10px;color:${pureNet>=0?"#14532d":"#991b1b"};font-weight:700;text-transform:uppercase;margin-bottom:4px">Net Pure Gold</div><div style="font-size:16px;font-weight:800;color:${pureNet>=0?"#16a34a":"#dc2626"}">${fmtGoldN(pureNet)}g</div></div>
+      <div class="sum-card" style="background:${moneyNet>=0?"#f0fdf4":"#fef2f2"};border-color:${moneyNet>=0?"#bbf7d0":"#fecaca"}"><div style="font-size:10px;color:${moneyNet>=0?"#14532d":"#991b1b"};font-weight:700;text-transform:uppercase;margin-bottom:4px">Money Balance</div><div style="font-size:15px;font-weight:800;color:${moneyNet>=0?"#16a34a":"#dc2626"}">${fmtMoneyPDF(moneyNet)}</div></div>
+    </div>
+    <table><thead><tr>${headCols}</tr></thead><tbody>${tableRows}</tbody></table>
+    <div class="footer">Ledger Report · ${person.name} · Printed ${genTime}${bizOwner?" · "+bizOwner:""}</div>
+    </body></html>`;
+  };
+
+  // ── PDF export via print ──
+  const handleExportPDF = () => {
+    setExportMenu(false);
+    const html = buildLedgerHTML(filtered, "all");
+    printHTMLDoc(html, `Ledger – ${person.name}`);
+  };
+
+  // ── CSV export ──
+  const handleExportCSV = () => {
+    setExportMenu(false);
+    const headers = ["Date","Description","Notes","Gold In (g)","Gold Out (g)","Purity","Pure Gold In (g)","Pure Gold Out (g)","Money In","Money Out"];
+    const csvRows = [headers.join(",")];
+    [...filtered].sort((a,b)=>b.date.localeCompare(a.date)).forEach(e=>{
+      csvRows.push([e.date,`"${(e.description||"").replace(/"/g,'""')}"`,`"${(e.notes||"").replace(/"/g,'""')}"`,e.goldIn||"",e.goldOut||"",e.purity||"",e.pureGoldIn||"",e.pureGoldOut||"",e.moneyIn||"",e.moneyOut||""].join(","));
+    });
+    const blob = new Blob([csvRows.join("\n")], {type:"text/csv;charset=utf-8;"});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href = url; a.download = `ledger_${person.name.replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  };
+
+  // ── In-app Preview ──
+  const handlePreview = () => {
+    const html = buildLedgerHTML(filtered, "all");
+    setPreview({ html, title: `Ledger – ${person.name}` });
+  };
+
   return (
     <div>
       <div className="section-header">
@@ -936,8 +1024,34 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
             <div className="section-sub">{person.ptype==="customer"?"Customer":"Worker"}{person.phone&&` · ${person.phone}`}</div>
           </div>
         </div>
-        <div className="flex gap2 no-print">
-          <button className="btn btn-secondary btn-sm" onClick={handlePrint}><Icon name="print" size={14}/>Print</button>
+        <div className="flex gap2 no-print" style={{alignItems:"center",flexWrap:"wrap"}}>
+          {/* Preview */}
+          <button className="btn btn-secondary btn-sm" onClick={handlePreview} title="Preview report in-app">
+            <Icon name="eye" size={14}/>Preview
+          </button>
+          {/* Export dropdown */}
+          <div style={{position:"relative"}} ref={exportMenuRef}>
+            <button className="btn btn-secondary btn-sm" onClick={()=>setExportMenu(o=>!o)} title="Export options">
+              <Icon name="download" size={14}/>Export ▾
+            </button>
+            {exportMenu&&(
+              <div style={{position:"absolute",top:"calc(100% + 6px)",right:0,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:10,boxShadow:"var(--shadow)",minWidth:170,zIndex:200,overflow:"hidden"}}>
+                <div style={{padding:"8px 14px",fontSize:"0.7rem",color:"var(--text3)",fontWeight:700,textTransform:"uppercase",letterSpacing:"0.05em",borderBottom:"1px solid var(--border)"}}>Export As</div>
+                <div onClick={handleExportPDF} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",cursor:"pointer",fontSize:"0.88rem",color:"var(--text)"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                  <Icon name="pdf" size={15} color="var(--red)"/><div><div style={{fontWeight:600}}>PDF / Print</div><div style={{fontSize:"0.72rem",color:"var(--text3)"}}>Formatted print-ready report</div></div>
+                </div>
+                <div onClick={handleExportCSV} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",cursor:"pointer",fontSize:"0.88rem",color:"var(--text)",borderTop:"1px solid var(--border)"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                  <Icon name="download" size={15} color="var(--green)"/><div><div style={{fontWeight:600}}>CSV / Excel</div><div style={{fontSize:"0.72rem",color:"var(--text3)"}}>Raw data spreadsheet</div></div>
+                </div>
+                <div onClick={handlePrint} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",cursor:"pointer",fontSize:"0.88rem",color:"var(--text)",borderTop:"1px solid var(--border)"}}
+                  onMouseEnter={e=>e.currentTarget.style.background="var(--surface2)"} onMouseLeave={e=>e.currentTarget.style.background=""}>
+                  <Icon name="print" size={15} color="var(--blue)"/><div><div style={{fontWeight:600}}>Print Page</div><div style={{fontSize:"0.72rem",color:"var(--text3)"}}>Print current screen</div></div>
+                </div>
+              </div>
+            )}
+          </div>
           <button className="btn btn-gold" onClick={onAddEntry}><Icon name="plus" size={16}/>New Entry</button>
         </div>
       </div>
@@ -1076,6 +1190,25 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
       )}
       {del&&<Confirm msg={`Delete entry "${del.description||fmtDate(del.date)}"?`} onOk={()=>{onDeleteEntry(del.id);setDel(null)}} onCancel={()=>setDel(null)}/>}
       {bulkConfirm&&<Confirm msg={`Delete ${selectedIds.size} selected ${selectedIds.size===1?"entry":"entries"}? This cannot be undone.`} onOk={()=>{(onDeleteManyEntries||((ids)=>ids.forEach(id=>onDeleteEntry(id))))([...selectedIds]);setSelectedIds(new Set());setBulkConfirm(false);}} onCancel={()=>setBulkConfirm(false)}/>}
+
+      {/* ── Preview Modal ── */}
+      {preview&&(
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",zIndex:300,display:"flex",flexDirection:"column"}} onClick={e=>e.target===e.currentTarget&&setPreview(null)}>
+          <div style={{background:"var(--surface)",borderBottom:"1px solid var(--border)",padding:"12px 20px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexShrink:0}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <Icon name="eye" size={16} color="var(--gold)"/>
+              <span style={{fontWeight:700,fontSize:"1rem"}}>{preview.title}</span>
+              <span style={{fontSize:"0.75rem",color:"var(--text3)",background:"var(--surface2)",padding:"2px 8px",borderRadius:6}}>{filtered.length} entries</span>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button className="btn btn-gold btn-sm" onClick={handleExportPDF}><Icon name="pdf" size={13}/>Export PDF</button>
+              <button className="btn btn-secondary btn-sm" onClick={handleExportCSV}><Icon name="download" size={13}/>CSV</button>
+              <button className="btn btn-secondary btn-sm" onClick={()=>setPreview(null)}><Icon name="close" size={14}/>Close</button>
+            </div>
+          </div>
+          <iframe srcDoc={preview.html} style={{flex:1,border:"none",background:"#fff"}} title="Ledger Preview"/>
+        </div>
+      )}
     </div>
   );
 }
@@ -2177,25 +2310,29 @@ function Dashboard({ data, setPage, setViewPerson, currentUser }) {
 
 
 // ─── Subscription helpers ─────────────────────────────────────────────
-const isExpired = (user) => {
+const isExpired = (user, siteSettings) => {
+  if (siteSettings?.freeMode) return false;          // free mode = never expired
   if (!user?.expiryDate) return true;
   return new Date(user.expiryDate) < new Date();
 };
-const daysLeft = (user) => {
+const daysLeft = (user, siteSettings) => {
+  if (siteSettings?.freeMode) return 9999;
   if (!user?.expiryDate) return 0;
   const diff = new Date(user.expiryDate) - new Date();
   return Math.max(0, Math.ceil(diff / (1000*60*60*24)));
 };
 
 // ─── Payment Page ─────────────────────────────────────────────────────
-function PaymentPage({ currentUser, onRefresh, onLogout }) {
+function PaymentPage({ currentUser, onRefresh, onLogout, siteSettings }) {
   const [plan,   setPlan]   = useState("yearly");
   const [utr,    setUtr]    = useState("");
   const [step,   setStep]   = useState("plan"); // plan | pay | submitted
   const [busy,   setBusy]   = useState(false);
   const [err,    setErr]    = useState("");
 
-  const amount = plan === "monthly" ? PRICE_MONTHLY : PRICE_YEARLY;
+  const priceMonthly = siteSettings?.priceMonthly ?? PRICE_MONTHLY;
+  const priceYearly  = siteSettings?.priceYearly  ?? PRICE_YEARLY;
+  const amount = plan === "monthly" ? priceMonthly : priceYearly;
   const months = plan === "monthly" ? 1 : 12;
 
   const upiLink = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(UPI_NAME)}&am=${amount}&cu=INR&tn=${encodeURIComponent("Ledger "+plan+" plan - "+currentUser.username)}`;
@@ -2260,7 +2397,7 @@ function PaymentPage({ currentUser, onRefresh, onLogout }) {
             <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontSize:"1.1rem",fontWeight:700,marginBottom:18,textAlign:"center"}}>Choose Your Plan</div>
 
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:22}}>
-              {[{id:"monthly",label:"Monthly",price:PRICE_MONTHLY,sub:"Billed every month"},{id:"yearly",label:"Yearly",price:PRICE_YEARLY,sub:"Save ₹"+(PRICE_MONTHLY*12-PRICE_YEARLY)+"!",badge:"BEST VALUE"}].map(pl=>(
+              {[{id:"monthly",label:"Monthly",price:priceMonthly,sub:"Billed every month"},{id:"yearly",label:"Yearly",price:priceYearly,sub:"Save ₹"+(priceMonthly*12-priceYearly)+"!",badge:"BEST VALUE"}].map(pl=>(
                 <div key={pl.id} onClick={()=>setPlan(pl.id)} style={{border:`2px solid ${plan===pl.id?"var(--gold)":"var(--border)"}`,borderRadius:12,padding:"16px 12px",cursor:"pointer",textAlign:"center",position:"relative",background:plan===pl.id?"rgba(234,179,8,0.06)":"var(--surface2)",transition:"all 0.2s"}}>
                   {pl.badge&&<div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",background:"var(--gold)",color:"#000",fontSize:"0.65rem",fontWeight:700,padding:"2px 8px",borderRadius:20,whiteSpace:"nowrap"}}>{pl.badge}</div>}
                   <div style={{fontWeight:700,fontSize:"0.95rem",marginBottom:4}}>{pl.label}</div>
@@ -2350,49 +2487,62 @@ function AdminPanel({ onLogout }) {
   const [selUser,     setSelUser]    = useState(null);
   const [userData,    setUserData]   = useState(null);
   const [userLoading, setUserLoading]= useState(false);
-  const [tab,         setTab]        = useState("payments"); // payments | users | view
+  const [tab,         setTab]        = useState("payments");
+  const [siteSettings, setSiteSettings] = useState({ freeMode:false, priceMonthly:99, priceYearly:999, siteName:"Ledger", maintenanceMode:false, announcement:"", announcementType:"info" });
+  const [settingsSha, setSettingsSha] = useState(null);
+  const [settingsBusy, setSettingsBusy] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState("");
+  const [userSearch,  setUserSearch]  = useState("");
   const { toasts, add: addToast, remove: removeToast } = useToast();
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [ur, pr] = await Promise.all([ghGet(USERS_FILE), ghGet(PAYMENTS_FILE)]);
+      const [ur, pr, sr] = await Promise.all([ghGet(USERS_FILE), ghGet(PAYMENTS_FILE), ghGet(SITE_SETTINGS_FILE)]);
       setUsers(ur?.data?.users || []);
       setPayments(pr?.data?.payments || []);
+      if (sr) { setSiteSettings(prev=>({...prev,...sr.data})); setSettingsSha(sr.sha); }
     } catch(e) { addToast("Failed to load","error"); }
     setLoading(false);
   };
 
   useEffect(()=>{ loadAll(); },[]);
 
+  // ── Save site settings ──
+  const saveSettings = async (patch) => {
+    setSettingsBusy(true); setSettingsMsg("");
+    try {
+      const merged = {...siteSettings,...patch};
+      const result = await ghGet(SITE_SETTINGS_FILE);
+      const sha = result?.sha || settingsSha || null;
+      const newSha = await ghPut(SITE_SETTINGS_FILE, merged, sha, "Admin updated site settings");
+      setSiteSettings(merged); setSettingsSha(newSha);
+      setSettingsMsg("✅ Saved successfully!");
+      setTimeout(()=>setSettingsMsg(""), 3000);
+      addToast("Settings saved!");
+    } catch(e) { setSettingsMsg("❌ Save failed."); addToast("Save failed","error"); }
+    setSettingsBusy(false);
+  };
+
   // ── Approve payment ──
   const approvePayment = async (pmt) => {
     try {
-      // 1. Calculate new expiry date
       const usersResult = await ghGet(USERS_FILE);
       const allUsers = usersResult?.data?.users || [];
       const userIdx  = allUsers.findIndex(u => u.username === pmt.username);
       if (userIdx === -1) return addToast("User not found","error");
-
       const existing = allUsers[userIdx];
       const base = (existing.expiryDate && new Date(existing.expiryDate) > new Date())
-        ? new Date(existing.expiryDate)   // extend from current expiry
-        : new Date();                      // extend from today
+        ? new Date(existing.expiryDate) : new Date();
       base.setMonth(base.getMonth() + pmt.months);
       const newExpiry = base.toISOString().split("T")[0];
-
-      // 2. Update user expiry
       allUsers[userIdx] = { ...existing, expiryDate: newExpiry, plan: pmt.plan };
       await ghPut(USERS_FILE, { users: allUsers }, usersResult.sha, `Approved payment for ${pmt.username}`);
-
-      // 3. Update payment status
       const pmtResult  = await ghGet(PAYMENTS_FILE);
       const allPayments = pmtResult?.data?.payments || [];
       const updated = allPayments.map(p => p.id===pmt.id ? {...p, status:"approved", approvedAt:Date.now(), expiryDate:newExpiry} : p);
       await ghPut(PAYMENTS_FILE, { payments: updated }, pmtResult.sha, `Payment approved: ${pmt.username}`);
-
-      setUsers(allUsers);
-      setPayments(updated);
+      setUsers(allUsers); setPayments(updated);
       addToast(`✅ Approved! ${pmt.username} active till ${newExpiry}`);
     } catch(e) { addToast("Approval failed","error"); console.error(e); }
   };
@@ -2405,8 +2555,7 @@ function AdminPanel({ onLogout }) {
       const allPayments = pmtResult?.data?.payments || [];
       const updated = allPayments.map(p => p.id===pmt.id ? {...p, status:"rejected", approvedAt:Date.now()} : p);
       await ghPut(PAYMENTS_FILE, { payments: updated }, pmtResult.sha, `Payment rejected: ${pmt.username}`);
-      setPayments(updated);
-      addToast("Payment rejected.");
+      setPayments(updated); addToast("Payment rejected.");
     } catch(e) { addToast("Failed","error"); }
   };
 
@@ -2422,18 +2571,17 @@ function AdminPanel({ onLogout }) {
 
   // ── Delete user ──
   const deleteUser = async (user) => {
-    if (!window.confirm(`Delete "${user.businessName}" (${user.username})?`)) return;
+    if (!window.confirm(`Delete "${user.businessName}" (${user.username})? This cannot be undone.`)) return;
     try {
       const result  = await ghGet(USERS_FILE);
       const updated = (result?.data?.users||[]).filter(u=>u.id!==user.id);
       await ghPut(USERS_FILE, { users: updated }, result?.sha, `Admin deleted: ${user.username}`);
-      setUsers(updated);
-      addToast("Deleted.");
+      setUsers(updated); addToast("Deleted.");
       if (selUser?.id===user.id) { setSelUser(null); setTab("payments"); }
     } catch(e) { addToast("Delete failed","error"); }
   };
 
-  // ── Extend subscription manually ──
+  // ── Extend / set custom expiry ──
   const extendSub = async (user, months) => {
     try {
       const result   = await ghGet(USERS_FILE);
@@ -2446,14 +2594,48 @@ function AdminPanel({ onLogout }) {
       const newExpiry = base.toISOString().split("T")[0];
       allUsers[idx] = {...allUsers[idx], expiryDate: newExpiry};
       await ghPut(USERS_FILE, {users:allUsers}, result.sha, `Admin extended sub for ${user.username}`);
-      setUsers(allUsers);
-      addToast(`Extended till ${newExpiry}`);
+      setUsers(allUsers); addToast(`Extended till ${newExpiry}`);
+    } catch(e) { addToast("Failed","error"); }
+  };
+
+  // ── Set custom expiry date ──
+  const setCustomExpiry = async (user, dateStr) => {
+    if (!dateStr) return;
+    try {
+      const result   = await ghGet(USERS_FILE);
+      const allUsers = result?.data?.users || [];
+      const idx      = allUsers.findIndex(u=>u.id===user.id);
+      if (idx===-1) return;
+      allUsers[idx] = {...allUsers[idx], expiryDate: dateStr};
+      await ghPut(USERS_FILE, {users:allUsers}, result.sha, `Admin set expiry for ${user.username}`);
+      setUsers(allUsers); addToast(`Expiry set to ${dateStr}`);
+    } catch(e) { addToast("Failed","error"); }
+  };
+
+  // ── Grant lifetime access ──
+  const grantLifetime = async (user) => {
+    await setCustomExpiry(user, "2099-12-31");
+  };
+
+  // ── Reset user password ──
+  const resetPassword = async (user) => {
+    const newPwd = window.prompt(`Set new password for "${user.username}":`);
+    if (!newPwd || newPwd.length < 6) { if(newPwd!==null) alert("Min 6 characters."); return; }
+    try {
+      const result   = await ghGet(USERS_FILE);
+      const allUsers = result?.data?.users || [];
+      const idx      = allUsers.findIndex(u=>u.id===user.id);
+      if (idx===-1) return;
+      allUsers[idx] = {...allUsers[idx], password: newPwd};
+      await ghPut(USERS_FILE, {users:allUsers}, result.sha, `Admin reset password for ${user.username}`);
+      setUsers(allUsers); addToast("Password updated!");
     } catch(e) { addToast("Failed","error"); }
   };
 
   const pending  = payments.filter(p=>p.status==="pending");
   const approved = payments.filter(p=>p.status==="approved");
   const rejected = payments.filter(p=>p.status==="rejected");
+  const totalRevenue = approved.reduce((s,p)=>s+Number(p.amount||0),0);
 
   const allEntries   = userData?.entries   || [];
   const allCustomers = userData?.customers || [];
@@ -2462,11 +2644,26 @@ function AdminPanel({ onLogout }) {
   const moneyBal = allEntries.reduce((s,e)=>s+Number(e.moneyIn||0)-Number(e.moneyOut||0),0);
   const pureBal  = allEntries.reduce((s,e)=>s+Number(e.pureGoldIn||0)-Number(e.pureGoldOut||0),0);
 
+  const filteredUsers = useMemo(()=>users.filter(u=>
+    !userSearch || u.username.toLowerCase().includes(userSearch.toLowerCase()) || (u.businessName||"").toLowerCase().includes(userSearch.toLowerCase())
+  ),[users,userSearch]);
+
+  const activeUsers  = users.filter(u=>!isExpired(u));
+  const expiredUsers = users.filter(u=>isExpired(u));
+
   const StatusBadge = ({s}) => {
     const map = {pending:{bg:"rgba(234,179,8,0.15)",color:"var(--gold)",label:"Pending"},approved:{bg:"rgba(34,197,94,0.15)",color:"var(--green)",label:"Approved"},rejected:{bg:"rgba(239,68,68,0.15)",color:"var(--red)",label:"Rejected"}};
     const m = map[s]||map.pending;
     return <span style={{background:m.bg,color:m.color,padding:"2px 10px",borderRadius:20,fontSize:"0.75rem",fontWeight:700}}>{m.label}</span>;
   };
+
+  const adminNavItems = [
+    {id:"payments", icon:"money",     label:"Payments",   badge: pending.length>0?pending.length:null},
+    {id:"users",    icon:"customers", label:"Businesses", badge: null},
+    {id:"settings", icon:"settings",  label:"Site Settings", badge: null},
+    {id:"stats",    icon:"dashboard", label:"Statistics", badge: null},
+  ];
+  if(selUser) adminNavItems.push({id:"view", icon:"reports", label:selUser.username, badge:null});
 
   return (
     <>
@@ -2478,12 +2675,12 @@ function AdminPanel({ onLogout }) {
             <div><div className="logo-text">Ledger</div><div className="logo-sub" style={{color:"var(--red)"}}>Admin Panel</div></div>
           </div>
           <nav className="sidebar-nav">
-            <div className={`nav-item${tab==="payments"?" active":""}`} onClick={()=>setTab("payments")}>
-              <Icon name="money" size={17}/>Payments
-              {pending.length>0&&<span style={{marginLeft:"auto",background:"var(--red)",color:"#fff",borderRadius:10,fontSize:"0.7rem",padding:"1px 7px",fontWeight:700}}>{pending.length}</span>}
-            </div>
-            <div className={`nav-item${tab==="users"?" active":""}`} onClick={()=>setTab("users")}><Icon name="customers" size={17}/>Businesses</div>
-            {selUser&&<div className={`nav-item${tab==="view"?" active":""}`} onClick={()=>setTab("view")}><Icon name="reports" size={17}/>{selUser.username}</div>}
+            {adminNavItems.map(item=>(
+              <div key={item.id} className={`nav-item${tab===item.id?" active":""}`} onClick={()=>setTab(item.id)}>
+                <Icon name={item.icon} size={17}/>{item.label}
+                {item.badge&&<span style={{marginLeft:"auto",background:"var(--red)",color:"#fff",borderRadius:10,fontSize:"0.7rem",padding:"1px 7px",fontWeight:700}}>{item.badge}</span>}
+              </div>
+            ))}
           </nav>
           <div className="sidebar-footer">
             <div className="nav-item" onClick={loadAll}><Icon name="sync" size={17}/>Refresh</div>
@@ -2493,9 +2690,11 @@ function AdminPanel({ onLogout }) {
         <div className="main">
           <header className="header">
             <div className="header-title">
-              {tab==="payments"?"Payment Approvals":tab==="users"?"All Businesses":tab==="view"&&selUser?selUser.businessName:"Admin"}
+              {tab==="payments"?"Payment Approvals":tab==="users"?"All Businesses":tab==="settings"?"Site Settings":tab==="stats"?"Statistics":tab==="view"&&selUser?selUser.businessName:"Admin"}
             </div>
             <div className="header-right">
+              {siteSettings.freeMode&&<span style={{background:"rgba(34,211,160,0.15)",color:"var(--green)",border:"1px solid rgba(34,211,160,0.3)",borderRadius:20,padding:"3px 12px",fontSize:"0.75rem",fontWeight:700}}>🆓 FREE MODE ON</span>}
+              {siteSettings.maintenanceMode&&<span style={{background:"rgba(244,63,94,0.15)",color:"var(--red)",border:"1px solid rgba(244,63,94,0.3)",borderRadius:20,padding:"3px 12px",fontSize:"0.75rem",fontWeight:700}}>🔧 MAINTENANCE</span>}
               <div className="user-badge">
                 <div className="user-avatar" style={{background:"linear-gradient(135deg,#f43f5e,#e11d48)"}}>A</div>
                 <span style={{fontSize:"0.8rem",color:"var(--red)",fontWeight:600}}>ADMIN</span>
@@ -2507,15 +2706,13 @@ function AdminPanel({ onLogout }) {
             {/* ── PAYMENTS TAB ── */}
             {tab==="payments"&&(
               <div>
-                {/* Summary cards */}
                 <div className="stats-grid" style={{marginBottom:20}}>
                   <div className="stat-card gold"><div className="stat-icon gold"><Icon name="money" size={18} color="var(--gold)"/></div><div className="stat-label">Pending Approvals</div><div className="stat-value gold">{pending.length}</div></div>
                   <div className="stat-card green"><div className="stat-icon green"><Icon name="check" size={18} color="var(--green)"/></div><div className="stat-label">Total Approved</div><div className="stat-value green">{approved.length}</div></div>
-                  <div className="stat-card blue"><div className="stat-icon blue"><Icon name="money" size={18} color="var(--blue)"/></div><div className="stat-label">Revenue (approx)</div><div className="stat-value blue">₹{approved.reduce((s,p)=>s+p.amount,0)}</div></div>
+                  <div className="stat-card blue"><div className="stat-icon blue"><Icon name="money" size={18} color="var(--blue)"/></div><div className="stat-label">Total Revenue</div><div className="stat-value blue">₹{totalRevenue.toLocaleString("en-IN")}</div></div>
                   <div className="stat-card red"><div className="stat-icon red"><Icon name="trash" size={18} color="var(--red)"/></div><div className="stat-label">Rejected</div><div className="stat-value red">{rejected.length}</div></div>
                 </div>
 
-                {/* Pending first */}
                 {pending.length>0&&(
                   <div className="card" style={{marginBottom:16,border:"1px solid rgba(234,179,8,0.3)"}}>
                     <div style={{fontFamily:"Arial,Helvetica,sans-serif",fontWeight:700,marginBottom:14,color:"var(--gold)"}}>⏳ Pending Approval ({pending.length})</div>
@@ -2544,9 +2741,8 @@ function AdminPanel({ onLogout }) {
                   </div>
                 )}
 
-                {/* All payments history */}
                 <div className="card">
-                  <div className="fw7 fs-sm" style={{marginBottom:14}}>All Payment History</div>
+                  <div className="fw7 fs-sm" style={{marginBottom:14}}>All Payment History ({payments.length})</div>
                   {loading?<div className="empty"><div className="empty-sub">Loading...</div></div>:payments.length===0?
                     <div className="empty"><div className="empty-sub">No payments yet</div></div>
                   :(
@@ -2577,36 +2773,45 @@ function AdminPanel({ onLogout }) {
             {tab==="users"&&(
               <div>
                 <div className="section-header">
-                  <div><div className="section-title">Registered Businesses</div><div className="section-sub">{users.length} total</div></div>
+                  <div><div className="section-title">Registered Businesses</div><div className="section-sub">{users.length} total · {activeUsers.length} active · {expiredUsers.length} expired</div></div>
                 </div>
-                {loading?<div className="empty"><div className="empty-sub">Loading...</div></div>:users.length===0?
-                  <div className="empty"><div className="empty-title">No businesses yet</div></div>
+                <div className="toolbar" style={{marginBottom:16}}>
+                  <div className="search-wrap" style={{maxWidth:320}}>
+                    <span className="search-icon"><Icon name="search" size={15}/></span>
+                    <input value={userSearch} onChange={e=>setUserSearch(e.target.value)} placeholder="Search by name or username..."/>
+                  </div>
+                </div>
+                {loading?<div className="empty"><div className="empty-sub">Loading...</div></div>:filteredUsers.length===0?
+                  <div className="empty"><div className="empty-title">No businesses found</div></div>
                 :(
                   <div className="table-wrap">
                     <table>
                       <thead><tr><th>#</th><th>Business</th><th>Username</th><th>Plan</th><th>Expiry</th><th>Status</th><th className="th-center">Actions</th></tr></thead>
                       <tbody>
-                        {users.map((u,i)=>{
+                        {filteredUsers.map((u,i)=>{
                           const expired = isExpired(u);
                           const left    = daysLeft(u);
                           return (
                             <tr key={u.id}>
                               <td className="text3">{i+1}</td>
-                              <td><div className="fw6">{u.businessName||"-"}</div></td>
+                              <td><div className="fw6">{u.businessName||"-"}</div><div className="fs-xs text3">Joined {u.createdAt?new Date(u.createdAt).toLocaleDateString("en-IN"):"-"}</div></td>
                               <td><span className="badge badge-blue">{u.username}</span></td>
                               <td style={{textTransform:"capitalize"}}>{u.plan||"-"}</td>
                               <td className="text2 fs-xs">{u.expiryDate||"Not set"}</td>
                               <td>
-                                {!u.expiryDate?<span style={{color:"var(--text3)",fontSize:"0.78rem"}}>No subscription</span>
+                                {!u.expiryDate?<span style={{color:"var(--text3)",fontSize:"0.78rem"}}>No sub</span>
+                                :u.expiryDate==="2099-12-31"?<span style={{color:"var(--gold)",fontSize:"0.78rem",fontWeight:600}}>♾ Lifetime</span>
                                 :expired?<span style={{color:"var(--red)",fontSize:"0.78rem",fontWeight:600}}>Expired</span>
                                 :<span style={{color:"var(--green)",fontSize:"0.78rem",fontWeight:600}}>{left}d left</span>}
                               </td>
                               <td className="center">
                                 <div className="flex gap2" style={{justifyContent:"center",flexWrap:"wrap"}}>
-                                  <button className="btn btn-secondary btn-sm" onClick={()=>viewUser(u)}><Icon name="eye" size={13}/>View</button>
-                                  <button className="btn btn-sm" style={{background:"rgba(34,197,94,0.15)",color:"var(--green)",border:"1px solid rgba(34,197,94,0.3)"}} onClick={()=>extendSub(u,1)}>+1M</button>
-                                  <button className="btn btn-sm" style={{background:"rgba(34,197,94,0.15)",color:"var(--green)",border:"1px solid rgba(34,197,94,0.3)"}} onClick={()=>extendSub(u,12)}>+1Y</button>
-                                  <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u)}><Icon name="trash" size={13}/></button>
+                                  <button className="btn btn-secondary btn-sm" onClick={()=>viewUser(u)} title="View ledger"><Icon name="eye" size={13}/>View</button>
+                                  <button className="btn btn-sm" style={{background:"rgba(34,197,94,0.15)",color:"var(--green)",border:"1px solid rgba(34,197,94,0.3)"}} onClick={()=>extendSub(u,1)} title="+1 Month">+1M</button>
+                                  <button className="btn btn-sm" style={{background:"rgba(34,197,94,0.15)",color:"var(--green)",border:"1px solid rgba(34,197,94,0.3)"}} onClick={()=>extendSub(u,12)} title="+1 Year">+1Y</button>
+                                  <button className="btn btn-sm" style={{background:"rgba(251,191,36,0.15)",color:"var(--gold)",border:"1px solid rgba(251,191,36,0.3)"}} onClick={()=>grantLifetime(u)} title="Grant lifetime access">♾ Life</button>
+                                  <button className="btn btn-sm" style={{background:"rgba(56,189,248,0.12)",color:"var(--blue)",border:"1px solid rgba(56,189,248,0.3)"}} onClick={()=>resetPassword(u)} title="Reset password"><Icon name="edit" size={12}/>PWD</button>
+                                  <button className="btn btn-danger btn-sm" onClick={()=>deleteUser(u)} title="Delete user"><Icon name="trash" size={13}/></button>
                                 </div>
                               </td>
                             </tr>
@@ -2616,6 +2821,157 @@ function AdminPanel({ onLogout }) {
                     </table>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ── SITE SETTINGS TAB ── */}
+            {tab==="settings"&&(
+              <div style={{maxWidth:680}}>
+                <div className="section-header" style={{marginBottom:24}}>
+                  <div><div className="section-title">⚙️ Site Settings</div><div className="section-sub">Control pricing, access, and site behaviour</div></div>
+                </div>
+
+                {settingsMsg&&<div className={`alert ${settingsMsg.startsWith("✅")?"alert-success":"alert-error"}`} style={{marginBottom:16}}>{settingsMsg}</div>}
+
+                {/* ── FREE MODE ── */}
+                <div className="card" style={{marginBottom:16,border: siteSettings.freeMode?"1px solid rgba(34,211,160,0.4)":"1px solid var(--border)"}}>
+                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,fontSize:"1rem",marginBottom:4,display:"flex",alignItems:"center",gap:8}}>
+                        🆓 Free Mode
+                        {siteSettings.freeMode&&<span style={{background:"rgba(34,211,160,0.15)",color:"var(--green)",padding:"1px 8px",borderRadius:12,fontSize:"0.72rem",fontWeight:700}}>ACTIVE</span>}
+                      </div>
+                      <div style={{fontSize:"0.82rem",color:"var(--text2)",lineHeight:1.6}}>When enabled, <strong style={{color:"var(--text)"}}>all users get unlimited free access</strong> — no payment, no expiry. UPI payment page is bypassed completely. Perfect for beta testing or making the service free for everyone.</div>
+                    </div>
+                    <div>
+                      <button
+                        onClick={()=>saveSettings({freeMode:!siteSettings.freeMode})}
+                        disabled={settingsBusy}
+                        style={{
+                          padding:"10px 22px",fontWeight:700,fontSize:"0.9rem",borderRadius:10,border:"none",cursor:"pointer",whiteSpace:"nowrap",
+                          background: siteSettings.freeMode ? "var(--red)" : "var(--green)",
+                          color: "#fff", minWidth:110,
+                        }}
+                      >
+                        {siteSettings.freeMode ? "🔒 Disable" : "🆓 Enable"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── MAINTENANCE MODE ── */}
+                <div className="card" style={{marginBottom:16,border: siteSettings.maintenanceMode?"1px solid rgba(244,63,94,0.4)":"1px solid var(--border)"}}>
+                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:16}}>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,fontSize:"1rem",marginBottom:4,display:"flex",alignItems:"center",gap:8}}>
+                        🔧 Maintenance Mode
+                        {siteSettings.maintenanceMode&&<span style={{background:"rgba(244,63,94,0.15)",color:"var(--red)",padding:"1px 8px",borderRadius:12,fontSize:"0.72rem",fontWeight:700}}>ACTIVE</span>}
+                      </div>
+                      <div style={{fontSize:"0.82rem",color:"var(--text2)",lineHeight:1.6}}>Show a maintenance notice on the payment page. Useful when you need downtime or to push updates without deleting users.</div>
+                    </div>
+                    <button
+                      onClick={()=>saveSettings({maintenanceMode:!siteSettings.maintenanceMode})}
+                      disabled={settingsBusy}
+                      style={{padding:"10px 22px",fontWeight:700,fontSize:"0.9rem",borderRadius:10,border:"none",cursor:"pointer",whiteSpace:"nowrap",background:siteSettings.maintenanceMode?"var(--red)":"rgba(244,63,94,0.15)",color:siteSettings.maintenanceMode?"#fff":"var(--red)",minWidth:110}}
+                    >
+                      {siteSettings.maintenanceMode?"✅ Disable":"🔧 Enable"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── PRICING ── */}
+                <div className="card" style={{marginBottom:16}}>
+                  <div style={{fontWeight:700,fontSize:"1rem",marginBottom:4}}>💰 Subscription Pricing</div>
+                  <div style={{fontSize:"0.82rem",color:"var(--text2)",marginBottom:16}}>Set the prices shown to users on the payment page. Changes take effect immediately for all new users.</div>
+                  <PricingEditor
+                    priceMonthly={siteSettings.priceMonthly??99}
+                    priceYearly={siteSettings.priceYearly??999}
+                    busy={settingsBusy}
+                    onSave={(pm,py)=>saveSettings({priceMonthly:pm,priceYearly:py})}
+                  />
+                </div>
+
+                {/* ── ANNOUNCEMENT ── */}
+                <div className="card" style={{marginBottom:16}}>
+                  <div style={{fontWeight:700,fontSize:"1rem",marginBottom:4}}>📢 Announcement Banner</div>
+                  <div style={{fontSize:"0.82rem",color:"var(--text2)",marginBottom:14}}>Show a message banner on the payment page for all users (leave empty to hide).</div>
+                  <AnnouncementEditor
+                    text={siteSettings.announcement||""}
+                    type={siteSettings.announcementType||"info"}
+                    busy={settingsBusy}
+                    onSave={(text,type)=>saveSettings({announcement:text,announcementType:type})}
+                  />
+                </div>
+
+                {/* ── SITE NAME ── */}
+                <div className="card" style={{marginBottom:16}}>
+                  <div style={{fontWeight:700,fontSize:"1rem",marginBottom:4}}>🏷️ Site Name</div>
+                  <div style={{fontSize:"0.82rem",color:"var(--text2)",marginBottom:14}}>The name shown on the payment page and login screen.</div>
+                  <SiteNameEditor
+                    name={siteSettings.siteName||"Ledger"}
+                    busy={settingsBusy}
+                    onSave={(name)=>saveSettings({siteName:name})}
+                  />
+                </div>
+
+                {/* ── QUICK ACTIONS ── */}
+                <div className="card">
+                  <div style={{fontWeight:700,fontSize:"1rem",marginBottom:14}}>⚡ Quick Actions</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+                    <button className="btn btn-secondary" onClick={()=>saveSettings({freeMode:false,maintenanceMode:false,announcement:""})} disabled={settingsBusy}>🔄 Reset All to Defaults</button>
+                    <button className="btn btn-secondary" onClick={loadAll} disabled={settingsBusy}><Icon name="sync" size={14}/>Reload Settings</button>
+                    <button className="btn btn-secondary" onClick={()=>{const j=JSON.stringify(siteSettings,null,2);const b=new Blob([j],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="site_settings.json";a.click();}} disabled={settingsBusy}><Icon name="download" size={14}/>Export JSON</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── STATISTICS TAB ── */}
+            {tab==="stats"&&(
+              <div>
+                <div className="section-header" style={{marginBottom:20}}>
+                  <div><div className="section-title">📊 Statistics</div><div className="section-sub">Overview of all businesses and revenue</div></div>
+                </div>
+                <div className="stats-grid" style={{marginBottom:24}}>
+                  <div className="stat-card blue"><div className="stat-icon blue"><Icon name="customers" size={18} color="var(--blue)"/></div><div className="stat-label">Total Businesses</div><div className="stat-value blue">{users.length}</div></div>
+                  <div className="stat-card green"><div className="stat-icon green"><Icon name="check" size={18} color="var(--green)"/></div><div className="stat-label">Active Subscriptions</div><div className="stat-value green">{activeUsers.length}</div></div>
+                  <div className="stat-card red"><div className="stat-icon red"><Icon name="close" size={18} color="var(--red)"/></div><div className="stat-label">Expired / Inactive</div><div className="stat-value red">{expiredUsers.length}</div></div>
+                  <div className="stat-card gold"><div className="stat-icon gold"><Icon name="money" size={18} color="var(--gold)"/></div><div className="stat-label">Total Revenue</div><div className="stat-value gold">₹{totalRevenue.toLocaleString("en-IN")}</div></div>
+                </div>
+                <div className="grid2">
+                  <div className="card">
+                    <div className="fw7" style={{marginBottom:12}}>Revenue Breakdown</div>
+                    {["monthly","yearly"].map(plan=>{
+                      const planPayments = approved.filter(p=>p.plan===plan);
+                      const planRevenue  = planPayments.reduce((s,p)=>s+Number(p.amount||0),0);
+                      return (
+                        <div key={plan} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
+                          <div style={{textTransform:"capitalize",fontWeight:600}}>{plan}</div>
+                          <div style={{textAlign:"right"}}>
+                            <div style={{fontWeight:700,color:"var(--gold)"}}>₹{planRevenue.toLocaleString("en-IN")}</div>
+                            <div style={{fontSize:"0.72rem",color:"var(--text3)"}}>{planPayments.length} payments</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingTop:10,marginTop:2}}>
+                      <div style={{fontWeight:700}}>Total</div>
+                      <div style={{fontWeight:800,color:"var(--green)",fontSize:"1.1rem"}}>₹{totalRevenue.toLocaleString("en-IN")}</div>
+                    </div>
+                  </div>
+                  <div className="card">
+                    <div className="fw7" style={{marginBottom:12}}>Recent Registrations</div>
+                    {[...users].sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,8).map(u=>(
+                      <div key={u.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:"1px solid var(--border)"}}>
+                        <div>
+                          <div style={{fontWeight:600,fontSize:"0.9rem"}}>{u.businessName||u.username}</div>
+                          <div style={{fontSize:"0.72rem",color:"var(--text3)"}}>@{u.username}</div>
+                        </div>
+                        <div style={{fontSize:"0.75rem",color:"var(--text3)"}}>{u.createdAt?new Date(u.createdAt).toLocaleDateString("en-IN"):"-"}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
@@ -2675,6 +3031,72 @@ function AdminPanel({ onLogout }) {
       </div>
       <Toasts toasts={toasts} remove={removeToast}/>
     </>
+  );
+}
+
+// ─── Admin sub-editors ────────────────────────────────────────────────
+function PricingEditor({ priceMonthly, priceYearly, busy, onSave }) {
+  const [pm, setPm] = useState(priceMonthly);
+  const [py, setPy] = useState(priceYearly);
+  const inp = {background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",color:"var(--text)",fontFamily:"var(--font)",fontSize:"0.95rem",padding:"9px 12px",width:"100%",outline:"none"};
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:16}}>
+        <div>
+          <label style={{fontSize:"0.75rem",fontWeight:600,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.04em",display:"block",marginBottom:5}}>Monthly Price (₹)</label>
+          <input style={inp} type="number" min="0" value={pm} onChange={e=>setPm(Number(e.target.value))} placeholder="e.g. 99"/>
+          <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:4}}>Set 0 for free monthly plan</div>
+        </div>
+        <div>
+          <label style={{fontSize:"0.75rem",fontWeight:600,color:"var(--text2)",textTransform:"uppercase",letterSpacing:"0.04em",display:"block",marginBottom:5}}>Yearly Price (₹)</label>
+          <input style={inp} type="number" min="0" value={py} onChange={e=>setPy(Number(e.target.value))} placeholder="e.g. 999"/>
+          <div style={{fontSize:"0.72rem",color:"var(--text3)",marginTop:4}}>Set 0 for free yearly plan</div>
+        </div>
+      </div>
+      <div style={{background:"var(--surface2)",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:"0.82rem",color:"var(--text2)"}}>
+        Preview: Monthly <strong style={{color:"var(--gold)"}}>₹{pm}</strong> · Yearly <strong style={{color:"var(--gold)"}}>₹{py}</strong> · Annual saving <strong style={{color:"var(--green)"}}>₹{Math.max(0,pm*12-py)}</strong>
+      </div>
+      <button className="btn btn-gold" onClick={()=>onSave(pm,py)} disabled={busy}>{busy?"Saving...":"💾 Save Pricing"}</button>
+    </div>
+  );
+}
+
+function AnnouncementEditor({ text, type, busy, onSave }) {
+  const [txt, setTxt] = useState(text);
+  const [tp, setTp]   = useState(type);
+  const typeColors = {info:"var(--blue)",success:"var(--green)",warning:"var(--gold)",error:"var(--red)"};
+  const inp = {background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",color:"var(--text)",fontFamily:"var(--font)",fontSize:"0.9rem",padding:"9px 12px",width:"100%",outline:"none",resize:"vertical",minHeight:72};
+  return (
+    <div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:14,marginBottom:14,alignItems:"flex-start"}}>
+        <textarea style={inp} value={txt} onChange={e=>setTxt(e.target.value)} placeholder="e.g. We are upgrading our servers tonight from 11pm–2am. Sorry for the inconvenience."/>
+        <div>
+          <div style={{fontSize:"0.72rem",color:"var(--text3)",marginBottom:6}}>Type</div>
+          {["info","success","warning","error"].map(t=>(
+            <div key={t} onClick={()=>setTp(t)} style={{display:"flex",alignItems:"center",gap:6,padding:"4px 8px",borderRadius:6,cursor:"pointer",marginBottom:4,background:tp===t?"var(--surface3)":"transparent",border:`1px solid ${tp===t?"var(--border2)":"transparent"}`}}>
+              <div style={{width:10,height:10,borderRadius:"50%",background:typeColors[t]}}/>
+              <span style={{fontSize:"0.78rem",textTransform:"capitalize",color:tp===t?"var(--text)":"var(--text2)"}}>{t}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {txt&&<div style={{background:`rgba(${tp==="info"?"56,189,248":tp==="success"?"34,211,160":tp==="warning"?"234,179,8":"244,63,94"},0.1)`,border:`1px solid ${typeColors[tp]}40`,borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:"0.82rem",color:typeColors[tp]}}>Preview: {txt}</div>}
+      <div style={{display:"flex",gap:10}}>
+        <button className="btn btn-gold" onClick={()=>onSave(txt,tp)} disabled={busy}>{busy?"Saving...":"📢 Save Banner"}</button>
+        {txt&&<button className="btn btn-danger" onClick={()=>{setTxt(""); onSave("",tp);}} disabled={busy}>Clear</button>}
+      </div>
+    </div>
+  );
+}
+
+function SiteNameEditor({ name, busy, onSave }) {
+  const [n, setN] = useState(name);
+  const inp = {background:"var(--surface2)",border:"1px solid var(--border)",borderRadius:"var(--radius-sm)",color:"var(--text)",fontFamily:"var(--font)",fontSize:"0.95rem",padding:"9px 12px",width:"100%",outline:"none"};
+  return (
+    <div style={{display:"flex",gap:10,alignItems:"center"}}>
+      <input style={{...inp,flex:1}} value={n} onChange={e=>setN(e.target.value)} placeholder="e.g. Ledger"/>
+      <button className="btn btn-gold" onClick={()=>n.trim()&&onSave(n.trim())} disabled={busy}>{busy?"Saving...":"💾 Save"}</button>
+    </div>
   );
 }
 
@@ -3090,6 +3512,7 @@ export default function App() {
   const [syncStatus,  setSync]    = useState("");
   const [sidebarOpen, setSidebar] = useState(false);
   const [viewPerson,  setViewPerson] = useState(null);
+  const [siteSettings, setSiteSettings] = useState(null);
   const { toasts, add: addToast, remove: removeToast } = useToast();
 
   // Modals
@@ -3101,14 +3524,14 @@ export default function App() {
     setLoading(true);
     try {
       const file = userDataFile(user.username);
-      const result = await ghGet(file);
+      const [result, settingsResult] = await Promise.all([ghGet(file), ghGet(SITE_SETTINGS_FILE)]);
+      const settings = settingsResult?.data || { freeMode: false, priceMonthly: 99, priceYearly: 999 };
+      setSiteSettings(settings);
       if (result) {
         setData({...defaultBusinessData, ...result.data});
         setFileSha(result.sha);
-        // Fire-and-forget: auto-generate month-end report if needed
         autoGenerateMonthEndReport(user, {...defaultBusinessData, ...result.data});
       } else {
-        // First time — create their file
         const init = {...defaultBusinessData, companyName: user.businessName||"My Gold Shop"};
         const sha = await ghPut(file, init, null, `Init data for ${user.username}`);
         setData(init); setFileSha(sha);
@@ -3239,11 +3662,12 @@ export default function App() {
   );
 
   // ── Subscription expired / not paid → show payment page ──
-  if(!loading && currentUser && isExpired(currentUser)) return (
+  if(!loading && currentUser && isExpired(currentUser, siteSettings)) return (
     <>
       <style>{styles}</style>
       <PaymentPage
         currentUser={currentUser}
+        siteSettings={siteSettings}
         onLogout={()=>{setCurrentUser(null);setData({...defaultBusinessData});setFileSha(null);}}
         onRefresh={async()=>{
           // Re-fetch latest user record from users.json to check if approved
@@ -3251,7 +3675,10 @@ export default function App() {
             const result = await ghGet(USERS_FILE);
             const users  = result?.data?.users || [];
             const fresh  = users.find(u=>u.username===currentUser.username);
-            if (fresh && !isExpired(fresh)) {
+            const settingsResult = await ghGet(SITE_SETTINGS_FILE);
+            const freshSettings = settingsResult?.data || siteSettings;
+            setSiteSettings(freshSettings);
+            if (fresh && !isExpired(fresh, freshSettings)) {
               setCurrentUser(fresh);
               loadUserData(fresh);
             } else {
@@ -3324,9 +3751,9 @@ export default function App() {
 
           <div className="page">
             {/* Expiry warning banner */}
-            {currentUser && daysLeft(currentUser) <= 7 && daysLeft(currentUser) > 0 && (
+            {currentUser && daysLeft(currentUser, siteSettings) <= 7 && daysLeft(currentUser, siteSettings) > 0 && (
               <div style={{background:"rgba(234,179,8,0.12)",border:"1px solid rgba(234,179,8,0.4)",borderRadius:10,padding:"10px 16px",marginBottom:16,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12}}>
-                <div style={{fontSize:"0.88rem",color:"var(--gold)",fontWeight:600}}>⚠️ Your subscription expires in {daysLeft(currentUser)} day{daysLeft(currentUser)===1?"":"s"}. Renew to avoid interruption.</div>
+                <div style={{fontSize:"0.88rem",color:"var(--gold)",fontWeight:600}}>⚠️ Your subscription expires in {daysLeft(currentUser, siteSettings)} day{daysLeft(currentUser, siteSettings)===1?"":"s"}. Renew to avoid interruption.</div>
                 <button onClick={()=>{setCurrentUser(u=>({...u,expiryDate:"2000-01-01"}));}} style={{background:"var(--gold)",color:"#000",border:"none",borderRadius:6,padding:"5px 14px",fontWeight:700,cursor:"pointer",fontSize:"0.8rem",whiteSpace:"nowrap"}}>Renew Now</button>
               </div>
             )}
@@ -3347,6 +3774,7 @@ export default function App() {
             )}
             {page==="ledger"&&viewPerson&&(
               <LedgerView person={viewPerson} entries={data.entries} allPeople={allPeople}
+                companyData={data}
                 onBack={()=>setPage(viewPerson.ptype==="customer"?"customers":"workers")}
                 onAddEntry={()=>setEntryForm({entry:null,personId:viewPerson.id,personType:viewPerson.ptype})}
                 onEditEntry={e=>setEntryForm({entry:e,personId:e.personId})}
