@@ -89,6 +89,22 @@
       "id": "sczvhcz9mmne858g",
       "goldBal": -67,
       "moneyBal": 0
+    },
+    {
+      "date": "2026-03-14",
+      "personId": "v0rqdq29mmlnzmq0",
+      "personType": "customer",
+      "description": "",
+      "goldIn": 100,
+      "goldOut": 0,
+      "purity": "100",
+      "moneyIn": 0,
+      "moneyOut": 0,
+      "notes": "",
+      "pureGoldIn": 100,
+      "pureGoldOut": 0,
+      "createdAt": 1773494984500,
+      "id": "qi3c6qzmmmqd4g1g"
     }
   ],
   "companyName": "Rishvik Jewellery",
