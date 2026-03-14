@@ -78,15 +78,17 @@
       "personType": "customer",
       "description": "",
       "goldIn": 0,
-      "goldOut": 67,
+      "goldOut": 100,
       "purity": "100",
       "moneyIn": 0,
       "moneyOut": 0,
       "notes": "",
       "pureGoldIn": 0,
-      "pureGoldOut": 67,
+      "pureGoldOut": 100,
       "createdAt": 1773315438208,
-      "id": "sczvhcz9mmne858g"
+      "id": "sczvhcz9mmne858g",
+      "goldBal": -67,
+      "moneyBal": 0
     }
   ],
   "companyName": "Rishvik Jewellery",
