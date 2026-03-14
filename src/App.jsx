@@ -115,6 +115,26 @@ const printHTMLDoc = (html, title) => {
   iframe.src = url;
 };
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"numeric" }) : "-";
+// File name timestamp: e.g. "14-Mar-2026_06-59pm"
+const fmtFileStamp = () => {
+  const n = new Date();
+  const dd  = String(n.getDate()).padStart(2,"0");
+  const mon = n.toLocaleString("en-IN",{month:"short"});
+  const yr  = n.getFullYear();
+  const hh  = String(n.getHours()).padStart(2,"0");
+  const mm  = String(n.getMinutes()).padStart(2,"0");
+  return `${dd}-${mon}-${yr}_${hh}h${mm}m`;
+};
+// Sanitize label + append timestamp + extension -> safe file name
+const makeFileName = (label, ext="csv") => {
+  const clean = (label||"Report")
+    .replace(/[\/\:*?"<>|]/g,"")  // remove illegal chars
+    .replace(/\s+/g,"_")           // spaces to underscore
+    .replace(/_+/g,"_")            // collapse underscores
+    .replace(/^_|_$/g,"")          // trim edge underscores
+    .slice(0,80);                  // max 80 chars before stamp
+  return `${clean}_${fmtFileStamp()}.${ext}`;
+};
 const fmtMoney = (n) => {
   const num = Number(n) || 0;
   const abs = Math.abs(num);
@@ -998,7 +1018,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
   const handleExportPDF = () => {
     setExportMenu(false);
     const html = buildLedgerHTML(filtered, "all");
-    printHTMLDoc(html, `Ledger – ${person.name}`);
+    printHTMLDoc(html, makeFileName(`Ledger_${person.name}${yearFilter?"_"+yearFilter:""}${monthFilter?"_"+new Date(monthFilter+"-01").toLocaleString("default",{month:"short",year:"numeric"}):""}${!yearFilter&&!monthFilter?"_AllTime":""}`, "pdf"));
   };
 
   // ── CSV export ──
@@ -1012,7 +1032,7 @@ function LedgerView({ person, entries, allPeople, onBack, onAddEntry, onEditEntr
     const blob = new Blob([csvRows.join("\n")], {type:"text/csv;charset=utf-8;"});
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href = url; a.download = `ledger_${person.name.replace(/\s+/g,"_")}_${new Date().toISOString().slice(0,10)}.csv`;
+    a.href = url; a.download = makeFileName(`Ledger_${person.name}${yearFilter?"_"+yearFilter:""}${monthFilter?"_"+new Date(monthFilter+"-01").toLocaleString("default",{month:"short",year:"numeric"}):""}${!yearFilter&&!monthFilter?"_AllTime":""}`, "csv");
     a.click(); URL.revokeObjectURL(url);
   };
 
@@ -1802,7 +1822,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
 
   const doPrint = () => {
     if (!preview) return;
-    printHTMLDoc(preview.html, preview.title || "Report");
+    printHTMLDoc(preview.html, makeFileName(preview.title || "Report", "pdf"));
   };
 
   const exportCSV = (ents, name) => {
@@ -1818,7 +1838,7 @@ function Reports({ entries, customers, workers, companyName, companyData, onDele
               e.moneyIn||0,e.moneyOut||0,rM.toFixed(2),e.notes||""];
     });
     const csv = [headers,...csvRows].map(r=>r.map(c=>`"${c}"`).join(",")).join("\n");
-    const a = document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download=`${name}.csv`; a.click();
+    const a = document.createElement("a"); a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv); a.download=makeFileName(name, "csv"); a.click();
   };
 
   const doSaveReport = async ({name, tags, notes}) => {
@@ -2215,6 +2235,22 @@ const PRESET_THEMES = [
     green:"#34d399", greenDim:"rgba(52,211,153,0.12)",
     red:"#f87171",   redDim:"rgba(248,113,113,0.12)",
     blue:"#93c5fd",  blueDim:"rgba(147,197,253,0.12)" },
+  { id:"skyblue",    name:"Sky Blue",    emoji:"🩵",
+    bg:"#e8f4fd", surface:"#d0eaf8", surface2:"#b8ddf2", surface3:"#a0d0ec",
+    border:"#7ab8e0", border2:"#5aa0cc", text:"#0a2540",
+    accent:"#0284c7", accent2:"#0369a1", accentDim:"rgba(2,132,199,0.15)",
+    gold:"#d97706", amber:"#b45309", goldDim:"rgba(217,119,6,0.15)",
+    green:"#059669", greenDim:"rgba(5,150,105,0.15)",
+    red:"#dc2626",   redDim:"rgba(220,38,38,0.12)",
+    blue:"#0284c7",  blueDim:"rgba(2,132,199,0.12)" },
+  { id:"white",      name:"White",       emoji:"🤍",
+    bg:"#f8fafc", surface:"#ffffff", surface2:"#f1f5f9", surface3:"#e2e8f0",
+    border:"#cbd5e1", border2:"#94a3b8", text:"#0f172a",
+    accent:"#4f46e5", accent2:"#4338ca", accentDim:"rgba(79,70,229,0.12)",
+    gold:"#d97706", amber:"#b45309", goldDim:"rgba(217,119,6,0.12)",
+    green:"#059669", greenDim:"rgba(5,150,105,0.10)",
+    red:"#dc2626",   redDim:"rgba(220,38,38,0.10)",
+    blue:"#0284c7",  blueDim:"rgba(2,132,199,0.10)" },
 ];
 
 function SettingsPage({ data, onChange, addToast, currentUser, userTheme={}, applyTheme }) {
