@@ -34,9 +34,10 @@
       "amount": 99,
       "months": 1,
       "utr": "12345678aa",
-      "status": "pending",
+      "status": "approved",
       "submittedAt": 1773463267201,
-      "approvedAt": null
+      "approvedAt": 1773463297742,
+      "expiryDate": "2026-04-14"
     }
   ]
 }
