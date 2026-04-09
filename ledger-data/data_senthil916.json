@@ -172,15 +172,17 @@
       "personType": "customer",
       "description": "",
       "goldIn": 0,
-      "goldOut": 0,
+      "goldOut": 33.64,
       "purity": "100",
       "moneyIn": 0,
-      "moneyOut": 650000,
+      "moneyOut": 165000,
       "notes": "",
       "pureGoldIn": 0,
-      "pureGoldOut": 0,
+      "pureGoldOut": 33.64,
       "createdAt": 1773411169270,
-      "id": "byr39kofmmoz7zsm"
+      "id": "byr39kofmmoz7zsm",
+      "goldBal": 0,
+      "moneyBal": -650000
     },
     {
       "date": "2026-03-09",
